@@ -28,23 +28,19 @@ configurations {
 }
 
 ext {
-	apacheHttpclientVersion='4.3.4'
-	apacheHttpCoreVersion='4.3.2'
-	awsSdkVersion='1.8.7'
-	commonsCodecVersion='1.9'
-	commonsIoVersion='2.0.1'
-	javaMailVersion='1.5.2'
-	jacksonVersion='1.9.11'
-	springIntegrationVersion = '4.0.3.RELEASE'
+	commonsIoVersion='2.4'
+	jacocoVersion = '0.7.1.201405082137'
+	springCloudAwsVersion = '1.0.0.RC2'
+	springIntegrationVersion = '4.1.2.RELEASE'
 
 	idPrefix = 'aws'
 
-	linkHomepage = 'https://github.com/spring-projects/spring-integration-extensions'
+	linkHomepage = 'https://github.com/spring-projects/spring-integration-aws'
 	linkCi       = 'https://build.spring.io/browse/INTEXT'
 	linkIssue    = 'https://jira.spring.io/browse/INTEXT'
-	linkScmUrl           = 'https://github.com/spring-projects/spring-integration-extensions'
-	linkScmConnection    = 'https://github.com/spring-projects/spring-integration-extensions.git'
-	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-extensions.git'
+	linkScmUrl           = 'https://github.com/spring-projects/spring-integration-aws'
+	linkScmConnection    = 'https://github.com/spring-projects/spring-integration-aws.git'
+	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
 }
 
 ext.javadocLinks = [
@@ -55,21 +51,12 @@ ext.javadocLinks = [
 dependencies {
 
 	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
-	compile "com.amazonaws:aws-java-sdk:$awsSdkVersion"
-	compile "commons-codec:commons-codec:$commonsCodecVersion"
+	compile "org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion"
 	compile "commons-io:commons-io:$commonsIoVersion"
-	compile "org.codehaus.jackson:jackson-core-asl:$jacksonVersion"
-	compile "org.codehaus.jackson:jackson-mapper-asl:$jacksonVersion"
-	compile "org.apache.httpcomponents:httpclient:$apacheHttpclientVersion"
-	compile "org.apache.httpcomponents:httpcore:$apacheHttpCoreVersion"
-
-	//Amazon SES Support
-	compile ("org.springframework.integration:spring-integration-mail:$springIntegrationVersion", optional)
-	compile ("javax.mail:javax.mail-api:$javaMailVersion", optional)
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
 
-	jacoco group: "org.jacoco", name: "org.jacoco.agent", version: "0.7.1.201405082137", classifier: "runtime"
+	jacoco "org.jacoco:org.jacoco.agent:$jacocoVersion:runtime"
 
 }
 
