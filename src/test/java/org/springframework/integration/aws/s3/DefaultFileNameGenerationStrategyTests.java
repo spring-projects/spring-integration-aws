@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,9 @@ import org.junit.Rule;
 
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
+
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 
@@ -34,6 +37,7 @@ import org.springframework.messaging.Message;
  *
  * @author Amol Nayak
  * @author Rob Harrop
+ * @author Artem Bilan
  *
  * @since 0.5
  *
@@ -52,6 +56,7 @@ public class DefaultFileNameGenerationStrategyTests {
 							.setHeader(AmazonS3MessageHeaders.FILE_NAME, "FileName.txt")
 							.build();
 		DefaultFileNameGenerationStrategy strategy = new DefaultFileNameGenerationStrategy();
+		strategy.setBeanFactory(Mockito.mock(BeanFactory.class));
 		Assert.assertEquals("FileName.txt", strategy.generateFileName(message));
 	}
 
@@ -65,6 +70,7 @@ public class DefaultFileNameGenerationStrategyTests {
 		Message<File> message = MessageBuilder.withPayload(file)
 								.build();
 		DefaultFileNameGenerationStrategy strategy = new DefaultFileNameGenerationStrategy();
+		strategy.setBeanFactory(Mockito.mock(BeanFactory.class));
 		Assert.assertEquals("TempFile.txt", strategy.generateFileName(message));
 		file.delete();
 	}
@@ -79,6 +85,7 @@ public class DefaultFileNameGenerationStrategyTests {
 		Message<File> message = MessageBuilder.withPayload(file)
 								.build();
 		DefaultFileNameGenerationStrategy strategy = new DefaultFileNameGenerationStrategy();
+		strategy.setBeanFactory(Mockito.mock(BeanFactory.class));
 		Assert.assertEquals("TempFile.txt", strategy.generateFileName(message));
 		file.delete();
 	}
@@ -91,6 +98,7 @@ public class DefaultFileNameGenerationStrategyTests {
 		Message<String> message = MessageBuilder.withPayload("String")
 								.build();
 		DefaultFileNameGenerationStrategy strategy = new DefaultFileNameGenerationStrategy();
+		strategy.setBeanFactory(Mockito.mock(BeanFactory.class));
 		UUID uid = message.getHeaders().getId();
 		Assert.assertEquals(uid.toString() + ".ext", strategy.generateFileName(message));
 	}
@@ -101,6 +109,7 @@ public class DefaultFileNameGenerationStrategyTests {
 	@Test(expected=IllegalArgumentException.class)
 	public void withNullExprssion() {
 		DefaultFileNameGenerationStrategy strategy = new DefaultFileNameGenerationStrategy();
+		strategy.setBeanFactory(Mockito.mock(BeanFactory.class));
 		strategy.setFileNameExpression(null);
 	}
 
@@ -110,6 +119,8 @@ public class DefaultFileNameGenerationStrategyTests {
 	@Test(expected=IllegalArgumentException.class)
 	public void withNullTemporarySuffix() {
 		DefaultFileNameGenerationStrategy strategy = new DefaultFileNameGenerationStrategy();
+		strategy.setBeanFactory(Mockito.mock(BeanFactory.class));
 		strategy.setTemporarySuffix(null);
 	}
+	
 }
