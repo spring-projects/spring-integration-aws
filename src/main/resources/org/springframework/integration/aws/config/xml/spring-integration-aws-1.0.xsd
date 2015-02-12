@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsd:schema xmlns="http://www.springframework.org/schema/integration/aws"
-		xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-		xmlns:beans="http://www.springframework.org/schema/beans"
-		xmlns:tool="http://www.springframework.org/schema/tool"
-		xmlns:integration="http://www.springframework.org/schema/integration"
-		targetNamespace="http://www.springframework.org/schema/integration/aws"
-		elementFormDefault="qualified"
-		attributeFormDefault="unqualified">
+			xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+			xmlns:beans="http://www.springframework.org/schema/beans"
+			xmlns:tool="http://www.springframework.org/schema/tool"
+			xmlns:integration="http://www.springframework.org/schema/integration"
+			targetNamespace="http://www.springframework.org/schema/integration/aws"
+			elementFormDefault="qualified"
+			attributeFormDefault="unqualified">
 
 	<xsd:import namespace="http://www.springframework.org/schema/beans"/>
 	<xsd:import namespace="http://www.springframework.org/schema/tool"/>
 	<xsd:import namespace="http://www.springframework.org/schema/integration"
-		schemaLocation="http://www.springframework.org/schema/integration/spring-integration.xsd"/>
+				schemaLocation="http://www.springframework.org/schema/integration/spring-integration.xsd"/>
 
 
 	<xsd:annotation>
@@ -20,46 +20,46 @@
 		]]></xsd:documentation>
 	</xsd:annotation>
 
-		<xsd:attributeGroup name="awsAdaptersCommonAttributes">
-					<xsd:attribute name="accessKey" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specify the access key to be used to connect to the AWS service.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="secretKey" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specify the secret key corresponding to the access key to be used to
-						authenticate the user and connect to the AWS service.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="propertiesFile" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specifies the properties file used that will be used to hold the access key
-						and the secret key of the AWS. This file expects two properties accessKey and
-						secretKey for Access key and Secret Key respectively. This attribute is mutually
-						exclusive to the accessKey, secretKey and credentials-ref attribute.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="credentials-ref" type="xsd:string">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type type="org.springframework.integration.aws.core.AWSCredentials"/>
-						</tool:annotation>
-					</xsd:appinfo>
-					<xsd:documentation>
-						If none of the default mechanisms work, you may provide a custom implementation
-						of org.springframework.integration.aws.core.AWSCredentials. Various use cases are
-						when you might want to read the credentials from a database or any other secure store
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
+	<xsd:attributeGroup name="awsAdaptersCommonAttributes">
+		<xsd:attribute name="accessKey" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specify the access key to be used to connect to the AWS service.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="secretKey" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specify the secret key corresponding to the access key to be used to
+					authenticate the user and connect to the AWS service.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="propertiesFile" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specifies the properties file used that will be used to hold the access key
+					and the secret key of the AWS. This file expects two properties accessKey and
+					secretKey for Access key and Secret Key respectively. This attribute is mutually
+					exclusive to the accessKey, secretKey and credentials-ref attribute.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="credentials-ref" type="xsd:string">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.integration.aws.core.AWSCredentials"/>
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation>
+					If none of the default mechanisms work, you may provide a custom implementation
+					of org.springframework.integration.aws.core.AWSCredentials. Various use cases are
+					when you might want to read the credentials from a database or any other secure store
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
 	</xsd:attributeGroup>
 
 	<xsd:element name="s3-outbound-channel-adapter">
@@ -166,7 +166,8 @@
 				<xsd:annotation>
 					<xsd:appinfo>
 						<tool:annotation kind="ref">
-							<tool:expected-type type="org.springframework.integration.aws.s3.FileNameGenerationStrategy"/>
+							<tool:expected-type
+									type="org.springframework.integration.aws.s3.FileNameGenerationStrategy"/>
 						</tool:annotation>
 					</xsd:appinfo>
 					<xsd:documentation>
@@ -201,7 +202,8 @@
 						<tool:expected-type type="org.springframework.integration.aws.s3.core.AmazonS3Operations"/>
 					</xsd:appinfo>
 					<xsd:documentation>
-						Reference to the bean with an implementation of org.springframework.integration.aws.s3.core.AmazonS3Operations
+						Reference to the bean with an implementation of
+						org.springframework.integration.aws.s3.core.AmazonS3Operations
 						that would be used to perform the operations on the S3 bucket. If not provided, the
 						default implementation used is
 						org.springframework.integration.aws.s3.core.DefaultAmazonS3Operations which is the
@@ -266,7 +268,8 @@
 						<tool:expected-type type="org.springframework.integration.aws.s3.core.AmazonS3Operations"/>
 					</xsd:appinfo>
 					<xsd:documentation>
-						Reference to the bean with an implementation of org.springframework.integration.aws.s3.core.AmazonS3Operations
+						Reference to the bean with an implementation of
+						org.springframework.integration.aws.s3.core.AmazonS3Operations
 						that would be used to perform the operations on the S3 bucket. If not provided, the
 						default implementation used is
 						org.springframework.integration.aws.s3.core.DefaultAmazonS3Operations which uses AWS SDK.
@@ -314,7 +317,8 @@
 					<xsd:documentation>
 						The maximum number of objects returned in the listOperation performed on the S3 bucket
 						The default value used internally is 100. That is not more than 100 objects would be returned
-						in one call to list the objects, subsequent calls will be made to the Web service to retrieve the next
+						in one call to list the objects, subsequent calls will be made to the Web service to retrieve
+						the next
 						batch of objects.
 					</xsd:documentation>
 				</xsd:annotation>
@@ -347,5 +351,198 @@
 			</xsd:attribute>
 		</xsd:complexType>
 	</xsd:element>
+
+	<xsd:element name="sqs-outbound-channel-adapter">
+		<xsd:complexType>
+			<xsd:annotation>
+				<xsd:documentation>
+					Defines an outbound SQS Channel Adapter for sending messages to queues.
+				</xsd:documentation>
+			</xsd:annotation>
+			<xsd:complexContent>
+				<xsd:extension base="baseSqsAdapterType">
+					<xsd:choice minOccurs="0" maxOccurs="2">
+						<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1"/>
+						<xsd:element name="request-handler-advice-chain" type="integration:handlerAdviceChainType"
+									 minOccurs="0" maxOccurs="1"/>
+					</xsd:choice>
+					<xsd:attribute name="queue">
+						<xsd:annotation>
+							<xsd:documentation>
+								The Amazon queue name or URL.
+								Mutually exclusive with 'queue-expression'.
+								This attribute isn't mandatory and the queue can be specified in message headers
+								with the 'AwsHeaders.QUEUE' header name.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="queue-expression">
+						<xsd:annotation>
+							<xsd:documentation>
+								A SpEL expression that resolves to an Amazon queue or its URL.
+								The 'requestMessage' is the root object for evaluation context.
+								Mutually exclusive with 'queue'.
+								This attribute isn't mandatory and the queue can be specified in message headers with
+								the 'AwsHeaders.QUEUE' header name.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:element name="sqs-message-driven-channel-adapter">
+		<xsd:annotation>
+			<xsd:documentation>
+				Configures an endpoint ('SqsMessageDrivenChannelAdapter') that will receive
+				Amazon SQS message from the provided 'queues'.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:complexContent>
+				<xsd:extension base="baseSqsAdapterType">
+					<xsd:attribute name="error-channel" use="optional" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation>
+								Message Channel to which error Messages should be sent.
+							</xsd:documentation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
+								</tool:annotation>
+							</xsd:appinfo>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="send-timeout" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation>
+								Maximum amount of time in milliseconds to wait when sending a message
+								to the channel if such channel may block.
+								For example, a Queue Channel can block until space is available
+								if its maximum capacity has been reached.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="queues" use="required">
+						<xsd:annotation>
+							<xsd:documentation>
+								Comma-separated SQS queue names or their URLs.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="task-executor" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation>
+								The 'org.springframework.core.task.TaskExecutor' to run the underlying listener task
+								from the
+								'org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer'.
+							</xsd:documentation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.core.task.TaskExecutor"/>
+								</tool:annotation>
+							</xsd:appinfo>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="max-number-of-messages">
+						<xsd:annotation>
+							<xsd:documentation>
+								Configure the maximum number of messages that should be retrieved during one
+								poll to the Amazon SQS system. This number must be a positive, non-zero number that
+								has a maximum number of 10. Values higher then 10 are currently
+								not supported by the queueing system. Defaults to 1.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="visibility-timeout">
+						<xsd:annotation>
+							<xsd:documentation>
+								Configures the duration (in seconds) that the received messages are hidden from
+								subsequent poll requests after being retrieved from the system.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="wait-time-out">
+						<xsd:annotation>
+							<xsd:documentation>
+								<![CDATA[
+								Configures the wait timeout that the poll request will wait for new message
+								to arrive if the are currently no messages on the queue.
+								Higher values will reduce poll request to the system significantly. The value should
+								be between 1 and 20. For more information read the
+								http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html
+								]]>
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="destination-resolver">
+						<xsd:annotation>
+							<xsd:documentation>
+								A reference to a bean that implements the
+								'org.springframework.messaging.core.DestinationResolver' interface.
+								E.g.
+								'org.springframework.cloud.aws.messaging.support.destination.DynamicQueueUrlDestinationResolver'
+							</xsd:documentation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.messaging.core.DestinationResolver"/>
+								</tool:annotation>
+							</xsd:appinfo>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="delete-message-on-exception">
+						<xsd:annotation>
+							<xsd:documentation>
+								Defines if a message must be deleted or not if the message handling throws an exception
+								By default this value is set to 'true' which means that the message is deleted to
+								avoid poison messages. If the 'error-channel' is specified and the direct error flow
+								doesn't rethrow a 'MessagingException' this attribute doesn't have an effect. If this is
+								to 'false' it is a responsibility of the error flow to remove the message from
+								AmazonSQS.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:complexType name="baseSqsAdapterType">
+		<xsd:annotation>
+			<xsd:documentation>
+				Base type for the 'sqs-message-driven-channel-adapter' and 'sqs-outbound-channel-adapter' elements.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute name="sqs" use="required">
+			<xsd:annotation>
+				<xsd:documentation>
+					The 'com.amazonaws.services.sqs.AmazonSQS' bean reference.
+					Must be 'AmazonSQSAsync' for the 'sqs-message-driven-channel-adapter'.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type
+								type="com.amazonaws.services.sqs.AmazonSQS"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="resource-id-resolver">
+			<xsd:annotation>
+				<xsd:documentation>
+					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean reference.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type
+								type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
+	</xsd:complexType>
+
 
 </xsd:schema>
