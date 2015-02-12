@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
 
+import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.expression.Expression;
 import org.springframework.messaging.Message;
 import org.springframework.integration.aws.core.AWSCredentials;
@@ -41,6 +42,7 @@ import org.springframework.util.Assert;
  *
  * @author Amol Nayak
  * @author Rob Harrop
+ * @author Artem Bilan
  *
  * @since 0.5
  *
@@ -60,30 +62,37 @@ public class AmazonS3MessageHandler extends AbstractMessageHandler {
 
 	private volatile FileNameGenerationStrategy fileNameGenerator = new DefaultFileNameGenerationStrategy();
 
-
+	private volatile boolean fileNameGeneratorSet;
 
 
 	@Override
 	protected void onInit() throws Exception {
 		super.onInit();
 		Assert.hasText(bucket,"Bucket not set'");
-		Assert.notNull(remoteDirectoryProcessor, "Remote Directory processor should be present, set the remore directory expression");
+		Assert.notNull(remoteDirectoryProcessor,
+				"Remote Directory processor should be present, set the remote directory expression");
+		if (!this.fileNameGeneratorSet && this.fileNameGenerator instanceof BeanFactoryAware) {
+			((BeanFactoryAware) this.fileNameGenerator).setBeanFactory(getBeanFactory());
+		}
+
+		this.remoteDirectoryProcessor.setBeanFactory(getBeanFactory());
 	}
 
 
 	/**
 	 * The constructor that initializes {@link AmazonS3MessageHandler} with the provided
 	 * implementation of {@link AmazonS3Operations} and using the provided {@link AWSCredentials}
-	 *
 	 * @param credentials
 	 * @param operations
 	 */
-	public AmazonS3MessageHandler(AWSCredentials credentials,AmazonS3Operations operations) {
+	public AmazonS3MessageHandler(AWSCredentials credentials, AmazonS3Operations operations) {
 		Assert.notNull(operations,"s3 operations is null");
 		Assert.notNull(credentials,"AWS Credentials are null");
 		this.credentials = credentials;
 		this.operations = operations;
 	}
+
+
 
 
 	/**
@@ -92,7 +101,6 @@ public class AmazonS3MessageHandler extends AbstractMessageHandler {
 	 * byte[] or {@link String}. Various predetermined headers as defined in {@link AmazonS3MessageHeaders}
 	 * are extracted from the message and an {@link AmazonS3Object} is constructed that is provided to
 	 * the {@link AmazonS3Operations} implementation to be uploaded in S3.
-	 *
 	 * @param message
 	 */
 	@Override
@@ -172,7 +180,7 @@ public class AmazonS3MessageHandler extends AbstractMessageHandler {
 			return null;
 		}
 		if(expectedType.isAssignableFrom(genericHeader.getClass())) {
-			header = (T)genericHeader;
+			header = (T) genericHeader;
 		}
 		else {
 			logger.warn("Found header " + USER_METADATA + " in the message but was not of required type");
@@ -216,5 +224,7 @@ public class AmazonS3MessageHandler extends AbstractMessageHandler {
 	public void setFileNameGenerator(FileNameGenerationStrategy fileNameGenerator) {
 		Assert.notNull(fileNameGenerator,"File name generator is null");
 		this.fileNameGenerator = fileNameGenerator;
+		this.fileNameGeneratorSet = true;
 	}
+
 }
