@@ -2,7 +2,7 @@ description = 'Spring Integration AWS Support'
 
 buildscript {
 	repositories {
-		maven { url 'http://repo.spring.io/plugins-snapshot' }
+		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 }
 
@@ -15,11 +15,10 @@ group = 'org.springframework.integration'
 
 repositories {
 	maven { url 'http://repo.spring.io/libs-milestone' }
-	maven { url 'http://repo.spring.io/plugins-release' }
+	maven { url 'http://repo.spring.io/libs-snapshot' }
 }
 
-sourceCompatibility=1.6
-targetCompatibility=1.6
+sourceCompatibility = targetCompatibility = 1.7
 
 // See http://www.gradle.org/docs/current/userguide/dependency_management.html#sub:configurations
 // and http://www.gradle.org/docs/current/dsl/org.gradle.api.artifacts.ConfigurationContainer.html
@@ -30,7 +29,8 @@ configurations {
 ext {
 	commonsIoVersion='2.4'
 	jacocoVersion = '0.7.1.201405082137'
-	springCloudAwsVersion = '1.0.0.RC2'
+	slf4jVersion = '1.7.8'
+	springCloudAwsVersion = '1.0.0.BUILD-SNAPSHOT'
 	springIntegrationVersion = '4.1.2.RELEASE'
 
 	idPrefix = 'aws'
@@ -56,15 +56,13 @@ dependencies {
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
 
+	testRuntime "org.slf4j:slf4j-log4j12:$slf4jVersion"
+
 	jacoco "org.jacoco:org.jacoco.agent:$jacocoVersion:runtime"
 
 }
 
-eclipse {
-	project {
-		natures += 'org.springframework.ide.eclipse.core.springnature'
-	}
-}
+eclipse.project.natures += 'org.springframework.ide.eclipse.core.springnature'
 
 javadoc {
 	group = 'Documentation'

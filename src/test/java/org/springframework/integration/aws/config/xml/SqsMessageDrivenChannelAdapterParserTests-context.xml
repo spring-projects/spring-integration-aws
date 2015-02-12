@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
+	   xmlns:aws-messaging="http://www.springframework.org/schema/cloud/aws/messaging"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	   http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
+	   http://www.springframework.org/schema/cloud/aws/messaging http://www.springframework.org/schema/cloud/aws/messaging/spring-cloud-aws-messaging-1.0.xsd">
+
+	<aws-messaging:sqs-async-client id="sqs"/>
+
+	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+	</bean>
+
+	<bean id="taskExecutor" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.core.task.TaskExecutor"/>
+	</bean>
+
+
+	<bean id="destinationResolver"
+		  class="org.springframework.cloud.aws.messaging.support.destination.DynamicQueueUrlDestinationResolver">
+		<constructor-arg ref="sqs"/>
+		<constructor-arg ref="resourceIdResolver"/>
+	</bean>
+
+	<int-aws:sqs-message-driven-channel-adapter sqs="sqs"
+										  auto-startup="false"
+										  channel="errorChannel"
+										  error-channel="nullChannel"
+										  task-executor="taskExecutor"
+										  phase="100"
+										  id="sqsMessageDrivenChannelAdapter"
+										  queues="foo, bar"
+										  delete-message-on-exception="false"
+										  max-number-of-messages="5"
+										  visibility-timeout="200"
+										  wait-time-out="40"
+										  send-timeout="2000"
+										  destination-resolver="destinationResolver"
+										  resource-id-resolver="resourceIdResolver"/>
+
+</beans>
