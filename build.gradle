@@ -28,7 +28,7 @@ configurations {
 
 ext {
 	commonsIoVersion='2.4'
-	jacocoVersion = '0.7.1.201405082137'
+	jacocoVersion = '0.7.2.201409121644'
 	slf4jVersion = '1.7.8'
 	springCloudAwsVersion = '1.0.0.BUILD-SNAPSHOT'
 	springIntegrationVersion = '4.1.2.RELEASE'
@@ -247,6 +247,6 @@ task dist(dependsOn: assemble) {
 
 task wrapper(type: Wrapper) {
 	description = 'Generates gradlew[.bat] scripts'
-	gradleVersion = '1.12'
+	gradleVersion = '2.3'
 	distributionUrl = "http://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip"
 }
