@@ -44,25 +44,25 @@ public class SqsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
 	protected AbstractBeanDefinition parseConsumer(Element element, ParserContext parserContext) {
 		BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(SqsMessageHandler.class);
 
-        if (hasAttribute(element, QUEUE_MESSAGING_TEMPLATE_REF) &&
-                (
-                        hasAttribute(element, AmazonWSParserUtils.SQS_REF) ||
-                        hasAttribute(element, AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF))) {
-            parserContext.getReaderContext().error(QUEUE_MESSAGING_TEMPLATE_REF + " should not be defined in conjunction with " + AmazonWSParserUtils.SQS_REF + " or " + AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF, element);
+		final boolean hasQueueMessagingTemplate = hasAttribute(element, QUEUE_MESSAGING_TEMPLATE_REF);
+		final boolean hasSqs = hasAttribute(element, AmazonWSParserUtils.SQS_REF);
+		final boolean hasResourceResolver = hasAttribute(element, AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF);
+		if (hasQueueMessagingTemplate && (hasSqs || hasResourceResolver)) {
+			parserContext.getReaderContext().error(QUEUE_MESSAGING_TEMPLATE_REF +
+					" should not be defined in conjunction with " + AmazonWSParserUtils.SQS_REF + " or " + AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF, element);
+		}
 
-        }
-
-        if (!hasAttribute(element, QUEUE_MESSAGING_TEMPLATE_REF) && !hasAttribute(element, AmazonWSParserUtils.SQS_REF)) {
+        if (!hasQueueMessagingTemplate && !hasSqs) {
             parserContext.getReaderContext().error("One of " + QUEUE_MESSAGING_TEMPLATE_REF + " or " + AmazonWSParserUtils.SQS_REF + " must be defined.", element);
         }
 
-        if (hasAttribute(element, AmazonWSParserUtils.SQS_REF)) {
+        if (hasSqs) {
             builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.SQS_REF));
         }
-		if (hasAttribute(element, AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF)) {
+		if (hasResourceResolver) {
 			builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF));
 		}
-        if (hasAttribute(element, QUEUE_MESSAGING_TEMPLATE_REF)) {
+        if (hasQueueMessagingTemplate) {
             builder.addConstructorArgReference(element.getAttribute(QUEUE_MESSAGING_TEMPLATE_REF));
         }
 		BeanDefinition queue = IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression("queue",
