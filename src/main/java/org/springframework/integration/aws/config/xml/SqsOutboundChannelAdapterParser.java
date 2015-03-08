@@ -48,8 +48,12 @@ public class SqsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
                 (
                         hasAttribute(element, AmazonWSParserUtils.SQS_REF) ||
                         hasAttribute(element, AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF))) {
-            throw new IllegalStateException(QUEUE_MESSAGING_TEMPLATE_REF + " should not be defined in conjunction with " + AmazonWSParserUtils.SQS_REF + " or " + AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF);
+            parserContext.getReaderContext().error(QUEUE_MESSAGING_TEMPLATE_REF + " should not be defined in conjunction with " + AmazonWSParserUtils.SQS_REF + " or " + AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF, element);
 
+        }
+
+        if (!hasAttribute(element, QUEUE_MESSAGING_TEMPLATE_REF) && !hasAttribute(element, AmazonWSParserUtils.SQS_REF)) {
+            parserContext.getReaderContext().error("One of " + QUEUE_MESSAGING_TEMPLATE_REF + " or " + AmazonWSParserUtils.SQS_REF + " must be defined.", element);
         }
 
         if (hasAttribute(element, AmazonWSParserUtils.SQS_REF)) {

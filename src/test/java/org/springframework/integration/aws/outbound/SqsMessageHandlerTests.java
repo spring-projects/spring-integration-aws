@@ -16,89 +16,34 @@
 
 package org.springframework.integration.aws.outbound;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.expression.Expression;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.config.EnableIntegration;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.MessageHandler;
-import org.springframework.messaging.MessageHandlingException;
-import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
+import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.config.EnableIntegration;
+import org.springframework.messaging.MessageHandler;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 /**
  * @author Artem Bilan
+ * @author Rahul Pilani
+ *
+ * Instantiating SqsMessageHandler using amazonSqs.
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
-public class SqsMessageHandlerTests {
+public class SqsMessageHandlerTests extends AbstractSqsMessageHandlerTest {
 
-	@Autowired
-	private AmazonSQS amazonSqs;
-
-	@Autowired
-	private MessageChannel sqsSendChannel;
-
-	@Autowired
-	private SqsMessageHandler sqsMessageHandler;
-
-	@Test
-	public void testSqsMessageHandler() {
-		Message<String> message = MessageBuilder.withPayload("message").build();
-		try {
-			this.sqsSendChannel.send(message);
-		}
-		catch (Exception e) {
-			assertThat(e, instanceOf(MessageHandlingException.class));
-			assertThat(e.getCause(), instanceOf(IllegalStateException.class));
-		}
-
-		this.sqsMessageHandler.setQueue("foo");
-		this.sqsSendChannel.send(message);
-		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor =
-				ArgumentCaptor.forClass(SendMessageRequest.class);
-		verify(this.amazonSqs).sendMessage(sendMessageRequestArgumentCaptor.capture());
-		assertEquals("http://queue-url.com/foo", sendMessageRequestArgumentCaptor.getValue().getQueueUrl());
-
-		message = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
-		this.sqsSendChannel.send(message);
-		verify(this.amazonSqs, times(2)).sendMessage(sendMessageRequestArgumentCaptor.capture());
-		assertEquals("http://queue-url.com/bar", sendMessageRequestArgumentCaptor.getValue().getQueueUrl());
-
-		SpelExpressionParser spelExpressionParser = new SpelExpressionParser();
-		Expression expression = spelExpressionParser.parseExpression("headers.foo");
-		this.sqsMessageHandler.setQueueExpression(expression);
-		message = MessageBuilder.withPayload("message").setHeader("foo", "baz").build();
-		this.sqsSendChannel.send(message);
-		verify(this.amazonSqs, times(3)).sendMessage(sendMessageRequestArgumentCaptor.capture());
-		assertEquals("http://queue-url.com/baz", sendMessageRequestArgumentCaptor.getValue().getQueueUrl());
-	}
 
 	@Configuration
 	@EnableIntegration

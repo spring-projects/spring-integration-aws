@@ -51,6 +51,7 @@ public class SqsMessageHandler extends AbstractMessageHandler implements Integra
 	}
 
     public SqsMessageHandler(QueueMessagingTemplate template) {
+        Assert.notNull(template);
         this.template = template;
     }
 

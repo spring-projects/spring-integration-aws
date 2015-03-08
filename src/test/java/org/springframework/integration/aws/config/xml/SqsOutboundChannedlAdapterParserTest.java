@@ -15,20 +15,22 @@ public class SqsOutboundChannedlAdapterParserTest {
 
     @Test(expected = BeanDefinitionStoreException.class)
     public void test_sqs_resource_resolver_defined_with_queue_messaging_template() {
-        ApplicationContext applicationContext = new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad.xml");
-        applicationContext.getBean("sqsOutboundChannelAdapter");
+        new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad.xml");
     }
 
     @Test(expected = BeanDefinitionStoreException.class)
     public void test_sqs_defined_with_queue_messaging_template() {
-        ApplicationContext applicationContext = new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad2.xml");
-        applicationContext.getBean("sqsOutboundChannelAdapter");
+        new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad2.xml");
     }
 
     @Test(expected = BeanDefinitionStoreException.class)
     public void test_resource_resolver_defined_with_queue_messaging_template() {
-        ApplicationContext applicationContext = new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad3.xml");
-        applicationContext.getBean("sqsOutboundChannelAdapter");
+        new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad3.xml");
+    }
+
+    @Test(expected = BeanDefinitionStoreException.class)
+    public void test_neither_sqs_nor_queue_messaging_template_defined() {
+        new ClassPathXmlApplicationContext("org/springframework/integration/aws/config/xml/SqsOutboundChannelAdapterParserTests-context-bad4.xml");
     }
 
     @Test
