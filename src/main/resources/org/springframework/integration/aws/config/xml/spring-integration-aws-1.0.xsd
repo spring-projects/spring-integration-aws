@@ -387,6 +387,20 @@
 							</xsd:documentation>
 						</xsd:annotation>
 					</xsd:attribute>
+                    <xsd:attribute name="queue-messaging-template">
+                        <xsd:annotation>
+                            <xsd:documentation>
+                                A bean reference to the QueueMessatingTemplate that this class is supposed to use.
+                                Note that this attribute is mutually exclusive with the 'sqs' and 'resource-id-resolver' attributes.
+                            </xsd:documentation>
+                            <xsd:appinfo>
+                                <tool:annotation kind="ref">
+                                    <tool:expected-type
+                                            type="org.springframework.cloud.aws.messaging.core.QueueMessagingTemplate"/>
+                                </tool:annotation>
+                            </xsd:appinfo>
+                        </xsd:annotation>
+                    </xsd:attribute>
 				</xsd:extension>
 			</xsd:complexContent>
 		</xsd:complexType>
@@ -514,7 +528,7 @@
 				Base type for the 'sqs-message-driven-channel-adapter' and 'sqs-outbound-channel-adapter' elements.
 			</xsd:documentation>
 		</xsd:annotation>
-		<xsd:attribute name="sqs" use="required">
+		<xsd:attribute name="sqs">
 			<xsd:annotation>
 				<xsd:documentation>
 					The 'com.amazonaws.services.sqs.AmazonSQS' bean reference.
