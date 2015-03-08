@@ -34,13 +34,37 @@ import org.springframework.util.StringUtils;
  */
 public class SqsOutboundChannelAdapterParser extends AbstractOutboundChannelAdapterParser {
 
+    public static final String QUEUE_MESSAGING_TEMPLATE_REF = "queue-messaging-template";
+
+    private boolean hasAttribute(Element element, String attribute) {
+        return StringUtils.hasText(element.getAttribute(attribute));
+    }
+
 	@Override
 	protected AbstractBeanDefinition parseConsumer(Element element, ParserContext parserContext) {
 		BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(SqsMessageHandler.class);
-		builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.SQS_REF));
-		if (StringUtils.hasText(element.getAttribute(AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF))) {
+
+		final boolean hasQueueMessagingTemplate = hasAttribute(element, QUEUE_MESSAGING_TEMPLATE_REF);
+		final boolean hasSqs = hasAttribute(element, AmazonWSParserUtils.SQS_REF);
+		final boolean hasResourceResolver = hasAttribute(element, AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF);
+		if (hasQueueMessagingTemplate && (hasSqs || hasResourceResolver)) {
+			parserContext.getReaderContext().error(QUEUE_MESSAGING_TEMPLATE_REF +
+					" should not be defined in conjunction with " + AmazonWSParserUtils.SQS_REF + " or " + AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF, element);
+		}
+
+        if (!hasQueueMessagingTemplate && !hasSqs) {
+            parserContext.getReaderContext().error("One of " + QUEUE_MESSAGING_TEMPLATE_REF + " or " + AmazonWSParserUtils.SQS_REF + " must be defined.", element);
+        }
+
+        if (hasSqs) {
+            builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.SQS_REF));
+        }
+		if (hasResourceResolver) {
 			builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF));
 		}
+        if (hasQueueMessagingTemplate) {
+            builder.addConstructorArgReference(element.getAttribute(QUEUE_MESSAGING_TEMPLATE_REF));
+        }
 		BeanDefinition queue = IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression("queue",
 				"queue-expression", parserContext, element, false);
 		if (queue != null) {

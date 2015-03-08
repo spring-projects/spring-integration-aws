@@ -50,6 +50,11 @@ public class SqsMessageHandler extends AbstractMessageHandler implements Integra
 		this(amazonSqs, null);
 	}
 
+    public SqsMessageHandler(QueueMessagingTemplate template) {
+        Assert.notNull(template, "template must not be null.");
+        this.template = template;
+    }
+
 	public SqsMessageHandler(AmazonSQS amazonSqs, ResourceIdResolver resourceIdResolver) {
 		this.template = new QueueMessagingTemplate(amazonSqs, resourceIdResolver);
 	}
