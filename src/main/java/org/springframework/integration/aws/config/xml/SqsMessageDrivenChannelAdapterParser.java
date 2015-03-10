@@ -57,7 +57,11 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 
 	@Override
 	protected void doParse(Element element, ParserContext parserContext, BeanDefinitionBuilder builder) {
-		builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.SQS_REF))
+		String sqs = element.getAttribute(AmazonWSParserUtils.SQS_REF);
+		if (!StringUtils.hasText(sqs)) {
+			parserContext.getReaderContext().error("'sqs' attribute is required.", element);
+		}
+		builder.addConstructorArgReference(sqs)
 				.addConstructorArgValue(element.getAttribute("queues"));
 		String channelName = element.getAttribute("channel");
 		if (!StringUtils.hasText(channelName)) {

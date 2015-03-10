@@ -34,6 +34,7 @@ import com.amazonaws.services.sqs.AmazonSQS;
  * The {@link AbstractMessageHandler} implementation for the Amazon SQS {@code sendMessage}.
  *
  * @author Artem Bilan
+ * @author Rahul Pilani
  *
  * @see QueueMessagingTemplate
  * @see org.springframework.cloud.aws.messaging.core.QueueMessageChannel
@@ -51,7 +52,12 @@ public class SqsMessageHandler extends AbstractMessageHandler implements Integra
 	}
 
 	public SqsMessageHandler(AmazonSQS amazonSqs, ResourceIdResolver resourceIdResolver) {
-		this.template = new QueueMessagingTemplate(amazonSqs, resourceIdResolver);
+		this(new QueueMessagingTemplate(amazonSqs, resourceIdResolver));
+	}
+
+	public SqsMessageHandler(QueueMessagingTemplate template) {
+		Assert.notNull(template, "template must not be null.");
+		this.template = template;
 	}
 
 	public void setQueue(String queue) {

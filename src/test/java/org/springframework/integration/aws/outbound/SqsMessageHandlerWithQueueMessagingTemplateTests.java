@@ -24,6 +24,7 @@ import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import org.springframework.cloud.aws.messaging.core.QueueMessagingTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -37,14 +38,13 @@ import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
 
 /**
- * Instantiating SqsMessageHandler using amazonSqs.
+ * Instantiating SqsMessageHandler using QueueMessagingTemplate.
  *
- * @author Artem Bilan
  * @author Rahul Pilani
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
-public class SqsMessageHandlerTests extends AbstractSqsMessageHandlerTests {
+public class SqsMessageHandlerWithQueueMessagingTemplateTests extends AbstractSqsMessageHandlerTests {
 
 
 	@Configuration
@@ -71,9 +71,14 @@ public class SqsMessageHandlerTests extends AbstractSqsMessageHandlerTests {
 		}
 
 		@Bean
+		public QueueMessagingTemplate queueMessagingTemplate() {
+			return new QueueMessagingTemplate(amazonSqs());
+		}
+
+		@Bean
 		@ServiceActivator(inputChannel = "sqsSendChannel")
 		public MessageHandler sqsMessageHandler() {
-			return new SqsMessageHandler(amazonSqs());
+			return new SqsMessageHandler(queueMessagingTemplate());
 		}
 
 	}
