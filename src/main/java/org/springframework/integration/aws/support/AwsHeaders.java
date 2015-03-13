@@ -29,4 +29,8 @@ public abstract class AwsHeaders {
 
 	public static final String RECEIPT_HANDLE = PREFIX + "receiptHandle";
 
+	public static final String NOTIFICATION_STATUS = PREFIX + "notificationStatus";
+
+	public static final String SNS_MESSAGE_TYPE = PREFIX + "snsMessageType";
+
 }

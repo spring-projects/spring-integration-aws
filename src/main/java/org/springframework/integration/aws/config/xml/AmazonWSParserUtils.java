@@ -46,6 +46,8 @@ public final class AmazonWSParserUtils {
 
 	public static final String SQS_REF = "sqs";
 
+	public static final String SNS_REF = "sns";
+
 	public static final String RESOURCE_ID_RESOLVER_REF = "resource-id-resolver";
 
 	private AmazonWSParserUtils() {

@@ -522,6 +522,80 @@
 		</xsd:complexType>
 	</xsd:element>
 
+	<xsd:element name="sns-inbound-channel-adapter">
+		<xsd:annotation>
+			<xsd:documentation>
+				Defines an SNS inbound HTTP-based Channel Adapter - SnsInboundChannelAdapter.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
+			<xsd:attribute name="sns" use="required">
+				<xsd:annotation>
+					<xsd:documentation>
+						The 'com.amazonaws.services.sns.AmazonSNS' bean reference.
+					</xsd:documentation>
+					<xsd:appinfo>
+						<tool:annotation kind="ref">
+							<tool:expected-type type="com.amazonaws.services.sns.AmazonSNS"/>
+						</tool:annotation>
+					</xsd:appinfo>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="path" type="xsd:string" use="required">
+				<xsd:annotation>
+					<xsd:documentation>
+						Comma-separated URI paths (e.g., /orderId/{order}).
+						Ant-style path patterns are also supported (e.g. /myPath/*.do).
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="send-timeout" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>
+						Maximum amount of time in milliseconds to wait when sending
+						a message to the channel if such channel may block.
+						For example, a Queue Channel can block until space
+						is available if its maximum capacity has been reached.
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="payload-expression" type="xsd:string">
+				<xsd:annotation>
+					<xsd:documentation>
+						Allows you to specify SpEL expression to construct a Message payload.
+						The root evaluation object is a raw Message as a result of the 'HttpServletRequest'
+						conversion in the 'HttpRequestHandlingEndpointSupport' super class.
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="error-channel" type="xsd:string">
+				<xsd:annotation>
+					<xsd:appinfo>
+						<tool:annotation kind="ref">
+							<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+						</tool:annotation>
+					</xsd:appinfo>
+					<xsd:documentation>
+						The MessagingGateway's 'error-channel' where to send an ErrorMessage in case
+						of Exception is caused from original message flow.
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+			<xsd:attribute name="handle-notification-status" default="false">
+				<xsd:annotation>
+					<xsd:documentation>
+						Flag to indicate if the 'SubscriptionConfirmation' and 'UnsubscribeConfirmation'
+						SNS messages should sent to the 'channel' or not. If 'true' the
+						'AwsHeaders.NOTIFICATION_STATUS' message header is populated with the 'NotificationStatus'
+						value. In this case it is an application responsibility to 'confirm' subscription or not using
+						that 'NotificationStatus' object. Defaults to 'false'.
+					</xsd:documentation>
+				</xsd:annotation>
+			</xsd:attribute>
+		</xsd:complexType>
+	</xsd:element>
+
 	<xsd:complexType name="baseSqsAdapterType">
 		<xsd:annotation>
 			<xsd:documentation>
@@ -536,8 +610,7 @@
 				</xsd:documentation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type
-								type="com.amazonaws.services.sqs.AmazonSQS"/>
+						<tool:expected-type type="com.amazonaws.services.sqs.AmazonSQS"/>
 					</tool:annotation>
 				</xsd:appinfo>
 			</xsd:annotation>
@@ -549,8 +622,7 @@
 				</xsd:documentation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type
-								type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
 					</tool:annotation>
 				</xsd:appinfo>
 			</xsd:annotation>
