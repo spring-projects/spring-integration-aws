@@ -31,11 +31,11 @@ public class AWSNamespaceHandler extends AbstractIntegrationNamespaceHandler {
 
 
 	public void init() {
-		this.registerBeanDefinitionParser("s3-outbound-channel-adapter", new AmazonS3OutboundChannelAdapterParser());
-		this.registerBeanDefinitionParser("s3-inbound-channel-adapter", new AmazonS3InboundChannelAdapterParser());
-		this.registerBeanDefinitionParser("sqs-outbound-channel-adapter", new SqsOutboundChannelAdapterParser());
-		this.registerBeanDefinitionParser("sqs-message-driven-channel-adapter", 
-				new SqsMessageDrivenChannelAdapterParser());
+		registerBeanDefinitionParser("s3-outbound-channel-adapter", new AmazonS3OutboundChannelAdapterParser());
+		registerBeanDefinitionParser("s3-inbound-channel-adapter", new AmazonS3InboundChannelAdapterParser());
+		registerBeanDefinitionParser("sqs-outbound-channel-adapter", new SqsOutboundChannelAdapterParser());
+		registerBeanDefinitionParser("sqs-message-driven-channel-adapter", new SqsMessageDrivenChannelAdapterParser());
+		registerBeanDefinitionParser("sns-inbound-channel-adapter", new SnsInboundChannelAdapterParser());
 	}
 
 }

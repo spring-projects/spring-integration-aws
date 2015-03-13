@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	   http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd">
+
+	<bean id="amazonSns" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="com.amazonaws.services.sns.AmazonSNS"/>
+	</bean>
+
+	<int-aws:sns-inbound-channel-adapter sns="amazonSns"
+										 path="/foo"
+										 auto-startup="false"
+										 channel="errorChannel"
+										 error-channel="nullChannel"
+										 phase="100"
+										 id="snsInboundChannelAdapter"
+										 send-timeout="2000"
+										 handle-notification-status="true"
+										 payload-expression="payload.Message"/>
+
+</beans>

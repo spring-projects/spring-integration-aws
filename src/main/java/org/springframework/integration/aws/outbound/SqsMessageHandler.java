@@ -22,7 +22,7 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.context.IntegrationContextUtils;
+import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
@@ -74,7 +74,7 @@ public class SqsMessageHandler extends AbstractMessageHandler {
 	@Override
 	protected void onInit() throws Exception {
 		super.onInit();
-		this.evaluationContext = IntegrationContextUtils.getEvaluationContext(getBeanFactory());
+		this.evaluationContext = ExpressionUtils.createStandardEvaluationContext(getBeanFactory());
 	}
 
 	@Override
@@ -90,4 +90,3 @@ public class SqsMessageHandler extends AbstractMessageHandler {
 	}
 
 }
-

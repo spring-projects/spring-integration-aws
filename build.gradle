@@ -10,6 +10,7 @@ apply plugin: 'java'
 apply from:   "${rootProject.projectDir}/publish-maven.gradle"
 apply plugin: 'eclipse'
 apply plugin: 'idea'
+apply plugin: 'jacoco'
 
 group = 'org.springframework.integration'
 
@@ -28,15 +29,15 @@ configurations {
 
 ext {
 	commonsIoVersion='2.4'
-	jacocoVersion = '0.7.2.201409121644'
-	slf4jVersion = '1.7.8'
+	servletApiVersion = '3.1.0'
+	slf4jVersion = '1.7.12'
 	springCloudAwsVersion = '1.0.3.RELEASE'
-	springIntegrationVersion = '4.1.6.RELEASE'
+	springIntegrationVersion = '4.2.0.RELEASE'
 
 	idPrefix = 'aws'
 
 	linkHomepage = 'https://github.com/spring-projects/spring-integration-aws'
-	linkCi       = 'https://build.spring.io/browse/INTEXT-AWS'
+	linkCi       = 'https://build.spring.io/browse/INTEXT'
 	linkIssue    = 'https://jira.spring.io/browse/INTEXT'
 	linkScmUrl           = 'https://github.com/spring-projects/spring-integration-aws'
 	linkScmConnection    = 'https://github.com/spring-projects/spring-integration-aws.git'
@@ -47,19 +48,21 @@ ext.javadocLinks = [
 	"http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/"
 ] as String[]
 
+jacoco {
+	toolVersion = "0.7.2.201409121644"
+}
 
 dependencies {
 
 	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
+	compile ("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
+	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 	compile "org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion"
 	compile "commons-io:commons-io:$commonsIoVersion"
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
 
 	testRuntime "org.slf4j:slf4j-log4j12:$slf4jVersion"
-
-	jacoco "org.jacoco:org.jacoco.agent:$jacocoVersion:runtime"
-
 }
 
 eclipse.project.natures += 'org.springframework.ide.eclipse.core.springnature'
@@ -102,9 +105,22 @@ ext.xLintArg = '-Xlint:all,-options'
 test {
 	// suppress all console output during testing unless running `gradle -i`
 	logging.captureStandardOutput(LogLevel.INFO)
-	jvmArgs "-javaagent:${configurations.jacoco.asPath}=destfile=${buildDir}/jacoco.exec,includes=*"
+	maxHeapSize = "1024m"
+	jacoco {
+		append = false
+		destinationFile = file("$buildDir/jacoco.exec")
+	}
 }
 
+jacocoTestReport {
+	reports {
+		xml.enabled false
+		csv.enabled false
+		html.destination "${buildDir}/reports/jacoco/html"
+	}
+}
+
+build.dependsOn jacocoTestReport
 task sourcesJar(type: Jar) {
 	classifier = 'sources'
 	from sourceSets.main.allJava
@@ -247,6 +263,6 @@ task dist(dependsOn: assemble) {
 
 task wrapper(type: Wrapper) {
 	description = 'Generates gradlew[.bat] scripts'
-	gradleVersion = '2.3'
+	gradleVersion = '2.5'
 	distributionUrl = "http://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip"
 }
