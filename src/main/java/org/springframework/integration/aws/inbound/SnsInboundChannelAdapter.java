@@ -49,7 +49,7 @@ import com.amazonaws.services.sns.AmazonSNS;
  * {@link #requestChannel} as {@link Message} {@code payload}.
  * <p>
  * The mapped url must be configured inside the Amazon Web Service platform as a subscription.
- * Before receiving any notification itself a controller must confirm the subscription.
+ * Before receiving any notification itself this HTTP endpoint must confirm the subscription.
  * <p>
  * The {@link #handleNotificationStatus} flag (defaults to {@code false}) indicates that
  * this endpoint should send the {@code SubscriptionConfirmation/UnsubscribeConfirmation}
