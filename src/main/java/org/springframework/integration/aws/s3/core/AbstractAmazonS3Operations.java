@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.codec.binary.Base64;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -309,7 +311,7 @@ public abstract class AbstractAmazonS3Operations implements AmazonS3Operations, 
 		String stringContentMD5 = null;
 		try {
 			stringContentMD5 =
-					AWSCommonUtils.encodeHex(AWSCommonUtils.getContentsMD5AsBytes(file));
+					Base64.encodeBase64String(AWSCommonUtils.getContentsMD5AsBytes(file));
 		}
 		catch (UnsupportedEncodingException e) {
 			logger.error("Exception while generating the content's MD5 of the file " + file.getAbsolutePath(), e);
