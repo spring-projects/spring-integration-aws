@@ -308,14 +308,7 @@ public abstract class AbstractAmazonS3Operations implements AmazonS3Operations, 
 		//later in inbound-channel-adapter where we cant find the MD5 sum of the
 		//multipart upload file from its ETag
 
-		String stringContentMD5 = null;
-		try {
-			stringContentMD5 =
-					Base64.encodeBase64String(AWSCommonUtils.getContentsMD5AsBytes(file));
-		}
-		catch (UnsupportedEncodingException e) {
-			logger.error("Exception while generating the content's MD5 of the file " + file.getAbsolutePath(), e);
-		}
+		String stringContentMD5 = Base64.encodeBase64String(AWSCommonUtils.getContentsMD5AsBytes(file));
 
 		try {
 			doPut(bucketName, key, file, s3Object.getObjectACL(),
