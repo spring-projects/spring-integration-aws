@@ -22,7 +22,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +33,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.integration.aws.core.AWSCommonUtils;
 import org.springframework.integration.aws.core.AWSCredentials;
 import org.springframework.util.Assert;
+
+import com.amazonaws.util.BinaryUtils;
 
 /**
  * The common super class for any implementation of {@link AmazonS3Operations}. The sub class
@@ -306,14 +307,7 @@ public abstract class AbstractAmazonS3Operations implements AmazonS3Operations, 
 		//later in inbound-channel-adapter where we cant find the MD5 sum of the
 		//multipart upload file from its ETag
 
-		String stringContentMD5 = null;
-		try {
-			stringContentMD5 =
-					AWSCommonUtils.encodeHex(AWSCommonUtils.getContentsMD5AsBytes(file));
-		}
-		catch (UnsupportedEncodingException e) {
-			logger.error("Exception while generating the content's MD5 of the file " + file.getAbsolutePath(), e);
-		}
+		String stringContentMD5 = BinaryUtils.toBase64(AWSCommonUtils.getContentsMD5AsBytes(file));
 
 		try {
 			doPut(bucketName, key, file, s3Object.getObjectACL(),
