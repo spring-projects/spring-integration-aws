@@ -84,14 +84,7 @@ public class AmazonS3InboundChannelAdapterParser extends
 			throw new BeanDefinitionStoreException(message);
 		}
 		else {
-			Expression expr;
-			if(hasDirectory) {
-				expr = new LiteralExpression(directory);
-			}
-			else {
-				expr = new SpelExpressionParser().parseExpression(directoryExpression);
-			}
-			builder.addPropertyValue("directory", expr);
+            builder.addPropertyValue("directory", directory);
 		}
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, MAX_OBJECTS_PER_BATCH);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, ACCEPT_SUB_FOLDERS);
