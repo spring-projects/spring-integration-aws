@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
+	   xmlns:aws-messaging="http://www.springframework.org/schema/cloud/aws/messaging"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	   http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
+	   http://www.springframework.org/schema/cloud/aws/messaging http://www.springframework.org/schema/cloud/aws/messaging/spring-cloud-aws-messaging.xsd">
+
+	<aws-messaging:sqs-async-client id="sqs"/>
+
+	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+	</bean>
+
+	<aws-messaging:queue-messaging-template amazon-sqs="sqs" id="queueMessagingTemplate"/>
+
+	<int-aws:sqs-outbound-channel-adapter sqs="sqs"
+										  auto-startup="false"
+										  channel="errorChannel"
+										  phase="100"
+										  id="sqsOutboundChannelAdapter"
+										  queue="foo"
+										  resource-id-resolver="resourceIdResolver"
+										  queue-messaging-template="queueMessagingTemplate"/>
+
+</beans>
