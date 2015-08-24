@@ -18,6 +18,7 @@ import static org.springframework.integration.aws.config.xml.AmazonWSParserUtils
 
 import org.springframework.beans.BeanMetadataElement;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.ParserContext;
 import org.springframework.expression.Expression;
@@ -84,7 +85,7 @@ public class AmazonS3InboundChannelAdapterParser extends
 			throw new BeanDefinitionStoreException(message);
 		}
 		else {
-        		BeanDefinition expressionDef = IntegrationNamespaceUtils
+        	BeanDefinition expressionDef = IntegrationNamespaceUtils
 					.createExpressionDefinitionFromValueOrExpression("local-directory", "local-directory-expression", parserContext, element, true);
 			builder.addPropertyValue("directory", expressionDef);
 		}
