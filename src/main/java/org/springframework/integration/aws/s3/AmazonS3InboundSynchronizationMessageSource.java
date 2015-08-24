@@ -64,7 +64,7 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 	//We will hard code the queue capacity here
 	private final int QUEUE_CAPACITY = 1024;
 	private volatile StandardEvaluationContext ctx;
-
+	private volatile Expression directoryExpression;
 
 	public Message<File> receive() {
 		File headElement = filesQueue.poll();
@@ -84,13 +84,21 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 
 	@Override
 	protected void onInit() throws Exception {
+		Assert.notNull(directoryExpression, "Local directory to synchronize to is not set");
 
+		ctx = new StandardEvaluationContext();
+		BeanFactory factory = getBeanFactory();
+		if(factory != null) {
+			ctx.setBeanResolver(new BeanFactoryResolver(factory));
+		}
+		String directoryPath = directoryExpression.getValue(ctx,String.class);
+		directory = new File(directoryPath);
 		Assert.notNull(directory, "Please provide a valid local directory to synchronize the remote files");
 //		TODO: Uncomment this once we start supporting auto-create-local-directory
 //		Assert.isTrue(directory.exists(),
 //				String.format("Provided directory %s does not exist", directoryPath));
 		Assert.isTrue(directory.isDirectory(),
-				String.format("Provided path %s is not a directory", directory.getAbsolutePath()));
+				String.format("Provided path %s is not a directory", directoryPath));
 
 		//instantiate the S3Operations instance
 		if(s3Operations == null) {
@@ -201,18 +209,18 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 	 * @param remoteDirectory
 	 */
 	public void setRemoteDirectory(String remoteDirectory) {
-		Assert.notNull(remoteDirectory, "Provided 'remoteDirectory' is null");
+		Assert.hasText(remoteDirectory, "Provided 'remoteDirectory' is null or empty string");
 		this.remoteDirectory = remoteDirectory;
 	}
 
 	/**
 	 * Sets the expression to find the local directory where the remote files are synchronized with.
 	 *
-	 * @param directory Must not be null
+	 * @param directoryExpression Must not be null
 	 */
-	public void setDirectory(String directory) {
-		Assert.notNull(directory, "provided 'directory' is null");
-		this.directory = new File(directory);
+	public void setDirectory(Expression directoryExpression) {
+		Assert.notNull(directoryExpression, "provided 'directoryExpression' is null");
+		this.directoryExpression = directoryExpression;
 	}
 
 	/**
