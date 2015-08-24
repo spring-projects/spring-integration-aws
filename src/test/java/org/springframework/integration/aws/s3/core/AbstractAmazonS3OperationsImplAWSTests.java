@@ -1,5 +1,5 @@
  /*
-  * Copyright 2002-2013 the original author or authors.
+  * Copyright 2002-2015 the original author or authors.
   *
   * Licensed under the Apache License, Version 2.0 (the "License");
   * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ public abstract class AbstractAmazonS3OperationsImplAWSTests {
 	private static PropertiesAWSCredentials credentials;
 
 	@BeforeClass
-	public static final void setup() throws Exception {
+	public static void setup() throws Exception {
 		AWSCredentials credentials = getCredentials();
 		client = new AmazonS3Client(
 				new BasicAWSCredentials(credentials.getAccessKey(), credentials.getSecretKey()));
@@ -386,9 +386,9 @@ public abstract class AbstractAmazonS3OperationsImplAWSTests {
 
 		//lets verify the object's ACL
 		AccessControlList acls = getObjectACL(BUCKET_NAME, key);
-		Set<Grant> grants = acls.getGrants();
+		List<Grant> grants = acls.getGrantsAsList();
 		boolean isACLValid = false;
-		for(Grant g:grants) {
+		for(Grant g : grants) {
 			com.amazonaws.services.s3.model.Grantee grantee = g.getGrantee();
 			if(VALID_CANONICAL_ID.equals(grantee.getIdentifier())
 					&& "READ_ACP".equals(grant.getPermission().toString())) {

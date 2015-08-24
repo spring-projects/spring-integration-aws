@@ -22,7 +22,7 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.expression.IntegrationEvaluationContextAware;
+import org.springframework.integration.context.IntegrationContextUtils;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
@@ -35,11 +35,12 @@ import com.amazonaws.services.sqs.AmazonSQS;
  *
  * @author Artem Bilan
  * @author Rahul Pilani
+ * @author Taylor Wicksell
  *
  * @see QueueMessagingTemplate
  * @see org.springframework.cloud.aws.messaging.core.QueueMessageChannel
  */
-public class SqsMessageHandler extends AbstractMessageHandler implements IntegrationEvaluationContextAware {
+public class SqsMessageHandler extends AbstractMessageHandler {
 
 	private final QueueMessagingTemplate template;
 
@@ -71,13 +72,9 @@ public class SqsMessageHandler extends AbstractMessageHandler implements Integra
 	}
 
 	@Override
-	public void setIntegrationEvaluationContext(EvaluationContext evaluationContext) {
-		this.evaluationContext = evaluationContext;
-	}
-
-	@Override
 	protected void onInit() throws Exception {
-		Assert.notNull(this.evaluationContext);
+		super.onInit();
+		this.evaluationContext = IntegrationContextUtils.getEvaluationContext(getBeanFactory());
 	}
 
 	@Override
@@ -93,3 +90,4 @@ public class SqsMessageHandler extends AbstractMessageHandler implements Integra
 	}
 
 }
+
