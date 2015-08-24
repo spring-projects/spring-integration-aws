@@ -94,7 +94,7 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 		}
 		String directoryPath = directoryExpression.getValue(ctx,String.class);
 		directory = new File(directoryPath);
-		
+
 		Assert.notNull(directory, "Please provide a valid local directory to synchronize the remote files");
 //		TODO: Uncomment this once we start supporting auto-create-local-directory
 //		Assert.isTrue(directory.exists(),
