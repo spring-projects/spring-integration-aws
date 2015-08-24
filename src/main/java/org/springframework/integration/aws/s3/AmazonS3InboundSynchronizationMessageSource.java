@@ -66,6 +66,7 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 	private volatile StandardEvaluationContext ctx;
 	private volatile Expression directoryExpression;
 
+
 	public Message<File> receive() {
 		File headElement = filesQueue.poll();
 		if(headElement == null) {
