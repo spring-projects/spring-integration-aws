@@ -18,6 +18,7 @@ import static org.springframework.integration.aws.config.xml.AmazonWSParserUtils
 
 import org.springframework.beans.BeanMetadataElement;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.ParserContext;
 import org.springframework.expression.Expression;
@@ -84,14 +85,9 @@ public class AmazonS3InboundChannelAdapterParser extends
 			throw new BeanDefinitionStoreException(message);
 		}
 		else {
-			Expression expr;
-			if(hasDirectory) {
-				expr = new LiteralExpression(directory);
-			}
-			else {
-				expr = new SpelExpressionParser().parseExpression(directoryExpression);
-			}
-			builder.addPropertyValue("directory", expr);
+        	BeanDefinition expressionDef = IntegrationNamespaceUtils
+					.createExpressionDefinitionFromValueOrExpression("local-directory", "local-directory-expression", parserContext, element, true);
+			builder.addPropertyValue("directory", expressionDef);
 		}
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, MAX_OBJECTS_PER_BATCH);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, ACCEPT_SUB_FOLDERS);

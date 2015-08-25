@@ -3,15 +3,19 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xmlns:integration="http://www.springframework.org/schema/integration"
 	xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
-	xsi:schemaLocation=
-	"http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-	http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
-	http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/cloud/aws/context http://www.springframework.org/schema/cloud/aws/context/spring-cloud-aws-context-1.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.1.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd">
 
+	<context:property-placeholder location="classpath:foo.properties" />
+	
 	<bean id="localDirectory" class="java.lang.String">
 		<constructor-arg value="#{T(java.lang.System).getProperty('java.io.tmpdir')}"/>
 	</bean>
-
+	
 	<integration:channel id="inbound"/>
 
 	<int-aws:s3-inbound-channel-adapter
@@ -19,7 +23,7 @@
 					bucket="TestBucket"
 					propertiesFile="testawscredentials.properties"
 					temporary-suffix=".temp"
-					local-directory-expression="@localDirectory"
+					local-directory="${foo.dir:/}"
 					remote-directory="remote"
 					accept-sub-folders="true"
 					max-objects-per-batch="100"
