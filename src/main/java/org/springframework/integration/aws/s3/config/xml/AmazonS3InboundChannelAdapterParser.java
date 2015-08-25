@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2013 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,24 @@
 package org.springframework.integration.aws.s3.config.xml;
 import static org.springframework.integration.aws.config.xml.AmazonWSParserUtils.getAmazonWSCredentials;
 
+import org.w3c.dom.Element;
+
 import org.springframework.beans.BeanMetadataElement;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.ParserContext;
-import org.springframework.expression.Expression;
-import org.springframework.expression.common.LiteralExpression;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.aws.s3.AmazonS3InboundSynchronizationMessageSource;
 import org.springframework.integration.config.xml.AbstractPollingInboundChannelAdapterParser;
 import org.springframework.integration.config.xml.IntegrationNamespaceUtils;
 import org.springframework.util.StringUtils;
-import org.w3c.dom.Element;
 
 
 /**
  * The channel adapter parser for the S3 inbound parser
  *
  * @author Amol Nayak
+ * @author Li Wang
  *
  * @since 0.5
  *
@@ -84,14 +84,10 @@ public class AmazonS3InboundChannelAdapterParser extends
 			throw new BeanDefinitionStoreException(message);
 		}
 		else {
-			Expression expr;
-			if(hasDirectory) {
-				expr = new LiteralExpression(directory);
-			}
-			else {
-				expr = new SpelExpressionParser().parseExpression(directoryExpression);
-			}
-			builder.addPropertyValue("directory", expr);
+        	BeanDefinition expressionDef =
+			        IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression("local-directory",
+					        "local-directory-expression", parserContext, element, true);
+			builder.addPropertyValue("directory", expressionDef);
 		}
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, MAX_OBJECTS_PER_BATCH);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, ACCEPT_SUB_FOLDERS);

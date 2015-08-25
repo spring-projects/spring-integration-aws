@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:integration="http://www.springframework.org/schema/integration"
-	xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
-	xsi:schemaLocation=
-	"http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-	http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
-	http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:integration="http://www.springframework.org/schema/integration"
+	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
+	   xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:util="http://www.springframework.org/schema/util"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+	<util:properties id="placeholderProperties"/>
+
+	<context:property-placeholder properties-ref="placeholderProperties"/>
 
 	<bean id="localDirectory" class="java.lang.String">
 		<constructor-arg value="#{T(java.lang.System).getProperty('java.io.tmpdir')}"/>
@@ -19,7 +26,7 @@
 					bucket="TestBucket"
 					propertiesFile="testawscredentials.properties"
 					temporary-suffix=".temp"
-					local-directory-expression="@localDirectory"
+					local-directory="${foo.dir:/}"
 					remote-directory="remote"
 					accept-sub-folders="true"
 					max-objects-per-batch="100"
