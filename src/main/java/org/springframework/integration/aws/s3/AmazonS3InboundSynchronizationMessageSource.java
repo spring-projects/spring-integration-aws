@@ -15,6 +15,7 @@
  */
 package org.springframework.integration.aws.s3;
 
+import com.amazonaws.ClientConfiguration;
 import java.io.File;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -67,6 +68,10 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 	private volatile Expression directoryExpression;
 
 
+	private volatile String proxyHost;
+	private volatile String proxyPort;
+
+
 	public Message<File> receive() {
 		File headElement = filesQueue.poll();
 		if(headElement == null) {
@@ -104,7 +109,16 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 
 		//instantiate the S3Operations instance
 		if(s3Operations == null) {
-			s3Operations = new DefaultAmazonS3Operations(credentials);
+			// Adding Client Configuration to Support proxy config
+			if(StringUtils.hasText(proxyHost) && StringUtils.hasText(proxyPort)){
+				ClientConfiguration clientConfiguration = new ClientConfiguration();
+				clientConfiguration.setProxyHost(proxyHost);
+				clientConfiguration.setProxyPort(Integer.parseInt(proxyPort));
+				clientConfiguration.setPreemptiveBasicProxyAuth(false);
+				s3Operations = new DefaultAmazonS3Operations(credentials,clientConfiguration);
+			}else {
+				s3Operations = new DefaultAmazonS3Operations(credentials);
+			}
 		}
 
 		if(AbstractAmazonS3Operations.class.isAssignableFrom(s3Operations.getClass())) {
@@ -257,6 +271,13 @@ public class AmazonS3InboundSynchronizationMessageSource extends
 		this.awsEndpoint = awsEndpoint;
 	}
 
+	public void setProxyHost(String proxyHost) {
+		this.proxyHost = proxyHost;
+	}
+
+	public void setProxyPort(String proxyPort) {
+		this.proxyPort = proxyPort;
+	}
 
 	//----
 

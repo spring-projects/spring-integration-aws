@@ -53,6 +53,8 @@ public class AmazonS3InboundChannelAdapterParser extends
 	private static final String FILE_NAME_WILDCARD				=	"file-name-wildcard";
 	private static final String FILE_NAME_REGEX					=	"file-name-regex";
 	private static final String ACCEPT_SUB_FOLDERS				=	"accept-sub-folders";
+	private static final String PROXY_HOST						=	"proxyHost";
+	private static final String PROXY_PORT						=	"proxyPort";
 
 	/* (non-Javadoc)
 	 * @see org.springframework.integration.config.xml.AbstractPollingInboundChannelAdapterParser#parseSource(org.w3c.dom.Element, org.springframework.beans.factory.xml.ParserContext)
@@ -93,6 +95,8 @@ public class AmazonS3InboundChannelAdapterParser extends
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, ACCEPT_SUB_FOLDERS);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, FILE_NAME_WILDCARD);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, FILE_NAME_REGEX);
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, PROXY_HOST);
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, PROXY_PORT);
 		return builder.getBeanDefinition();
 	}
 

@@ -35,6 +35,20 @@
 				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
+		<xsd:attribute name="proxyHost" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specify the proxy host to be used to connect to the AWS service.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="proxyPort" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specify the Proxy Port to be used to connect to the AWS service.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
 		<xsd:attribute name="propertiesFile" type="xsd:string">
 			<xsd:annotation>
 				<xsd:documentation>
