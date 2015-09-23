@@ -15,6 +15,9 @@
  */
 package org.springframework.integration.aws.s3.core;
 
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.AmazonS3Client;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -32,6 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.integration.aws.core.AWSCommonUtils;
 import org.springframework.integration.aws.core.AWSCredentials;
+import org.springframework.integration.aws.core.AbstractAWSClientFactory;
 import org.springframework.util.Assert;
 
 import com.amazonaws.util.BinaryUtils;
@@ -62,6 +66,7 @@ public abstract class AbstractAmazonS3Operations implements AmazonS3Operations, 
 
 	private String awsEndpoint;
 
+	private ClientConfiguration clientConfiguration;
 
 	/**
 	 * The constructor that accepts the {@link AWSCredentials}
@@ -72,6 +77,10 @@ public abstract class AbstractAmazonS3Operations implements AmazonS3Operations, 
 		this.credentials = credentials;
 	}
 
+	public AbstractAmazonS3Operations(AWSCredentials credentials, ClientConfiguration clientConfiguration) {
+		this.credentials = credentials;
+		this.clientConfiguration = clientConfiguration;
+	}
 
 	/**
 	 * Get the threshold value in bytes above which multi part upload will be used

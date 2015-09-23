@@ -59,6 +59,8 @@ public class DefaultAmazonS3Operations extends AbstractAmazonS3Operations {
 
 	private final AWSCredentials credentials;
 
+	private ClientConfiguration clientConfiguration;
+
 	private AmazonS3Client client;
 
 	private volatile TransferManager transferManager;	//Used to upload to S3
@@ -95,6 +97,7 @@ public class DefaultAmazonS3Operations extends AbstractAmazonS3Operations {
 	public DefaultAmazonS3Operations(final AWSCredentials credentials, final ClientConfiguration clientConfiguration) {
 		super(credentials);
 		this.credentials = credentials;
+		this.clientConfiguration = clientConfiguration;
 		s3Factory = new AbstractAWSClientFactory<AmazonS3Client>() {
 			@Override
 			protected AmazonS3Client getClientImplementation() {
