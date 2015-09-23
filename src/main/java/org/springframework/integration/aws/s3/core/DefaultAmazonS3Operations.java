@@ -95,7 +95,7 @@ public class DefaultAmazonS3Operations extends AbstractAmazonS3Operations {
 	 * @param clientConfiguration
 	 */
 	public DefaultAmazonS3Operations(final AWSCredentials credentials, final ClientConfiguration clientConfiguration) {
-		super(credentials);
+		super(credentials, clientConfiguration);
 		this.credentials = credentials;
 		this.clientConfiguration = clientConfiguration;
 		s3Factory = new AbstractAWSClientFactory<AmazonS3Client>() {
