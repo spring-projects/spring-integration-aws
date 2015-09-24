@@ -241,10 +241,10 @@ public class AmazonS3InboundSynchronizationMessageSourceTests {
 	@Test
 	public void synchronizeWithLocalDirectory() {
 		mockAmazonS3Operations(Arrays.asList(
-				new String[] {"test.txt", "test.txt", md5Hash("test.txt"), null},
-				new String[] {"sub1/test.txt", "sub1/test.txt", md5Hash("sub1/test.txt"), null},
-				new String[] {"sub1/sub11/test.txt", "sub1/sub11/test.txt", md5Hash("sub1/sub11/test.txt"), null},
-				new String[] {"sub2/test.txt", "sub2/test.txt", md5Hash("sub2/test.txt"), null}
+				new String[]{"test.txt", "test.txt", md5Hash("test.txt"), null},
+				new String[]{"sub1/test.txt", "sub1/test.txt", md5Hash("sub1/test.txt"), null},
+				new String[]{"sub1/sub11/test.txt", "sub1/sub11/test.txt", md5Hash("sub1/sub11/test.txt"), null},
+				new String[]{"sub2/test.txt", "sub2/test.txt", md5Hash("sub2/test.txt"), null}
 		));
 		AmazonS3InboundSynchronizationMessageSource src = new AmazonS3InboundSynchronizationMessageSource();
 		src.setS3Operations(operations);
@@ -268,6 +268,22 @@ public class AmazonS3InboundSynchronizationMessageSourceTests {
 		assertNull(message);
 	}
 
-
+	/**
+	 * Doesn't set the {@link AmazonS3Operations} instance and relies on the default one with Proxy.
+	 */
+	@Test
+	public void withProxyAndDefaultS3Service() {
+		AmazonS3InboundSynchronizationMessageSource src = new AmazonS3InboundSynchronizationMessageSource();
+		BasicAWSCredentials credentials = new BasicAWSCredentials("dummy", "dummy");
+		src.setTemporarySuffix(".temp");
+		src.setCredentials(credentials);
+		src.setDirectory(new LiteralExpression(temp.getRoot().getAbsolutePath()));
+		src.setProxyHost("localhost");
+		src.setProxyPort("80");
+		src.setBeanFactory(Mockito.mock(BeanFactory.class));
+		src.afterPropertiesSet();
+		assertEquals("localhost", getPropertyValue(src, "s3Operations.clientConfiguration.proxyHost", String.class));
+		assertEquals(new Integer(80), getPropertyValue(src, "s3Operations.clientConfiguration.proxyPort", Integer.class));
+	}
 
 }

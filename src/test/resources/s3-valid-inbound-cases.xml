@@ -66,6 +66,22 @@
 		<integration:poller fixed-rate="1000"/>
 	</int-aws:s3-inbound-channel-adapter>
 
+	<int-aws:s3-inbound-channel-adapter
+			id="validInboundWithProxy"
+			bucket="TestBucket"
+			propertiesFile="testawscredentials.properties"
+			temporary-suffix=".temp"
+			local-directory="${foo.dir:/}"
+			remote-directory="remote"
+			accept-sub-folders="true"
+			max-objects-per-batch="100"
+			file-name-regex="[A-Za-z0-9]+\\.txt"
+			channel="inbound"
+			auto-startup="false"
+            proxyHost="localhost"
+            proxyPort="80">
+		<integration:poller fixed-rate="1000"/>
+	</int-aws:s3-inbound-channel-adapter>
 	<bean id="customOps"
 		class="org.springframework.integration.aws.s3.config.xml.AmazonS3DummyOperations"/>
 

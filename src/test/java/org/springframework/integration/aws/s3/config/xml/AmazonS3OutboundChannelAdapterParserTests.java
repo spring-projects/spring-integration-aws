@@ -147,6 +147,18 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		new ClassPathXmlApplicationContext("s3-custom-operations-with-disallowed-attributes.xml");
 	}
 
+	/**
+	 * Test case for the xml definition with the default implementation of {@link AmazonS3Operations} with Proxy
+	 */
+	@Test
+	public void withProxyOperationsImplementation() {
+		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:s3-valid-outbound-cases.xml");
+		EventDrivenConsumer consumer = ctx.getBean("withProxyDefaultServices", EventDrivenConsumer.class);
+		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
+		assertEquals("localhost", getPropertyValue(handler, "operations.clientConfiguration.proxyHost", String.class));
+		assertEquals(new Integer(80), getPropertyValue(handler, "operations.clientConfiguration.proxyPort", Integer.class));
+		ctx.destroy();
+	}
 
 	public static class DummyFileNameGenerator implements FileNameGenerationStrategy {
 

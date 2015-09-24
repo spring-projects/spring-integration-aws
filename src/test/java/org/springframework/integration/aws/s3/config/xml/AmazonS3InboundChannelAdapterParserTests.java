@@ -71,6 +71,10 @@ public class AmazonS3InboundChannelAdapterParserTests {
 		assertEquals(DefaultAmazonS3Operations.class, s3Operations.getClass());
 		assertEquals("https://s3-eu-west-1.amazonaws.com", getPropertyValue(s3Operations, "client.endpoint", URI.class).toString());
 
+		valid = ctx.getBean("validInboundWithProxy", SourcePollingChannelAdapter.class);
+		source = getPropertyValue(valid, "source", AmazonS3InboundSynchronizationMessageSource.class);
+		assertEquals("localhost", getPropertyValue(source, "proxyHost"));
+		assertEquals("80", getPropertyValue(source, "proxyPort"));
 
 		ctx.close();
 

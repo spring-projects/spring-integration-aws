@@ -15,6 +15,7 @@
  */
 package org.springframework.integration.aws.s3.core;
 
+import com.amazonaws.ClientConfiguration;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
@@ -58,6 +59,8 @@ public class DefaultAmazonS3Operations extends AbstractAmazonS3Operations {
 
 	private final AWSCredentials credentials;
 
+	private ClientConfiguration clientConfiguration;
+
 	private AmazonS3Client client;
 
 	private volatile TransferManager transferManager;	//Used to upload to S3
@@ -80,6 +83,28 @@ public class DefaultAmazonS3Operations extends AbstractAmazonS3Operations {
 				String secretKey = credentials.getSecretKey();
 				BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
 				return new AmazonS3Client(credentials);
+			}
+
+		};
+	}
+
+	/**
+	 * Constructor
+	 *
+	 * @param credentials
+	 * @param clientConfiguration
+	 */
+	public DefaultAmazonS3Operations(final AWSCredentials credentials, final ClientConfiguration clientConfiguration) {
+		super(credentials, clientConfiguration);
+		this.credentials = credentials;
+		this.clientConfiguration = clientConfiguration;
+		s3Factory = new AbstractAWSClientFactory<AmazonS3Client>() {
+			@Override
+			protected AmazonS3Client getClientImplementation() {
+				String accessKey = credentials.getAccessKey();
+				String secretKey = credentials.getSecretKey();
+				BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+				return new AmazonS3Client(credentials, clientConfiguration);
 			}
 
 		};

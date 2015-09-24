@@ -15,6 +15,7 @@
  */
 package org.springframework.integration.aws.s3.config.xml;
 
+import com.amazonaws.ClientConfiguration;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
@@ -56,7 +57,8 @@ public class AmazonS3OutboundChannelAdapterParser extends
 	private static final String FILE_NAME_GENERATOR				=	"file-name-generator";
 	private static final String FILE_NAME_GENERATION_EXPRESSION	=	"file-name-generation-expression";
 
-
+	private static final String PROXY_HOST						=	"proxyHost";
+	private static final String PROXY_PORT						=	"proxyPort";
 	/* (non-Javadoc)
 	 * @see org.springframework.integration.aws.core.config.AbstractAWSOutboundChannelAdapterParser#getMessageHandlerImplementation()
 	 */
@@ -94,6 +96,10 @@ public class AmazonS3OutboundChannelAdapterParser extends
 		else {
 			BeanDefinitionBuilder s3OpBuilder = BeanDefinitionBuilder.genericBeanDefinition(DefaultAmazonS3Operations.class);
 			s3OpBuilder.addConstructorArgReference(awsCredentialsGeneratedName);
+			// Will you the Constructor only if Proxy Configuration is provided.
+			if(element.hasAttribute(PROXY_HOST) && element.hasAttribute(PROXY_PORT)){
+				s3OpBuilder.addConstructorArgValue(getClientConfiguration(element));
+			}
 			IntegrationNamespaceUtils.setValueIfAttributeDefined(s3OpBuilder, element, MULTIPART_THRESHOLD);
 			IntegrationNamespaceUtils.setValueIfAttributeDefined(s3OpBuilder, element, TEMPORARY_DIRECTORY);
 			IntegrationNamespaceUtils.setValueIfAttributeDefined(s3OpBuilder, element, TEMPORARY_SUFFIX,"temporaryFileSuffix");
@@ -155,5 +161,18 @@ public class AmazonS3OutboundChannelAdapterParser extends
 			}
 			builder.addPropertyValue("fileNameGenerator", fileNameGeneratorBuilder.getBeanDefinition());
 		}
+	}
+
+	/**
+	 * Adds the client configuration to support proxy without authentication to connect to S3.
+	 * @param element
+	 * @return
+	 */
+	private ClientConfiguration getClientConfiguration(Element element){
+		ClientConfiguration clientConfiguration = new ClientConfiguration();
+		clientConfiguration.setProxyHost(element.getAttribute(PROXY_HOST));
+		clientConfiguration.setProxyPort(Integer.parseInt(element.getAttribute(PROXY_PORT)));
+		clientConfiguration.setPreemptiveBasicProxyAuth(false);
+		return clientConfiguration;
 	}
 }
