@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.integration.aws.s3.config.xml;
 
 import static org.junit.Assert.assertEquals;
@@ -22,6 +23,7 @@ import static org.springframework.integration.test.util.TestUtils.getPropertyVal
 import java.net.URI;
 
 import org.junit.Test;
+
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -33,32 +35,33 @@ import org.springframework.integration.aws.s3.FileNameGenerationStrategy;
 import org.springframework.integration.aws.s3.core.AmazonS3Operations;
 import org.springframework.integration.aws.s3.core.DefaultAmazonS3Operations;
 import org.springframework.integration.endpoint.EventDrivenConsumer;
+import org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.support.GenericMessage;
 
 /**
  * The test case for the aws-s3 namespace's {@link AmazonS3OutboundChannelAdapterParser} class
- *
  * @author Amol Nayak
  * @author Rob Harrop
- *
+ * @author Karthikeyan Palanivelu
  * @since 0.5
- *
  */
 public class AmazonS3OutboundChannelAdapterParserTests {
 
+	private volatile static int adviceCalled;
 
 	/**
 	 * Test case for the xml definition with a custom implementation of {@link AmazonS3Operations}
-	 *
 	 */
 	@Test
 	public void withCustomOperations() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:s3-valid-outbound-cases.xml");
-		EventDrivenConsumer consumer = ctx.getBean("withCustomService",EventDrivenConsumer.class);
+		EventDrivenConsumer consumer = ctx.getBean("withCustomService", EventDrivenConsumer.class);
 		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
 		assertEquals(AmazonS3DummyOperations.class, getPropertyValue(handler, "operations").getClass());
 		Expression expression =
-			getPropertyValue(handler, "remoteDirectoryProcessor.expression",Expression.class);
+				getPropertyValue(handler, "remoteDirectoryProcessor.expression", Expression.class);
 		assertNotNull(expression);
 		assertEquals(LiteralExpression.class, expression.getClass());
 		assertEquals("/", getPropertyValue(expression, "literalValue", String.class));
@@ -71,11 +74,11 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	@Test
 	public void withDefaultOperationsImplementation() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:s3-valid-outbound-cases.xml");
-		EventDrivenConsumer consumer = ctx.getBean("withDefaultServices",EventDrivenConsumer.class);
+		EventDrivenConsumer consumer = ctx.getBean("withDefaultServices", EventDrivenConsumer.class);
 		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
 		assertEquals(DefaultAmazonS3Operations.class, getPropertyValue(handler, "operations").getClass());
 		Expression expression =
-			getPropertyValue(handler, "remoteDirectoryProcessor.expression",Expression.class);
+				getPropertyValue(handler, "remoteDirectoryProcessor.expression", Expression.class);
 		assertNotNull(expression);
 		assertEquals(SpelExpression.class, expression.getClass());
 		assertEquals("headers['remoteDirectory']", getPropertyValue(expression, "expression", String.class));
@@ -95,12 +98,11 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 
 	/**
 	 * Test case for the xml definition with a custom implementation of {@link FileNameGenerationStrategy}
-	 *
 	 */
 	@Test
 	public void withCustomNameGenerator() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("s3-valid-outbound-cases.xml");
-		EventDrivenConsumer consumer = ctx.getBean("withCustomNameGenerator",EventDrivenConsumer.class);
+		EventDrivenConsumer consumer = ctx.getBean("withCustomNameGenerator", EventDrivenConsumer.class);
 		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
 		assertEquals(DummyFileNameGenerator.class, getPropertyValue(handler, "fileNameGenerator").getClass());
 		ctx.destroy();
@@ -108,12 +110,11 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 
 	/**
 	 * Test case for the xml definition with a custom AWS endpoint
-	 *
 	 */
 	@Test
 	public void withCustomEndpoint() {
 		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("s3-valid-outbound-cases.xml");
-		EventDrivenConsumer consumer = ctx.getBean("withCustomEndpoint",EventDrivenConsumer.class);
+		EventDrivenConsumer consumer = ctx.getBean("withCustomEndpoint", EventDrivenConsumer.class);
 		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
 		assertEquals("http://s3-eu-west-1.amazonaws.com",
 				getPropertyValue(handler, "operations.client.endpoint", URI.class).toString());
@@ -124,15 +125,15 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	 * Multi part upload should have a size of 5120 and above, any value less than 5120 will
 	 * thrown an exception
 	 */
-	@Test(expected=BeanCreationException.class)
-	public void withMultiUploadLessthan5120() {
+	@Test(expected = BeanCreationException.class)
+	public void withMultiUploadLessThan5120() {
 		new ClassPathXmlApplicationContext("s3-multiupload-lessthan-5120.xml");
 	}
 
 	/**
 	 * Test with both the custom file generator and expression attribute set.
 	 */
-	@Test(expected=BeanDefinitionStoreException.class)
+	@Test(expected = BeanDefinitionStoreException.class)
 	public void withBothFileGeneratorAndExpression() {
 		new ClassPathXmlApplicationContext("s3-both-customfilegenerator-and-expression.xml");
 	}
@@ -142,11 +143,24 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	 * multipart-upload-threshold, temporary-directory, temporary-suffix and thread-pool-executor
 	 * are not allowed
 	 */
-	@Test(expected=BeanDefinitionStoreException.class)
+	@Test(expected = BeanDefinitionStoreException.class)
 	public void withCustomOperationsAndDisallowedAttributes() {
 		new ClassPathXmlApplicationContext("s3-custom-operations-with-disallowed-attributes.xml");
 	}
 
+	/**
+	 * Tests the outbound channel adapter definition with a valid combination of attributes along with
+	 * request handler chain.
+	 */
+	@Test
+	public void withHandlerAdviceChain() {
+		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("s3-valid-outbound-cases.xml");
+		EventDrivenConsumer consumer = ctx.getBean("withHandlerChain", EventDrivenConsumer.class);
+		MessageHandler handler = getPropertyValue(consumer, "handler", MessageHandler.class);
+		handler.handleMessage(new GenericMessage<String>("String content: Test AWS advice chain"));
+		assertEquals(1, adviceCalled);
+		ctx.destroy();
+	}
 
 	public static class DummyFileNameGenerator implements FileNameGenerationStrategy {
 
@@ -155,4 +169,15 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 			return null;
 		}
 	}
+
+	public static class FooAdvice extends AbstractRequestHandlerAdvice {
+
+		@Override
+		protected Object doInvoke(ExecutionCallback callback, Object target, Message<?> message) throws Exception {
+			adviceCalled++;
+			return callback.execute();
+		}
+
+	}
+
 }
