@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
+	   xmlns:int="http://www.springframework.org/schema/integration"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+	   http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
+	   http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
+
+	<bean id="amazonSns" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="com.amazonaws.services.sns.AmazonSNS"/>
+	</bean>
+
+	<int-aws:sns-outbound-channel-adapter id="defaultAdapter" sns="amazonSns">
+		<int-aws:request-handler-advice-chain>
+			<bean class="org.springframework.integration.handler.advice.RequestHandlerRetryAdvice"/>
+		</int-aws:request-handler-advice-chain>
+	</int-aws:sns-outbound-channel-adapter>
+
+	<int:channel id="notificationChannel"/>
+
+	<int-aws:sns-outbound-gateway
+			id="snsGateway"
+			sns="amazonSns"
+			request-channel="notificationChannel"
+			reply-channel="errorChannel"
+			topic-arn="foo"
+			subject="bar"
+			body-expression="payload.toUpperCase()"
+			auto-startup="false"
+			phase="201"/>
+
+</beans>

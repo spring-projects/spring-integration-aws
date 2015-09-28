@@ -233,7 +233,7 @@
 				<xsd:annotation>
 					<xsd:appinfo>
 						<tool:annotation kind="ref">
-							<tool:expected-type type="org.springframework.integration.core.MessageChannel"/>
+							<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
 						</tool:annotation>
 					</xsd:appinfo>
 				</xsd:annotation>
@@ -591,6 +591,85 @@
 		</xsd:complexType>
 	</xsd:element>
 
+	<xsd:element name="sns-outbound-channel-adapter">
+		<xsd:complexType>
+			<xsd:annotation>
+				<xsd:documentation>
+					Defines an outbound SNS Channel Adapter for publishing messages to the topic.
+				</xsd:documentation>
+			</xsd:annotation>
+			<xsd:complexContent>
+				<xsd:extension base="baseSnsAdapterType">
+					<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:element name="sns-outbound-gateway">
+		<xsd:complexType>
+			<xsd:annotation>
+				<xsd:documentation>
+					Defines an outbound SNS Channel Adapter for publishing messages to the topic.
+				</xsd:documentation>
+			</xsd:annotation>
+			<xsd:complexContent>
+				<xsd:extension base="baseSnsAdapterType">
+					<xsd:attribute name="request-channel" use="required" type="xsd:string">
+						<xsd:annotation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+								</tool:annotation>
+							</xsd:appinfo>
+							<xsd:documentation>
+								Identifies the request channel attached to this gateway.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="reply-channel" type="xsd:string">
+						<xsd:annotation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+								</tool:annotation>
+							</xsd:appinfo>
+							<xsd:documentation>
+								Identifies the reply channel attached to this
+								gateway.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="reply-timeout" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation><![CDATA[
+								Allows you to specify how long this gateway will wait for
+								the reply message to be sent successfully to the reply channel
+								before throwing an exception. This attribute only applies when the
+								channel might block, for example when using a bounded queue channel that
+								is currently full.
+
+								Also, keep in mind that when sending to a DirectChannel, the
+								invocation will occur in the sender's thread. Therefore,
+								the failing of the send operation may be caused by other
+								components further downstream.
+
+								The "reply-timeout" attribute maps to the "sendTimeout" property of the
+								underlying 'MessagingTemplate' instance (org.springframework.integration.core.MessagingTemplate).
+
+								The attribute will default, if not specified, to '-1', meaning that
+								by default, the Gateway will wait indefinitely. The value is
+								specified in milliseconds.
+							]]></xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+
+
 	<xsd:complexType name="baseSqsAdapterType">
 		<xsd:annotation>
 			<xsd:documentation>
@@ -608,6 +687,95 @@
 						<tool:expected-type type="com.amazonaws.services.sqs.AmazonSQS"/>
 					</tool:annotation>
 				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="resource-id-resolver">
+			<xsd:annotation>
+				<xsd:documentation>
+					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean reference.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
+	</xsd:complexType>
+
+
+	<xsd:complexType name="baseSnsAdapterType">
+		<xsd:choice minOccurs="0" maxOccurs="2">
+			<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="request-handler-advice-chain" type="integration:handlerAdviceChainType"
+						 minOccurs="0"/>
+		</xsd:choice>
+		<xsd:attribute name="sns" use="required">
+			<xsd:annotation>
+				<xsd:documentation>
+					The 'com.amazonaws.services.sns.AmazonSNS' bean reference.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="com.amazonaws.services.sns.AmazonSNS"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="topic-arn">
+			<xsd:annotation>
+				<xsd:documentation>
+					The Amazon SNS Topic ARN.
+					Mutually exclusive with 'topic-arn-expression'.
+					This attribute isn't mandatory and the topic can be specified on the 'PublishRequest'
+					payload of the request Message.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="topic-arn-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression that resolves to an Amazon SNS Topic ARN.
+					The 'requestMessage' is the root object for evaluation context.
+					Mutually exclusive with 'topic-arn'.
+					This attribute isn't mandatory and the the topic can be specified on the
+					'com.amazonaws.services.sns.model.PublishRequest'
+					payload of the request Message.
+					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean can be used from
+					the expression to resolve logical topic name to the real ARN.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="subject">
+			<xsd:annotation>
+				<xsd:documentation>
+					The Notification Subject.
+					Mutually exclusive with 'subject-expression'.
+					This attribute isn't mandatory and the subject can be fully omitted.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="subject-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					The SpEL expression for Notification Subject.
+					The 'requestMessage' is the root object for evaluation context.
+					Mutually exclusive with 'subject-expression'.
+					This attribute isn't mandatory and the subject can be fully omitted.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="body-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					The SpEL expression evaluating the 'message' object for
+					the 'com.amazonaws.services.sns.model.PublishRequest'.
+					The 'requestMessage' is the root object for evaluation context.
+					The 'org.springframework.integration.aws.support' package is registered with the
+					`EvaluationContext` to simplify usage of the `SnsBodyBuilder` from expression definition.
+					This attribute isn't mandatory and the 'payload' of request Message can be used directly.
+				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
 		<xsd:attribute name="resource-id-resolver">

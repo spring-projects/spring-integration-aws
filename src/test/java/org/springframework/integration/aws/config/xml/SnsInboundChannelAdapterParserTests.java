@@ -61,7 +61,7 @@ public class SnsInboundChannelAdapterParserTests {
 
 
 	@Test
-	public void testSqsMessageDrivenChannelAdapterParser() {
+	public void testSnsInboundChannelAdapterParser() {
 		assertSame(this.amazonSns, TestUtils.getPropertyValue(this.snsInboundChannelAdapter,
 				"notificationStatusResolver.amazonSns"));
 		assertTrue(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "handleNotificationStatus", Boolean.class));

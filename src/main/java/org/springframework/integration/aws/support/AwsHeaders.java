@@ -25,6 +25,8 @@ public abstract class AwsHeaders {
 
 	public static final String QUEUE = PREFIX + "queue";
 
+	public static final String TOPIC = PREFIX + "topic";
+
 	public static final String MESSAGE_ID = PREFIX + "messageId";
 
 	public static final String RECEIPT_HANDLE = PREFIX + "receiptHandle";
@@ -32,5 +34,7 @@ public abstract class AwsHeaders {
 	public static final String NOTIFICATION_STATUS = PREFIX + "notificationStatus";
 
 	public static final String SNS_MESSAGE_TYPE = PREFIX + "snsMessageType";
+
+	public static final String SNS_PUBLISHED_MESSAGE_ID = PREFIX + "snsPublishedMessageId";
 
 }
