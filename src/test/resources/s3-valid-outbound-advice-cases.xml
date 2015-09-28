@@ -13,7 +13,7 @@
 	<int-aws:s3-outbound-channel-adapter
 			id="withHandlerChain"
 			channel="input"
-			bucket="dms2-springxd-proto"
+			bucket="TestBucket"
 			remote-directory="/"
 			charset="US-ASCII"
 			thread-pool-executor="executor"
