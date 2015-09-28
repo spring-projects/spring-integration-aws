@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2014 the original author or authors.
+ * Copyright 2002-2015 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,10 @@ import org.springframework.integration.aws.s3.FileNameGenerationStrategy;
 import org.springframework.integration.aws.s3.core.AmazonS3Operations;
 import org.springframework.integration.aws.s3.core.DefaultAmazonS3Operations;
 import org.springframework.integration.endpoint.EventDrivenConsumer;
+import org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.support.GenericMessage;
 
 /**
  * The test case for the aws-s3 namespace's {@link AmazonS3OutboundChannelAdapterParser} class
@@ -46,6 +49,7 @@ import org.springframework.messaging.Message;
  */
 public class AmazonS3OutboundChannelAdapterParserTests {
 
+	private volatile static int adviceCalled;
 
 	/**
 	 * Test case for the xml definition with a custom implementation of {@link AmazonS3Operations}
@@ -147,12 +151,34 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		new ClassPathXmlApplicationContext("s3-custom-operations-with-disallowed-attributes.xml");
 	}
 
+	/**
+	 * Tests the outbound channel adapter definition with a valid combination of attributes along with
+	 * request handler chain.
+	 */
+	@Test
+	public void withHandlerChain(){
+		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("s3-valid-outbound-cases.xml");
+		EventDrivenConsumer consumer = ctx.getBean("withHandlerChain",EventDrivenConsumer.class);
+		MessageHandler handler = getPropertyValue(consumer, "handler", MessageHandler.class);
+		handler.handleMessage(new GenericMessage<String>("String content: Test AWS advice chain"));
+		assertEquals(1, adviceCalled);
+		ctx.destroy();
+	}
 
 	public static class DummyFileNameGenerator implements FileNameGenerationStrategy {
 
 		@Override
 		public String generateFileName(Message<?> message) {
 			return null;
+		}
+	}
+
+	public static class FooAdvice extends AbstractRequestHandlerAdvice {
+
+		@Override
+		protected Object doInvoke(ExecutionCallback callback, Object target, Message<?> message) throws Exception {
+			adviceCalled++;
+			return callback.execute();
 		}
 	}
 }

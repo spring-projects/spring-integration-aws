@@ -65,9 +65,13 @@
 		<xsd:complexType>
 			<xsd:annotation>
 				<xsd:documentation>
-					Defines an outbound S3 Channel Adapter for Uploading files to Amazon S3
+						Defines an outbound S3 Channel Adapter for Uploading files to Amazon S3
 				</xsd:documentation>
 			</xsd:annotation>
+			<xsd:choice minOccurs="0" maxOccurs="2">
+				<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1"/>
+				<xsd:element name="request-handler-advice-chain" type="integration:handlerAdviceChainType" minOccurs="0" maxOccurs="1"/>
+			</xsd:choice>
 			<xsd:attribute name="id" type="xsd:string"/>
 			<xsd:attribute name="channel" type="xsd:string">
 				<xsd:annotation>

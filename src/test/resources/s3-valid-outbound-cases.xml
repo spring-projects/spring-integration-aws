@@ -54,6 +54,19 @@
 			remote-directory="/"
 			auto-startup="false"/>
 
+	<int-aws:s3-outbound-channel-adapter
+			id="withHandlerChain"
+			channel="input"
+			bucket="TestBucket"
+			remote-directory="/"
+			charset="US-ASCII"
+			s3-operations="customOps"
+			file-name-generation-expression="headers['name']" propertiesFile="testawscredentials.properties">
+		<int-aws:request-handler-advice-chain>
+			<bean class="org.springframework.integration.aws.s3.config.xml.AmazonS3OutboundChannelAdapterParserTests$FooAdvice"/>
+		</int-aws:request-handler-advice-chain>
+	</int-aws:s3-outbound-channel-adapter>
+
 	<bean id="queue" class="java.util.concurrent.ArrayBlockingQueue">
 		<constructor-arg value="10"/>
 	</bean>
