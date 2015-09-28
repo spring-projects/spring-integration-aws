@@ -154,8 +154,6 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	/**
 	 * Tests the outbound channel adapter definition with a valid combination of attributes along with
 	 * request handler chain.
-	 *
-	 *
 	 */
 	@Test
 	public void withHandlerChain(){
