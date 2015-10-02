@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.s3.config.xml;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.springframework.integration.test.util.TestUtils.getPropertyValue;
 
@@ -65,7 +66,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		assertNotNull(expression);
 		assertEquals(LiteralExpression.class, expression.getClass());
 		assertEquals("/", getPropertyValue(expression, "literalValue", String.class));
-		ctx.destroy();
+		ctx.close();
 	}
 
 	/**
@@ -93,7 +94,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		assertEquals(".write", getPropertyValue(handler, "fileNameGenerator.temporarySuffix", String.class));
 		assertEquals("headers['name']", getPropertyValue(handler, "fileNameGenerator.fileNameExpression", String.class));
 		assertEquals(ctx.getBean("executor"), getPropertyValue(handler, "operations.threadPoolExecutor"));
-		ctx.destroy();
+		ctx.close();
 	}
 
 	/**
@@ -105,7 +106,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		EventDrivenConsumer consumer = ctx.getBean("withCustomNameGenerator", EventDrivenConsumer.class);
 		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
 		assertEquals(DummyFileNameGenerator.class, getPropertyValue(handler, "fileNameGenerator").getClass());
-		ctx.destroy();
+		ctx.close();
 	}
 
 	/**
@@ -118,7 +119,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
 		assertEquals("http://s3-eu-west-1.amazonaws.com",
 				getPropertyValue(handler, "operations.client.endpoint", URI.class).toString());
-		ctx.destroy();
+		ctx.close();
 	}
 
 	/**
@@ -127,7 +128,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	 */
 	@Test(expected = BeanCreationException.class)
 	public void withMultiUploadLessThan5120() {
-		new ClassPathXmlApplicationContext("s3-multiupload-lessthan-5120.xml");
+		new ClassPathXmlApplicationContext("s3-multiupload-lessthan-5120.xml").close();
 	}
 
 	/**
@@ -135,7 +136,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	 */
 	@Test(expected = BeanDefinitionStoreException.class)
 	public void withBothFileGeneratorAndExpression() {
-		new ClassPathXmlApplicationContext("s3-both-customfilegenerator-and-expression.xml");
+		new ClassPathXmlApplicationContext("s3-both-customfilegenerator-and-expression.xml").close();
 	}
 
 	/**
@@ -145,7 +146,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 	 */
 	@Test(expected = BeanDefinitionStoreException.class)
 	public void withCustomOperationsAndDisallowedAttributes() {
-		new ClassPathXmlApplicationContext("s3-custom-operations-with-disallowed-attributes.xml");
+		new ClassPathXmlApplicationContext("s3-custom-operations-with-disallowed-attributes.xml").close();
 	}
 
 	/**
@@ -159,7 +160,23 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		MessageHandler handler = getPropertyValue(consumer, "handler", MessageHandler.class);
 		handler.handleMessage(new GenericMessage<String>("String content: Test AWS advice chain"));
 		assertEquals(1, adviceCalled);
-		ctx.destroy();
+		ctx.close();
+	}
+
+	/**
+	 * Test case for the xml definition with the Channel Attributes.
+	 */
+	@Test
+	public void withChannelAttributeImplementation() {
+		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:s3-valid-outbound-cases.xml");
+		EventDrivenConsumer consumer = ctx.getBean("withChannelAdapterAttributes", EventDrivenConsumer.class);
+		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
+		assertEquals(DefaultAmazonS3Operations.class, getPropertyValue(handler, "operations").getClass());
+		assertEquals("input", getPropertyValue(consumer, "inputChannel.beanName", String.class));
+		assertEquals("US-ASCII", getPropertyValue(handler, "charset", String.class));
+		assertEquals(100, getPropertyValue(consumer, "phase"));
+		assertFalse(getPropertyValue(consumer, "autoStartup", Boolean.class));
+		ctx.close();
 	}
 
 	public static class DummyFileNameGenerator implements FileNameGenerationStrategy {
@@ -168,6 +185,7 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		public String generateFileName(Message<?> message) {
 			return null;
 		}
+
 	}
 
 	public static class FooAdvice extends AbstractRequestHandlerAdvice {
