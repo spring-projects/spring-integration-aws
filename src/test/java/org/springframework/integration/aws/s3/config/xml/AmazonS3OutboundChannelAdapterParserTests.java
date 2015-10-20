@@ -23,7 +23,6 @@ import static org.springframework.integration.test.util.TestUtils.getPropertyVal
 import java.net.URI;
 
 import org.junit.Test;
-
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -159,6 +158,22 @@ public class AmazonS3OutboundChannelAdapterParserTests {
 		MessageHandler handler = getPropertyValue(consumer, "handler", MessageHandler.class);
 		handler.handleMessage(new GenericMessage<String>("String content: Test AWS advice chain"));
 		assertEquals(1, adviceCalled);
+		ctx.destroy();
+	}
+
+	/**
+	 * Test case for the xml definition with the Channel Attributes.
+	 */
+	@Test
+	public void withChannelAttributeImplementation() {
+		ClassPathXmlApplicationContext ctx = new ClassPathXmlApplicationContext("classpath:s3-valid-outbound-cases.xml");
+		EventDrivenConsumer consumer = ctx.getBean("withChannelAdapterAttributes", EventDrivenConsumer.class);
+		AmazonS3MessageHandler handler = getPropertyValue(consumer, "handler", AmazonS3MessageHandler.class);
+		assertEquals(DefaultAmazonS3Operations.class, getPropertyValue(handler, "operations").getClass());
+        assertEquals("input", getPropertyValue(consumer, "inputChannel.beanName", String.class));
+        assertEquals("US-ASCII", getPropertyValue(handler, "charset", String.class));
+		assertEquals(100, getPropertyValue(consumer, "phase", Integer.class).intValue());
+        assertEquals(true, getPropertyValue(consumer, "autoStartup", Boolean.class));
 		ctx.destroy();
 	}
 
