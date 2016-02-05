@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2013 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import java.util.Date;
 public interface S3ObjectSummary {
 
 	/**
-	 * Gets the Bucket nane in which the object is kept on S3
+	 * Gets the Bucket name in which the object is kept on S3
 	 */
 	String getBucketName();
 
@@ -51,4 +51,5 @@ public interface S3ObjectSummary {
 	 * Gets the Date the object was last modified
 	 */
 	Date getLastModified();
+
 }
