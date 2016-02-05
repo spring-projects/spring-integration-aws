@@ -28,7 +28,7 @@ import java.util.Date;
 public interface S3ObjectSummary {
 
 	/**
-	 * Gets the Bucket nane in which the object is kept on S3
+	 * Gets the Bucket name in which the object is kept on S3
 	 */
 	String getBucketName();
 
