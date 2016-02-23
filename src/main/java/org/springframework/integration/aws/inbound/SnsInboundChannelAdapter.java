@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2016 the original author or authors.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import org.springframework.util.Assert;
 import org.springframework.web.multipart.MultipartResolver;
 
 import com.amazonaws.services.sns.AmazonSNS;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * The {@link HttpRequestHandlingMessagingGateway} extension for the Amazon WS SNS HTTP(S) endpoints.
@@ -63,12 +64,14 @@ import com.amazonaws.services.sns.AmazonSNS;
  * <p>
  * For the convenience on the underlying message flow routing a {@link AwsHeaders#SNS_MESSAGE_TYPE}
  * header is present.
- *
  * @author Artem Bilan
  */
 public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGateway {
 
 	private final NotificationStatusResolver notificationStatusResolver;
+
+	private final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter =
+			new MappingJackson2HttpMessageConverter();
 
 	private volatile boolean handleNotificationStatus;
 
@@ -89,7 +92,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 		super.setRequestMapping(requestMapping);
 		super.setStatusCodeExpression(new ValueExpression<>(HttpStatus.NO_CONTENT));
 		super.setMessageConverters(
-				Collections.<HttpMessageConverter<?>>singletonList(new MappingJackson2HttpMessageConverter()));
+				Collections.<HttpMessageConverter<?>>singletonList(this.jackson2HttpMessageConverter));
 		super.setRequestPayloadType(HashMap.class);
 	}
 
@@ -109,7 +112,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 	@SuppressWarnings("unchecked")
 	protected void send(Object object) {
 		Message<?> message = (Message<?>) object;
-		HashMap<String, String> payload = (HashMap<String, String>) message.getPayload();
+		Map<String, String> payload = (HashMap<String, String>) message.getPayload();
 		AbstractIntegrationMessageBuilder<?> messageToSendBuilder;
 		if (this.payloadExpression != null) {
 			messageToSendBuilder = getMessageBuilderFactory()
@@ -122,7 +125,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 
 		String type = payload.get("Type");
 		if ("SubscriptionConfirmation".equals(type) || "UnsubscribeConfirmation".equals(type)) {
-			NotificationStatus notificationStatus = this.notificationStatusResolver.resolveNotificationStatus(payload);
+			JsonNode content = this.jackson2HttpMessageConverter.getObjectMapper().valueToTree(payload);
+			NotificationStatus notificationStatus = this.notificationStatusResolver.resolveNotificationStatus(content);
 			if (this.handleNotificationStatus) {
 				messageToSendBuilder.setHeader(AwsHeaders.NOTIFICATION_STATUS, notificationStatus);
 			}
@@ -194,8 +198,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 			super(amazonSns);
 		}
 
-		protected NotificationStatus resolveNotificationStatus(HashMap<String, String> content) {
-			return (NotificationStatus) super.doResolverArgumentFromNotificationMessage(content);
+		protected NotificationStatus resolveNotificationStatus(JsonNode content) {
+			return (NotificationStatus) doResolveArgumentFromNotificationMessage(content, null, null);
 		}
 
 	}

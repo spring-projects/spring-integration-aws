@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2016 the original author or authors.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,20 +20,27 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doThrow;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
+import org.springframework.cloud.aws.messaging.listener.SqsMessageDeletionPolicy;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.integration.aws.inbound.SqsMessageDrivenChannelAdapter;
 import org.springframework.integration.channel.NullChannel;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.core.DestinationResolutionException;
 import org.springframework.messaging.core.DestinationResolver;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -68,6 +75,14 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 	@Autowired
 	private SqsMessageDrivenChannelAdapter sqsMessageDrivenChannelAdapter;
 
+	@Bean
+	public DestinationResolver<?> destinationResolver() {
+		DestinationResolver<?> destinationResolver = Mockito.mock(DestinationResolver.class);
+		doThrow(DestinationResolutionException.class)
+				.when(destinationResolver)
+				.resolveDestination(anyString());
+		return destinationResolver;
+	}
 
 	@Test
 	public void testSqsMessageDrivenChannelAdapterParser() {
@@ -82,12 +97,11 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		assertEquals(5, TestUtils.getPropertyValue(listenerContainer, "maxNumberOfMessages"));
 		assertEquals(200, TestUtils.getPropertyValue(listenerContainer, "visibilityTimeout"));
 		assertEquals(40, TestUtils.getPropertyValue(listenerContainer, "waitTimeOut"));
-		assertFalse(TestUtils.getPropertyValue(listenerContainer, "deleteMessageOnException", Boolean.class));
 
 		@SuppressWarnings("rawtypes")
-		Set queues = TestUtils.getPropertyValue(listenerContainer, "queues", Set.class);
-		assertTrue(queues.contains("foo"));
-		assertTrue(queues.contains("bar"));
+		Map queues = TestUtils.getPropertyValue(listenerContainer, "registeredQueues", Map.class);
+		assertTrue(queues.keySet().contains("foo"));
+		assertTrue(queues.keySet().contains("bar"));
 
 		assertEquals(100, this.sqsMessageDrivenChannelAdapter.getPhase());
 		assertFalse(this.sqsMessageDrivenChannelAdapter.isAutoStartup());
@@ -96,6 +110,9 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		assertSame(this.nullChannel, TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "errorChannel"));
 		assertEquals(2000L, TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
 				"messagingTemplate.sendTimeout"));
+		assertEquals(SqsMessageDeletionPolicy.NEVER,
+				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messageDeletionPolicy",
+						SqsMessageDeletionPolicy.class));
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,8 @@ import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.cloud.aws.messaging.config.SimpleMessageListenerContainerFactory;
 import org.springframework.cloud.aws.messaging.listener.QueueMessageHandler;
 import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
-import org.springframework.core.task.TaskExecutor;
+import org.springframework.cloud.aws.messaging.listener.SqsMessageDeletionPolicy;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.messaging.Message;
@@ -59,13 +60,15 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private SimpleMessageListenerContainer listenerContainer;
 
+	private SqsMessageDeletionPolicy messageDeletionPolicy = SqsMessageDeletionPolicy.NO_REDRIVE;
+
 	public SqsMessageDrivenChannelAdapter(AmazonSQSAsync amazonSqs, String... queues) {
 		Assert.noNullElements(queues, "'queues' must not be empty");
 		this.simpleMessageListenerContainerFactory.setAmazonSqs(amazonSqs);
 		this.queues = Arrays.copyOf(queues, queues.length);
 	}
 
-	public void setTaskExecutor(TaskExecutor taskExecutor) {
+	public void setTaskExecutor(AsyncTaskExecutor taskExecutor) {
 		this.simpleMessageListenerContainerFactory.setTaskExecutor(taskExecutor);
 	}
 
@@ -89,8 +92,9 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 		this.simpleMessageListenerContainerFactory.setDestinationResolver(destinationResolver);
 	}
 
-	public void setDeleteMessageOnException(Boolean deleteMessageOnException) {
-		this.simpleMessageListenerContainerFactory.setDeleteMessageOnException(deleteMessageOnException);
+	public void setMessageDeletionPolicy(SqsMessageDeletionPolicy messageDeletionPolicy) {
+		Assert.notNull(messageDeletionPolicy, "'messageDeletionPolicy' must not be null.");
+		this.messageDeletionPolicy = messageDeletionPolicy;
 	}
 
 	@Override
@@ -126,7 +130,7 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 		@Override
 		public Map<MappingInformation, HandlerMethod> getHandlerMethods() {
 			Set<String> queues = new HashSet<>(Arrays.asList(SqsMessageDrivenChannelAdapter.this.queues));
-			return Collections.singletonMap(new MappingInformation(queues), null);
+			return Collections.singletonMap(new MappingInformation(queues, messageDeletionPolicy), null);
 		}
 
 		@Override
@@ -134,13 +138,13 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 			MessageHeaders headers = message.getHeaders();
 			Message<?> messageToSend = getMessageBuilderFactory()
 					.fromMessage(message)
-					.removeHeaders(QueueMessageHandler.Headers.LOGICAL_RESOURCE_ID_MESSAGE_HEADER_KEY,
+					.removeHeaders("LogicalResourceId",
 							"MessageId",
 							"ReceiptHandle")
 					.setHeader(AwsHeaders.MESSAGE_ID, headers.get("MessageId"))
 					.setHeader(AwsHeaders.RECEIPT_HANDLE, headers.get("ReceiptHandle"))
 					.setHeader(AwsHeaders.QUEUE,
-							headers.get(QueueMessageHandler.Headers.LOGICAL_RESOURCE_ID_MESSAGE_HEADER_KEY))
+							headers.get("LogicalResourceId"))
 					.build();
 			sendMessage(messageToSend);
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2016 the original author or authors.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "payload-type");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, IntegrationNamespaceUtils.AUTO_STARTUP);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, IntegrationNamespaceUtils.PHASE);
-		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "delete-message-on-exception");
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "message-deletion-policy");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "max-number-of-messages");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "visibility-timeout");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "wait-time-out");

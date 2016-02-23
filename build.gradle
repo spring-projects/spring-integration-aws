@@ -4,6 +4,9 @@ buildscript {
 	repositories {
 		maven { url 'http://repo.spring.io/plugins-release' }
 	}
+	dependencies {
+		classpath 'io.spring.gradle:spring-io-plugin:0.0.4.RELEASE'
+	}
 }
 
 apply plugin: 'java'
@@ -15,24 +18,32 @@ apply plugin: 'jacoco'
 group = 'org.springframework.integration'
 
 repositories {
+	if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
+		maven { url 'https://repo.spring.io/libs-snapshot' }
+	}
 	maven { url 'http://repo.spring.io/libs-milestone' }
-	maven { url 'http://repo.spring.io/libs-snapshot' }
 }
 
 sourceCompatibility = targetCompatibility = 1.7
 
-// See http://www.gradle.org/docs/current/userguide/dependency_management.html#sub:configurations
-// and http://www.gradle.org/docs/current/dsl/org.gradle.api.artifacts.ConfigurationContainer.html
-configurations {
-	jacoco //Configuration Group used by Sonar to provide Code Coverage using JaCoCo
+if (project.hasProperty('platformVersion')) {
+	apply plugin: 'spring-io'
+
+	dependencyManagement {
+		springIoTestRuntime {
+			imports {
+				mavenBom "io.spring.platform:platform-bom:${platformVersion}"
+			}
+		}
+	}
 }
 
 ext {
 	commonsIoVersion='2.4'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.12'
-	springCloudAwsVersion = '1.0.3.RELEASE'
-	springIntegrationVersion = '4.2.4.RELEASE'
+	springCloudAwsVersion = '1.1.0.M2'
+	springIntegrationVersion = '4.2.5.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -103,13 +114,16 @@ ext.xLintArg = '-Xlint:all,-options'
 [compileJava, compileTestJava]*.options*.compilerArgs = [xLintArg]
 
 test {
-	// suppress all console output during testing unless running `gradle -i`
-	logging.captureStandardOutput(LogLevel.INFO)
 	maxHeapSize = "1024m"
 	jacoco {
 		append = false
 		destinationFile = file("$buildDir/jacoco.exec")
 	}
+}
+
+tasks.withType(Test).all {
+	// suppress all console output during testing unless running `gradle -i`
+	logging.captureStandardOutput(LogLevel.INFO)
 }
 
 jacocoTestReport {
@@ -121,6 +135,7 @@ jacocoTestReport {
 }
 
 build.dependsOn jacocoTestReport
+
 task sourcesJar(type: Jar) {
 	classifier = 'sources'
 	from sourceSets.main.allJava
