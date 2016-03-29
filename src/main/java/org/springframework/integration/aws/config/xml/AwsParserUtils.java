@@ -34,7 +34,7 @@ import org.springframework.util.StringUtils;
  * @since 0.5
  *
  */
-public final class AmazonWSParserUtils {
+public final class AwsParserUtils {
 
 	public static final String ACCESS_KEY = "accessKey";
 
@@ -48,10 +48,11 @@ public final class AmazonWSParserUtils {
 
 	public static final String SNS_REF = "sns";
 
+	public static final String S3_REF = "s3";
+
 	public static final String RESOURCE_ID_RESOLVER_REF = "resource-id-resolver";
 
-	private AmazonWSParserUtils() {
-		throw new AssertionError("Cannot instantiate the utility class");
+	private AwsParserUtils() {
 	}
 
 

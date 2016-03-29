@@ -59,7 +59,7 @@ public class SnsInboundChannelAdapterParser extends AbstractSingleBeanDefinition
 
 	@Override
 	protected void doParse(Element element, ParserContext parserContext, BeanDefinitionBuilder builder) {
-		builder.addConstructorArgReference(element.getAttribute(AmazonWSParserUtils.SNS_REF))
+		builder.addConstructorArgReference(element.getAttribute(AwsParserUtils.SNS_REF))
 				.addConstructorArgValue(element.getAttribute("path"));
 		String channelName = element.getAttribute("channel");
 		if (!StringUtils.hasText(channelName)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.integration.aws.s3.config.xml;
-import static org.springframework.integration.aws.config.xml.AmazonWSParserUtils.getAmazonWSCredentials;
 
 import org.w3c.dom.Element;
 
@@ -23,6 +23,7 @@ import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.ParserContext;
+import org.springframework.integration.aws.config.xml.AwsParserUtils;
 import org.springframework.integration.aws.s3.AmazonS3InboundSynchronizationMessageSource;
 import org.springframework.integration.config.xml.AbstractPollingInboundChannelAdapterParser;
 import org.springframework.integration.config.xml.IntegrationNamespaceUtils;
@@ -60,7 +61,7 @@ public class AmazonS3InboundChannelAdapterParser extends
 	@Override
 	protected BeanMetadataElement parseSource(Element element,
 			ParserContext parserContext) {
-		String awsCredentials = getAmazonWSCredentials(element, parserContext);
+		String awsCredentials = AwsParserUtils.getAmazonWSCredentials(element, parserContext);
 		BeanDefinitionBuilder builder = BeanDefinitionBuilder
 			.genericBeanDefinition(AmazonS3InboundSynchronizationMessageSource.class);
 		builder.addPropertyReference(AWS_CREDENTIAL, awsCredentials);

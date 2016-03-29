@@ -62,7 +62,51 @@ Get more information about AWS free tier at [http://aws.amazon.com/free/][]**
 
 ###Introduction
 
+The S3 Channel Adapters are based on the `AmazonS3` template and `TransferManager`.
+See their specification and JavaDocs for more information.
+
 ###Outbound Channel Adapter
+
+The S3 Outbound Channel Adapter is represented by the `S3MessageHandler` (`<int-aws:s3-outbound-channel-adapter>`
+and `<int-aws:s3-outbound-gateway>`) and allows to perform `upload`, `download` and `copy`
+(see `S3MessageHandler.Command` enum) operations in the provided S3 bucket.
+
+The Java Configuration is:
+
+````java
+@SpringBootApplication
+public static class MyConfiguration {
+
+    @Autowired
+    private AmazonS3 amazonS3;
+
+    @Bean
+    @ServiceActivator(inputChannel = "s3UploadChannel")
+    public MessageHandler s3MessageHandler() {
+    	return new S3MessageHandler(amazonS3(), "myBuck");
+    }
+
+}
+````
+
+With this config you can send message with the `java.io.File` as `payload` and the `transferManager.upload()`
+operation will be performed, where the file name is used as a S3 Object key.
+
+An XML variant may look like:
+
+````xml
+<bean id="transferManager" class="com.amazonaws.services.s3.transfer.TransferManager"/>
+
+<int-aws:s3-outbound-channel-adapter transfer-manager="transferManager"
+									  channel="s3SendChannel"
+									  bucket="foo"
+									  command="DOWNLOAD"
+									  key="myDirectory"/>
+````
+
+See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
+`<int-aws:s3-outbound-gateway>` descriptions.
+
 ###Inbound Channel Adapter
 
 ##Simple Email Service (SES)
@@ -91,19 +135,19 @@ The Java Configuration is pretty simple:
 @SpringBootApplication
 public static class MyConfiguration {
 
-	@Autowired
-	private AmazonSQS amazonSqs;
+    @Autowired
+    private AmazonSQS amazonSqs;
 
-	@Bean
-	public QueueMessagingTemplate queueMessagingTemplate() {
-		return new QueueMessagingTemplate(this.amazonSqs);
-	}
+    @Bean
+    public QueueMessagingTemplate queueMessagingTemplate() {
+    	return new QueueMessagingTemplate(this.amazonSqs);
+    }
 
-	@Bean
-	@ServiceActivator(inputChannel = "sqsSendChannel")
-	public MessageHandler sqsMessageHandler() {
-		return new SqsMessageHandler(queueMessagingTemplate());
-	}
+    @Bean
+    @ServiceActivator(inputChannel = "sqsSendChannel")
+    public MessageHandler sqsMessageHandler() {
+    	return new SqsMessageHandler(queueMessagingTemplate());
+    }
 
 }
 ````
