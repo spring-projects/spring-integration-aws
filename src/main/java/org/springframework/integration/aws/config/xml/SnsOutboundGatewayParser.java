@@ -37,7 +37,7 @@ public class SnsOutboundGatewayParser extends AbstractConsumerEndpointParser {
 
 	@Override
 	protected BeanDefinitionBuilder parseHandler(Element element, ParserContext parserContext) {
-		String sns = element.getAttribute(AmazonWSParserUtils.SNS_REF);
+		String sns = element.getAttribute(AwsParserUtils.SNS_REF);
 
 		BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(SnsMessageHandler.class)
 				.addConstructorArgReference(sns)

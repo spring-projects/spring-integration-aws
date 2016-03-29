@@ -41,7 +41,7 @@ if (project.hasProperty('platformVersion')) {
 ext {
 	commonsIoVersion='2.4'
 	servletApiVersion = '3.1.0'
-	slf4jVersion = '1.7.12'
+	slf4jVersion = '1.7.13'
 	springCloudAwsVersion = '1.1.0.M2'
 	springIntegrationVersion = '4.2.5.RELEASE'
 

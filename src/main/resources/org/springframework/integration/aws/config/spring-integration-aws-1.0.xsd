@@ -62,160 +62,227 @@
 	</xsd:attributeGroup>
 
 	<xsd:element name="s3-outbound-channel-adapter">
+		<xsd:annotation>
+			<xsd:documentation>
+				Defines a Consumer Endpoint for the 'org.springframework.integration.aws.outbound.S3MessageHandler'
+				with one-way behaviour to perform Amazon S3 operations .
+			</xsd:documentation>
+		</xsd:annotation>
 		<xsd:complexType>
-			<xsd:annotation>
-				<xsd:documentation>
-					Defines an outbound S3 Channel Adapter for Uploading files to Amazon S3
-				</xsd:documentation>
-			</xsd:annotation>
-			<xsd:choice minOccurs="0" maxOccurs="2">
-				<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1"/>
-				<xsd:element name="request-handler-advice-chain" type="integration:handlerAdviceChainType" minOccurs="0"
-							 maxOccurs="1"/>
-			</xsd:choice>
-			<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
-			<xsd:attributeGroup ref="awsAdaptersCommonAttributes"/>
-			<xsd:attribute name="bucket" type="xsd:string" use="required">
-				<xsd:annotation>
-					<xsd:documentation>
-						The mandatory attribute that would be used to provide the AWS bucket to which
-						the objects needs to be uploaded.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="charset" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						Relevant only when the payload of the message to the outbound adapter is of
-						type java.lang.String. The default charset is UTF-8.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="multipart-upload-threshold" type="xsd:integer">
-				<xsd:annotation>
-					<xsd:documentation>
-						Using 'Amazon Multipart Upload' you can upload data as a set of parts using
-						parallel threads. This non-negative integer value representing bytes which is used
-						to provide the threshold after which the upload to the S3 bucket will be done
-						using 'Amazon Multipart Upload'. Amazon recommends the size to be 100 MB.
-						The minimum threshold for 'Amazon Multipart Upload' is 5120 bytes.
-						If the attribute is not specified, then the value used is the default value used
-						by the underlying implementation. The default implementation uses AWS SDK which
-						uses Multi part upload after 16 MB. The maximum value for this is 2 GB. Any value
-						greater than 2 GB will not throw an exception but the value will be set to
-						2 GB internally for the threshold.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="temporary-directory" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						If the payload of the message is an InputStream, byte[] or String
-						the contents are written to a temporary file in the provided temporary directory
-						location before being uploaded to the S3. In absence of this attribute, the
-						value is defaulted to the value of the system property "java.io.tmpdir"
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="temporary-suffix" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						The suffix for the files if a temporary file is to be generated. The value
-						defaults to ".writing"
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="thread-pool-executor" type="xsd:string">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type type="java.util.concurrent.ThreadPoolExecutor"/>
-						</tool:annotation>
-						<xsd:documentation>
-							The thread pool executor to be used for multi part uploads.
-							If none is provided, the default one used by the underlying SDK
-							or library will be used.
-						</xsd:documentation>
-					</xsd:appinfo>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="remote-directory" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						The String literal that gives the remote folder in the provided bucket where
-						the files will be uploaded. This attribute is mutually exclusive to
-						remote-directory-expression
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="remote-directory-expression" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						This attribute is mutually exclusive with the remote-directory attribute
-						and is used to provide an expression that would be evaluated against the incoming
-						message to derive the remote directory name in the given bucket.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="file-name-generator" type="xsd:string">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type
-									type="org.springframework.integration.aws.s3.FileNameGenerationStrategy"/>
-						</tool:annotation>
-					</xsd:appinfo>
-					<xsd:documentation>
-						The instance that would be used to generate the name of the file that would be
-						stored in S3. If none is specified then
-						org.springframework.integration.aws.s3.DefaultFileNameGenerationStrategy would be used.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="file-name-generation-expression" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						The filename generation expression that is mutually exclusive to the
-						file-name-generator attribute. The default expression is "headers['file_name']"
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-
-			<xsd:attribute name="order">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specifies the order for invocation when this endpoint is connected as a
-						subscriber to a SubscribableChannel.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-
-			<xsd:attribute name="s3-operations" type="xsd:string">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:expected-type type="org.springframework.integration.aws.s3.core.AmazonS3Operations"/>
-					</xsd:appinfo>
-					<xsd:documentation>
-						Reference to the bean with an implementation of
-						org.springframework.integration.aws.s3.core.AmazonS3Operations
-						that would be used to perform the operations on the S3 bucket. If not provided, the
-						default implementation used is
-						org.springframework.integration.aws.s3.core.DefaultAmazonS3Operations which is the
-						implementation using the AWS SDK.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-
-			<xsd:attribute name="aws-endpoint" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						The String that gives the endpoint to use for the adapter, if none is
-						specified the default used is s3.amazonaws.com.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
+			<xsd:complexContent>
+				<xsd:extension base="s3OutboundAttributes">
+					<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
+				</xsd:extension>
+			</xsd:complexContent>
 		</xsd:complexType>
 	</xsd:element>
+
+	<xsd:element name="s3-outbound-gateway">
+		<xsd:annotation>
+			<xsd:documentation>
+				Defines a Consumer Endpoint for the 'org.springframework.integration.aws.outbound.S3MessageHandler'
+				with request-reply behaviour to perform Amazon S3 operations.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:complexContent>
+				<xsd:extension base="s3OutboundAttributes">
+					<xsd:attribute name="request-channel" use="required" type="xsd:string">
+						<xsd:annotation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
+								</tool:annotation>
+							</xsd:appinfo>
+							<xsd:documentation>
+								Identifies the request channel attached to this gateway.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="reply-channel" type="xsd:string">
+						<xsd:annotation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
+								</tool:annotation>
+							</xsd:appinfo>
+							<xsd:documentation>
+								Identifies the reply channel attached to this gateway.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="reply-timeout" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation><![CDATA[
+								Allows you to specify how long this gateway will wait for
+								the reply message to be sent successfully to the reply channel
+								before throwing an exception. This attribute only applies when the
+								channel might block, for example when using a bounded queue channel that
+								is currently full.
+
+								Also, keep in mind that when sending to a DirectChannel, the
+								invocation will occur in the sender's thread. Therefore,
+								the failing of the send operation may be caused by other
+								components further downstream.
+
+								The "reply-timeout" attribute maps to the "sendTimeout" property of the
+								underlying 'MessagingTemplate' instance
+								(org.springframework.integration.core.MessagingTemplate).
+
+								The attribute will default, if not specified, to '-1', meaning that
+								by default, the Gateway will wait indefinitely. The value is
+								specified in milliseconds.
+							]]></xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="id" type="xsd:string"/>
+					<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:complexType name="s3OutboundAttributes">
+		<xsd:sequence>
+			<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1"/>
+			<xsd:element name="request-handler-advice-chain" type="integration:handlerAdviceChainType" minOccurs="0"
+						 maxOccurs="1"/>
+		</xsd:sequence>
+		<xsd:attribute name="order">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specifies the order for invocation when this endpoint is connected as a
+					subscriber to a SubscribableChannel.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="s3">
+			<xsd:annotation>
+				<xsd:documentation>
+					Reference to an instance of 'com.amazonaws.services.s3.AmazonS3'.
+					Mutually exclusive with the 'transfer-manager'.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="com.amazonaws.services.s3.AmazonS3"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="transfer-manager">
+			<xsd:annotation>
+				<xsd:documentation>
+					Reference to an instance of 'com.amazonaws.services.s3.transfer.TransferManager'.
+					Mutually exclusive with the 's3'.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="com.amazonaws.services.s3.transfer.TransferManager"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="bucket">
+			<xsd:annotation>
+				<xsd:documentation>
+					The S3 bucket to use.
+					Mutually exclusive with 'bucket-expression'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="bucket-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression to evaluate S3 bucket at runtime against request message.
+					Mutually exclusive with 'bucket'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="command">
+			<xsd:annotation>
+				<xsd:documentation>
+					The S3MessageHandler operation command.
+					Mutually exclusive with 'command-expression'.
+				</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:union memberTypes="s3CommandType xsd:string"/>
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="command-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression to evaluate S3MessageHandler operation command at runtime against request message.
+					Mutually exclusive with 'command'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="progress-listener">
+			<xsd:annotation>
+				<xsd:documentation>
+					Reference to an instance of 'com.amazonaws.services.s3.transfer.internal.S3ProgressListener'.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="com.amazonaws.services.s3.transfer.internal.S3ProgressListener"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="upload-metadata-provider">
+			<xsd:annotation>
+				<xsd:documentation>
+					Reference to an instance of
+					'org.springframework.integration.aws.outbound.S3MessageHandler$UploadMetadataProvider'.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type
+								type="org.springframework.integration.aws.outbound.S3MessageHandler$UploadMetadataProvider"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="key-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression to evaluate S3Object key at runtime against request message.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="object-acl-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression to evaluate S3Object ACL at runtime against request message
+					for the 'upload' operation.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="destination-bucket-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression to evaluate destination S3 bucket at runtime against request message
+					for the 'copy' operation.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="destination-key-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression to evaluate destination S3Object key at runtime against request message
+					for the 'copy' operation.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:complexType>
+
+	<xsd:simpleType name="s3CommandType">
+		<xsd:restriction base="xsd:token">
+			<xsd:enumeration value="UPLOAD" />
+			<xsd:enumeration value="DOWNLOAD" />
+			<xsd:enumeration value="COPY" />
+		</xsd:restriction>
+	</xsd:simpleType>
 
 	<xsd:element name="s3-inbound-channel-adapter">
 		<xsd:complexType>
@@ -443,7 +510,8 @@
 					<xsd:attribute name="task-executor" type="xsd:string">
 						<xsd:annotation>
 							<xsd:documentation>
-								The 'org.springframework.core.task.AsyncTaskExecutor' to run the underlying listener task
+								The 'org.springframework.core.task.AsyncTaskExecutor' to run the underlying listener
+								task
 								from the
 								'org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer'.
 							</xsd:documentation>
@@ -520,10 +588,10 @@
 
 	<xsd:simpleType name="messageDeletionPolicy">
 		<xsd:restriction base="xsd:token">
-			<xsd:enumeration value="NO_REDRIVE" />
-			<xsd:enumeration value="ALWAYS" />
-			<xsd:enumeration value="NEVER" />
-			<xsd:enumeration value="ON_SUCCESS" />
+			<xsd:enumeration value="NO_REDRIVE"/>
+			<xsd:enumeration value="ALWAYS"/>
+			<xsd:enumeration value="NEVER"/>
+			<xsd:enumeration value="ON_SUCCESS"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 
@@ -630,7 +698,7 @@
 						<xsd:annotation>
 							<xsd:appinfo>
 								<tool:annotation kind="ref">
-									<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
 								</tool:annotation>
 							</xsd:appinfo>
 							<xsd:documentation>
@@ -642,7 +710,7 @@
 						<xsd:annotation>
 							<xsd:appinfo>
 								<tool:annotation kind="ref">
-									<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
 								</tool:annotation>
 							</xsd:appinfo>
 							<xsd:documentation>
@@ -674,7 +742,7 @@
 							]]></xsd:documentation>
 						</xsd:annotation>
 					</xsd:attribute>
-					<xsd:attribute name="id" type="xsd:string" />
+					<xsd:attribute name="id" type="xsd:string"/>
 					<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
 				</xsd:extension>
 			</xsd:complexContent>
@@ -800,6 +868,14 @@
 						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
 					</tool:annotation>
 				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="order">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specifies the order for invocation when this endpoint is connected as a
+					subscriber to a SubscribableChannel.
+				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
 	</xsd:complexType>

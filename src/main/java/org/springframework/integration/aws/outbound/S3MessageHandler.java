@@ -219,7 +219,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	 * Specify a {@link S3ProgressListener} for upload and download operations.
 	 * @param s3ProgressListener the {@link S3ProgressListener} to use.
 	 */
-	public void setS3ProgressListener(S3ProgressListener s3ProgressListener) {
+	public void setProgressListener(S3ProgressListener s3ProgressListener) {
 		this.s3ProgressListener = s3ProgressListener;
 	}
 
@@ -241,16 +241,10 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 
 	@Override
 	protected Object handleRequestMessage(Message<?> requestMessage) {
-		Command command;
-		if (this.commandExpression instanceof ValueExpression) {
-			command = (Command) this.commandExpression.getValue();
-		}
-		else {
-			command = this.commandExpression.getValue(this.evaluationContext, requestMessage, Command.class);
-			Assert.state(command != null, "'commandExpression' ["
-					+ this.commandExpression.getExpressionString()
-					+ "] cannot evaluate to null.");
-		}
+		Command command = this.commandExpression.getValue(this.evaluationContext, requestMessage, Command.class);
+		Assert.state(command != null, "'commandExpression' ["
+				+ this.commandExpression.getExpressionString()
+				+ "] cannot evaluate to null.");
 
 		Transfer transfer = null;
 

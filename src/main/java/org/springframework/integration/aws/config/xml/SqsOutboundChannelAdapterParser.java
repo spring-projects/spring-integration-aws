@@ -43,19 +43,19 @@ public class SqsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
 
 		String template = element.getAttribute(QUEUE_MESSAGING_TEMPLATE_REF);
 		boolean hasTemplate = StringUtils.hasText(template);
-		String sqs = element.getAttribute(AmazonWSParserUtils.SQS_REF);
+		String sqs = element.getAttribute(AwsParserUtils.SQS_REF);
 		boolean hasSqs = StringUtils.hasText(sqs);
-		String resourceIdResolver = element.getAttribute(AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF);
+		String resourceIdResolver = element.getAttribute(AwsParserUtils.RESOURCE_ID_RESOLVER_REF);
 		boolean hasResourceIdResolver = StringUtils.hasText(resourceIdResolver);
 		if (hasTemplate && (hasSqs || hasResourceIdResolver)) {
 			parserContext.getReaderContext().error(QUEUE_MESSAGING_TEMPLATE_REF +
-					" should not be defined in conjunction with " + AmazonWSParserUtils.SQS_REF
-					+ " or " + AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF, element);
+					" should not be defined in conjunction with " + AwsParserUtils.SQS_REF
+					+ " or " + AwsParserUtils.RESOURCE_ID_RESOLVER_REF, element);
 		}
 
 		if (!hasTemplate && !hasSqs) {
 			parserContext.getReaderContext().error("One of " + QUEUE_MESSAGING_TEMPLATE_REF + " or "
-					+ AmazonWSParserUtils.SQS_REF + " must be defined.", element);
+					+ AwsParserUtils.SQS_REF + " must be defined.", element);
 		}
 
 		if (hasSqs) {

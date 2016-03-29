@@ -57,7 +57,7 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 
 	@Override
 	protected void doParse(Element element, ParserContext parserContext, BeanDefinitionBuilder builder) {
-		String sqs = element.getAttribute(AmazonWSParserUtils.SQS_REF);
+		String sqs = element.getAttribute(AwsParserUtils.SQS_REF);
 		if (!StringUtils.hasText(sqs)) {
 			parserContext.getReaderContext().error("'sqs' attribute is required.", element);
 		}
@@ -70,7 +70,7 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 		builder.addPropertyReference("outputChannel", channelName);
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "error-channel");
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element,
-				AmazonWSParserUtils.RESOURCE_ID_RESOLVER_REF);
+				AwsParserUtils.RESOURCE_ID_RESOLVER_REF);
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "task-executor");
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "destination-resolver");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "send-timeout");

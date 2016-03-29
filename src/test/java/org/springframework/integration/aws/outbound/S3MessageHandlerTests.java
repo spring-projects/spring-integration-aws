@@ -57,6 +57,7 @@ import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.expression.Expression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.http.MediaType;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -383,7 +384,9 @@ public class S3MessageHandlerTests {
 		public MessageHandler s3MessageHandler() {
 			S3MessageHandler s3MessageHandler = new S3MessageHandler(amazonS3(), "myBucket");
 			s3MessageHandler.setCommandExpression(PARSER.parseExpression("headers.s3Command"));
-			s3MessageHandler.setKeyExpression(PARSER.parseExpression("payload instanceof T(java.io.File) ? payload.name : headers.key"));
+			Expression keyExpression =
+					PARSER.parseExpression("payload instanceof T(java.io.File) ? payload.name : headers.key");
+			s3MessageHandler.setKeyExpression(keyExpression);
 			s3MessageHandler.setObjectAclExpression(new ValueExpression<>(CannedAccessControlList.PublicReadWrite));
 			s3MessageHandler.setUploadMetadataProvider(new S3MessageHandler.UploadMetadataProvider() {
 
@@ -397,7 +400,7 @@ public class S3MessageHandlerTests {
 				}
 
 			});
-			s3MessageHandler.setS3ProgressListener(s3ProgressListener());
+			s3MessageHandler.setProgressListener(s3ProgressListener());
 			return s3MessageHandler;
 		}
 
