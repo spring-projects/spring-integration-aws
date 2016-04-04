@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,6 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import org.w3c.dom.Element;
-
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.BeanDefinitionReaderUtils;
-import org.springframework.beans.factory.xml.ParserContext;
-import org.springframework.integration.aws.core.AWSCredentials;
-import org.springframework.integration.aws.core.BasicAWSCredentials;
-import org.springframework.integration.aws.core.PropertiesAWSCredentials;
-import org.springframework.util.StringUtils;
-
 /**
  * The utility class for the namespace parsers
  *
@@ -36,14 +26,6 @@ import org.springframework.util.StringUtils;
  */
 public final class AwsParserUtils {
 
-	public static final String ACCESS_KEY = "accessKey";
-
-	public static final String SECRET_KEY = "secretKey";
-
-	public static final String PROPERTIES_FILE = "propertiesFile";
-
-	public static final String CREDENTIALS_REF = "credentials-ref";
-
 	public static final String SQS_REF = "sqs";
 
 	public static final String SNS_REF = "sns";
@@ -53,59 +35,7 @@ public final class AwsParserUtils {
 	public static final String RESOURCE_ID_RESOLVER_REF = "resource-id-resolver";
 
 	private AwsParserUtils() {
-	}
-
-
-	/**
-	 * Registers the {@link AWSCredentials} bean with the current ApplicationContext if
-	 * accessKey and secretKey is given, if the credentials-ref is given, the given value
-	 * is returned.
-	 * @param element
-	 * @param parserContext
-	 */
-	public static String getAmazonWSCredentials(Element element, ParserContext parserContext) {
-		//TODO: Some mechanism to use the same instance with same ACCESS_KEY to be implemented
-		String accessKey = element.getAttribute(ACCESS_KEY);
-		String secretKey = element.getAttribute(SECRET_KEY);
-		String propertiesFile = element.getAttribute(PROPERTIES_FILE);
-		String credentialsRef = element.getAttribute(CREDENTIALS_REF);
-		String awsCredentialsGeneratedName;
-
-		if (StringUtils.hasText(credentialsRef)) {
-			if (StringUtils.hasText(propertiesFile)
-					|| StringUtils.hasText(accessKey)
-					|| StringUtils.hasText(secretKey)) {
-				parserContext.getReaderContext().error("When " + CREDENTIALS_REF + " is specified, " +
-						"do not specify the " + PROPERTIES_FILE + " attribute or the "
-						+ SECRET_KEY + " and " + ACCESS_KEY + " attributes", element);
-			}
-			awsCredentialsGeneratedName = credentialsRef;
-		}
-		else {
-			if (StringUtils.hasText(propertiesFile)) {
-				if (StringUtils.hasText(accessKey) && StringUtils.hasText(secretKey)) {
-					parserContext.getReaderContext().error("When " + ACCESS_KEY + " and " + SECRET_KEY +
-							" are specified, do not specify the " + PROPERTIES_FILE + " attribute", element);
-				}
-
-				BeanDefinitionBuilder builder =
-						BeanDefinitionBuilder.genericBeanDefinition(PropertiesAWSCredentials.class);
-				builder.addConstructorArgValue(propertiesFile);
-				awsCredentialsGeneratedName = BeanDefinitionReaderUtils.registerWithGeneratedName(
-						builder.getBeanDefinition(), parserContext.getRegistry());
-			}
-			else {
-				BeanDefinitionBuilder builder
-						= BeanDefinitionBuilder.genericBeanDefinition(BasicAWSCredentials.class);
-				builder.addConstructorArgValue(accessKey);
-				builder.addConstructorArgValue(secretKey);
-				awsCredentialsGeneratedName = BeanDefinitionReaderUtils.registerWithGeneratedName(
-						builder.getBeanDefinition(), parserContext.getRegistry());
-
-			}
-		}
-
-		return awsCredentialsGeneratedName;
+		super();
 	}
 
 }

@@ -16,7 +16,6 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import org.springframework.integration.aws.s3.config.xml.AmazonS3InboundChannelAdapterParser;
 import org.springframework.integration.config.xml.AbstractIntegrationNamespaceHandler;
 
 /**
@@ -32,7 +31,7 @@ public class AwsNamespaceHandler extends AbstractIntegrationNamespaceHandler {
 	public void init() {
 		registerBeanDefinitionParser("s3-outbound-channel-adapter", new S3OutboundChannelAdapterParser());
 		registerBeanDefinitionParser("s3-outbound-gateway", new S3OutboundGatewayParser());
-		registerBeanDefinitionParser("s3-inbound-channel-adapter", new AmazonS3InboundChannelAdapterParser());
+		registerBeanDefinitionParser("s3-inbound-channel-adapter", new S3InboundChannelAdapterParser());
 		registerBeanDefinitionParser("sqs-outbound-channel-adapter", new SqsOutboundChannelAdapterParser());
 		registerBeanDefinitionParser("sqs-message-driven-channel-adapter", new SqsMessageDrivenChannelAdapterParser());
 		registerBeanDefinitionParser("sns-inbound-channel-adapter", new SnsInboundChannelAdapterParser());

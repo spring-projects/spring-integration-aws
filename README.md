@@ -65,6 +65,77 @@ Get more information about AWS free tier at [http://aws.amazon.com/free/][]**
 The S3 Channel Adapters are based on the `AmazonS3` template and `TransferManager`.
 See their specification and JavaDocs for more information.
 
+###Inbound Channel Adapter
+
+The S3 Inbound Channel Adapter is represented by the `S3InboundFileSynchronizingMessageSource`
+ (`<int-aws:s3-inbound-channel-adapter>`) and allows to pull S3 objects as files from the S3 bucket
+to the local directory for synchronization.
+This adapter is fully similar to the Inbound Channel Adapters in the FTP and SFTP Spring Integration modules.
+See more information in the [FTP/FTPS Adapters Chapter][] for common options or `SessionFactory`, `RemoteFileTemplate`
+and `FileListFilter` abstractions.
+
+The Java Configuration is:
+
+````java
+@SpringBootApplication
+public static class MyConfiguration {
+
+    @Autowired
+    private AmazonS3 amazonS3;
+
+    @Bean
+    public S3InboundFileSynchronizer s3InboundFileSynchronizer() {
+    	S3InboundFileSynchronizer synchronizer = new S3InboundFileSynchronizer(amazonS3());
+    	synchronizer.setDeleteRemoteFiles(true);
+    	synchronizer.setPreserveTimestamp(true);
+    	synchronizer.setRemoteDirectory(S3_BUCKET);
+    	synchronizer.setFilter(new S3RegexPatternFileListFilter(".*\\.test$"));
+    	Expression expression = PARSER.parseExpression("#this.toUpperCase() + '.a'");
+    	synchronizer.setLocalFilenameGeneratorExpression(expression);
+    	return synchronizer;
+    }
+
+    @Bean
+    @InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
+    public S3InboundFileSynchronizingMessageSource s3InboundFileSynchronizingMessageSource() {
+    	S3InboundFileSynchronizingMessageSource messageSource =
+    			new S3InboundFileSynchronizingMessageSource(s3InboundFileSynchronizer());
+    	messageSource.setAutoCreateLocalDirectory(true);
+    	messageSource.setLocalDirectory(LOCAL_FOLDER);
+    	messageSource.setLocalFilter(new AcceptOnceFileListFilter<File>());
+    	return messageSource;
+    }
+
+    @Bean
+    public PollableChannel s3FilesChannel() {
+    	return new QueueChannel();
+    }
+}
+````
+
+With this config you receive messages with `java.io.File` `payload` from the `s3FilesChannel`
+after periodic synchronization of content from the Amazon S3 bucket into the local directory.
+
+An XML variant may look like:
+
+````xml
+<bean id="s3SessionFactory" class="org.springframework.integration.aws.support.S3SessionFactory"/>
+
+<int-aws:s3-inbound-channel-adapter channel="s3Channel"
+                   session-factory="s3SessionFactory"
+                   auto-create-local-directory="true"
+                   delete-remote-files="true"
+                   preserve-timestamp="true"
+                   filename-pattern="*.txt"
+                   local-directory="."
+                   local-filename-generator-expression="#this.toUpperCase() + '.a' + @fooString"
+                   temporary-file-suffix=".foo"
+                   local-filter="acceptAllFilter"
+                   remote-directory-expression="'my_bucket'">
+    <int:poller fixed-rate="1000"/>
+</int-aws:s3-inbound-channel-adapter>
+````
+
 ###Outbound Channel Adapter
 
 The S3 Outbound Channel Adapter is represented by the `S3MessageHandler` (`<int-aws:s3-outbound-channel-adapter>`
@@ -366,3 +437,4 @@ By default the `SnsMessageHandler` is one-way `MessageHandler`.
 [http://aws.amazon.com/ses/]: http://aws.amazon.com/ses/
 [http://aws.amazon.com/documentation/ses/]: http://aws.amazon.com/documentation/ses/
 [http://aws.amazon.com/free/]: http://aws.amazon.com/free/
+[Reference Manual]: http://docs.spring.io/spring-integration/reference/html/ftp.html

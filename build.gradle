@@ -1,5 +1,3 @@
-description = 'Spring Integration AWS Support'
-
 buildscript {
 	repositories {
 		maven { url 'http://repo.spring.io/plugins-release' }
@@ -8,6 +6,12 @@ buildscript {
 		classpath 'io.spring.gradle:spring-io-plugin:0.0.4.RELEASE'
 	}
 }
+
+plugins {
+	id "org.sonarqube" version "1.2"
+}
+
+description = 'Spring Integration AWS Support'
 
 apply plugin: 'java'
 apply from:   "${rootProject.projectDir}/publish-maven.gradle"
@@ -39,9 +43,8 @@ if (project.hasProperty('platformVersion')) {
 }
 
 ext {
-	commonsIoVersion='2.4'
 	servletApiVersion = '3.1.0'
-	slf4jVersion = '1.7.13'
+	slf4jVersion = '1.7.18'
 	springCloudAwsVersion = '1.1.0.M2'
 	springIntegrationVersion = '4.2.5.RELEASE'
 
@@ -60,16 +63,16 @@ ext.javadocLinks = [
 ] as String[]
 
 jacoco {
-	toolVersion = "0.7.2.201409121644"
+	toolVersion = "0.7.6.201602180812"
 }
 
 dependencies {
 
-	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
-	compile ("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
-	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 	compile "org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion"
-	compile "commons-io:commons-io:$commonsIoVersion"
+	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
+	compile ("org.springframework.integration:spring-integration-file:$springIntegrationVersion", optional)
+	compile ("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
+	compile ("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
 
@@ -151,10 +154,8 @@ artifacts {
 	archives javadocJar
 }
 
-apply plugin: 'sonar-runner'
-
-sonarRunner {
-	sonarProperties {
+sonarqube {
+	properties {
 		property "sonar.jacoco.reportPath", "${buildDir.name}/jacoco.exec"
 		property "sonar.links.homepage", linkHomepage
 		property "sonar.links.ci", linkCi
@@ -274,10 +275,4 @@ artifacts {
 task dist(dependsOn: assemble) {
 	group = 'Distribution'
 	description = 'Builds -dist, -docs and -schema distribution archives.'
-}
-
-task wrapper(type: Wrapper) {
-	description = 'Generates gradlew[.bat] scripts'
-	gradleVersion = '2.5'
-	distributionUrl = "http://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip"
 }

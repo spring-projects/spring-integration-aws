@@ -111,6 +111,11 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	@Override
+	public String getComponentType() {
+		return "aws:sqs-message-driven-channel-adapter";
+	}
+
+	@Override
 	protected void doStart() {
 		this.listenerContainer.start();
 	}

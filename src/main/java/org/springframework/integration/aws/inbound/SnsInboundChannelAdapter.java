@@ -109,6 +109,11 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 	}
 
 	@Override
+	public String getComponentType() {
+		return "aws:sns-inbound-channel-adapter";
+	}
+
+	@Override
 	@SuppressWarnings("unchecked")
 	protected void send(Object object) {
 		Message<?> message = (Message<?>) object;
