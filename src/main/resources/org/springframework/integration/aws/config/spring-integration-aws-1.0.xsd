@@ -19,48 +19,6 @@
 		]]></xsd:documentation>
 	</xsd:annotation>
 
-	<xsd:attributeGroup name="awsAdaptersCommonAttributes">
-		<xsd:attribute name="accessKey" type="xsd:string">
-			<xsd:annotation>
-				<xsd:documentation>
-					Specify the access key to be used to connect to the AWS service.
-				</xsd:documentation>
-			</xsd:annotation>
-		</xsd:attribute>
-		<xsd:attribute name="secretKey" type="xsd:string">
-			<xsd:annotation>
-				<xsd:documentation>
-					Specify the secret key corresponding to the access key to be used to
-					authenticate the user and connect to the AWS service.
-				</xsd:documentation>
-			</xsd:annotation>
-		</xsd:attribute>
-		<xsd:attribute name="propertiesFile" type="xsd:string">
-			<xsd:annotation>
-				<xsd:documentation>
-					Specifies the properties file used that will be used to hold the access key
-					and the secret key of the AWS. This file expects two properties accessKey and
-					secretKey for Access key and Secret Key respectively. This attribute is mutually
-					exclusive to the accessKey, secretKey and credentials-ref attribute.
-				</xsd:documentation>
-			</xsd:annotation>
-		</xsd:attribute>
-		<xsd:attribute name="credentials-ref" type="xsd:string">
-			<xsd:annotation>
-				<xsd:appinfo>
-					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.integration.aws.core.AWSCredentials"/>
-					</tool:annotation>
-				</xsd:appinfo>
-				<xsd:documentation>
-					If none of the default mechanisms work, you may provide a custom implementation
-					of org.springframework.integration.aws.core.AWSCredentials. Various use cases are
-					when you might want to read the credentials from a database or any other secure store
-				</xsd:documentation>
-			</xsd:annotation>
-		</xsd:attribute>
-	</xsd:attributeGroup>
-
 	<xsd:element name="s3-outbound-channel-adapter">
 		<xsd:annotation>
 			<xsd:documentation>
