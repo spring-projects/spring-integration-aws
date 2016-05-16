@@ -153,7 +153,7 @@ An XML variant may look like:
 See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
 `<int-aws:s3-outbound-gateway>` descriptions.
 
-###Inbound Channel Adapter
+###Outbound Gateway
 
 ##Simple Email Service (SES)
 
