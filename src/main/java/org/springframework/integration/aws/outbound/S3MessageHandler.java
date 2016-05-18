@@ -396,7 +396,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					@Override
 					public void progressChanged(ProgressEvent progressEvent) {
 						if (ProgressEventType.TRANSFER_COMPLETED_EVENT.equals(progressEvent.getEventType())) {
-							transferManager.getAmazonS3Client().setObjectAcl(theAclRequest);
+							S3MessageHandler.this.transferManager.getAmazonS3Client().setObjectAcl(theAclRequest);
 						}
 					}
 
@@ -505,8 +505,28 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		return bucketName;
 	}
 
+	/**
+	 * The {@link S3MessageHandler} mode.
+	 *
+	 * @see #setCommand
+	 */
 	public enum Command {
-		UPLOAD, DOWNLOAD, COPY
+
+		/**
+		 * The command to perform {@link TransferManager#upload} operation.
+		 */
+		UPLOAD,
+
+		/**
+		 * The command to perform {@link TransferManager#download} operation.
+		 */
+		DOWNLOAD,
+
+		/**
+		 * The command to perform {@link TransferManager#copy} operation.
+		 */
+		COPY
+
 	}
 
 	/**
@@ -523,14 +543,14 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 
 		private final MessageHeaders messageHeaders;
 
-		public MessageHeadersObjectMetadataProvider(MessageHeaders messageHeaders) {
+		MessageHeadersObjectMetadataProvider(MessageHeaders messageHeaders) {
 			this.messageHeaders = messageHeaders;
 		}
 
 		@Override
 		public void provideObjectMetadata(File file, ObjectMetadata metadata) {
-			if (uploadMetadataProvider != null) {
-				uploadMetadataProvider.populateMetadata(metadata,
+			if (S3MessageHandler.this.uploadMetadataProvider != null) {
+				S3MessageHandler.this.uploadMetadataProvider.populateMetadata(metadata,
 						MessageBuilder.createMessage(file, this.messageHeaders));
 			}
 			if (metadata.getContentMD5() == null) {

@@ -155,6 +155,18 @@ See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outboun
 
 ###Outbound Gateway
 
+The S3 Outbound Gateway is represented by the same `S3MessageHandler` with the `produceReply = true` constructor
+ argument for Java Configuration and `<int-aws:s3-outbound-gateway>` for xml definitions.
+
+The "request-reply" nature of this gateway is async and the `Transfer` result from the `TransferManager`
+operation is sent to the `outputChannel`, assuming the transfer progress observation in the downstream flow.
+
+The `S3ProgressListener can be supplied to track the transfer progress.
+Also the listener can be populated into the returned `Transfer` afterwards in the downstream flow.
+
+See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
+`<int-aws:s3-outbound-gateway>` descriptions.
+
 ##Simple Email Service (SES)
 
 There is no adapter for SES, since [Spring Cloud AWS][] provides implementations for

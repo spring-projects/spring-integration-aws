@@ -1,24 +1,22 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2016 the original author or authors.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.springframework.integration.aws.outbound;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -63,8 +61,8 @@ public abstract class AbstractSqsMessageHandlerTests {
 			this.sqsSendChannel.send(message);
 		}
 		catch (Exception e) {
-			assertThat(e, instanceOf(MessageHandlingException.class));
-			assertThat(e.getCause(), instanceOf(IllegalStateException.class));
+			assertThat(e).isInstanceOf(MessageHandlingException.class);
+			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
 		}
 
 		this.sqsMessageHandler.setQueue("foo");
@@ -72,12 +70,14 @@ public abstract class AbstractSqsMessageHandlerTests {
 		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor =
 				ArgumentCaptor.forClass(SendMessageRequest.class);
 		verify(this.amazonSqs).sendMessage(sendMessageRequestArgumentCaptor.capture());
-		assertEquals("http://queue-url.com/foo", sendMessageRequestArgumentCaptor.getValue().getQueueUrl());
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
+				.isEqualTo("http://queue-url.com/foo");
 
 		message = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
 		this.sqsSendChannel.send(message);
 		verify(this.amazonSqs, times(2)).sendMessage(sendMessageRequestArgumentCaptor.capture());
-		assertEquals("http://queue-url.com/bar", sendMessageRequestArgumentCaptor.getValue().getQueueUrl());
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
+				.isEqualTo("http://queue-url.com/bar");
 
 		SpelExpressionParser spelExpressionParser = new SpelExpressionParser();
 		Expression expression = spelExpressionParser.parseExpression("headers.foo");
@@ -85,7 +85,8 @@ public abstract class AbstractSqsMessageHandlerTests {
 		message = MessageBuilder.withPayload("message").setHeader("foo", "baz").build();
 		this.sqsSendChannel.send(message);
 		verify(this.amazonSqs, times(3)).sendMessage(sendMessageRequestArgumentCaptor.capture());
-		assertEquals("http://queue-url.com/baz", sendMessageRequestArgumentCaptor.getValue().getQueueUrl());
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
+				.isEqualTo("http://queue-url.com/baz");
 	}
 
 }

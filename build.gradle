@@ -14,10 +14,11 @@ plugins {
 description = 'Spring Integration AWS Support'
 
 apply plugin: 'java'
-apply from:   "${rootProject.projectDir}/publish-maven.gradle"
+apply from: "${rootProject.projectDir}/publish-maven.gradle"
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'jacoco'
+apply plugin: 'checkstyle'
 
 group = 'org.springframework.integration'
 
@@ -28,7 +29,15 @@ repositories {
 	maven { url 'http://repo.spring.io/libs-milestone' }
 }
 
-sourceCompatibility = targetCompatibility = 1.7
+compileJava {
+	sourceCompatibility = 1.7
+	targetCompatibility = 1.7
+}
+
+compileTestJava {
+	sourceCompatibility = 1.8
+	targetCompatibility = 1.8
+}
 
 if (project.hasProperty('platformVersion')) {
 	apply plugin: 'spring-io'
@@ -43,6 +52,7 @@ if (project.hasProperty('platformVersion')) {
 }
 
 ext {
+	assertjVersion = '3.4.1'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.21'
 	springCloudAwsVersion = '1.1.0.RELEASE'
@@ -51,30 +61,36 @@ ext {
 	idPrefix = 'aws'
 
 	linkHomepage = 'https://github.com/spring-projects/spring-integration-aws'
-	linkCi       = 'https://build.spring.io/browse/INTEXT'
-	linkIssue    = 'https://jira.spring.io/browse/INTEXT'
-	linkScmUrl           = 'https://github.com/spring-projects/spring-integration-aws'
-	linkScmConnection    = 'https://github.com/spring-projects/spring-integration-aws.git'
+	linkCi = 'https://build.spring.io/browse/INTEXT'
+	linkIssue = 'https://jira.spring.io/browse/INTEXT'
+	linkScmUrl = 'https://github.com/spring-projects/spring-integration-aws'
+	linkScmConnection = 'https://github.com/spring-projects/spring-integration-aws.git'
 	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
 }
 
 ext.javadocLinks = [
-	"http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/"
+		"http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/"
 ] as String[]
 
 jacoco {
 	toolVersion = "0.7.6.201602180812"
 }
 
+checkstyle {
+	configFile = file('src/checkstyle/checkstyle.xml')
+	toolVersion = '6.18'
+}
+
 dependencies {
 
 	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
-	compile ("org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion", optional)
-	compile ("org.springframework.integration:spring-integration-file:$springIntegrationVersion", optional)
-	compile ("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
-	compile ("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
+	compile("org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion", optional)
+	compile("org.springframework.integration:spring-integration-file:$springIntegrationVersion", optional)
+	compile("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
+	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
+	testCompile "org.assertj:assertj-core:$assertjVersion"
 
 	testRuntime "org.slf4j:slf4j-log4j12:$slf4jVersion"
 }
@@ -170,7 +186,7 @@ task schemaZip(type: Zip) {
 	group = 'Distribution'
 	classifier = 'schema'
 	description = "Builds -${classifier} archive containing all " +
-		"XSDs for deployment at static.springframework.org/schema."
+			"XSDs for deployment at static.springframework.org/schema."
 
 	def Properties schemas = new Properties();
 	def shortName = idPrefix.replaceFirst("${idPrefix}-", '')
@@ -184,7 +200,7 @@ task schemaZip(type: Zip) {
 			it.path.replaceAll('\\\\', '/').endsWith(schemas.get(key))
 		}
 		assert xsdFile != null
-		into ("integration/${shortName}") {
+		into("integration/${shortName}") {
 			from xsdFile.path
 		}
 	}
@@ -192,18 +208,18 @@ task schemaZip(type: Zip) {
 }
 
 task docsZip(type: Zip) {
-		group = 'Distribution'
-		classifier = 'docs'
-		description = "Builds -${classifier} archive containing the JavaDoc api " +
+	group = 'Distribution'
+	classifier = 'docs'
+	description = "Builds -${classifier} archive containing the JavaDoc api " +
 			"for deployment at static.springframework.org/spring-integration/docs."
 
-		from('.') {
-			include 'README.md'
-		}
+	from('.') {
+		include 'README.md'
+	}
 
-		from (javadoc) {
-			into 'api'
-		}
+	from(javadoc) {
+		into 'api'
+	}
 
 }
 
@@ -211,7 +227,7 @@ task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
 	group = 'Distribution'
 	classifier = 'dist'
 	description = "Builds -${classifier} archive, containing all jars and docs, " +
-		"suitable for community download page."
+			"suitable for community download page."
 
 	ext.baseDir = "${project.name}-${project.version}";
 
@@ -230,7 +246,7 @@ task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
 		into "${baseDir}/schema"
 	}
 
-	into ("${baseDir}/libs") {
+	into("${baseDir}/libs") {
 		from project.jar
 		from project.sourcesJar
 		from project.javadocJar
@@ -243,7 +259,7 @@ task depsZip(type: Zip, dependsOn: distZip) { zipTask ->
 	group = 'Distribution'
 	classifier = 'dist-with-deps'
 	description = "Builds -${classifier} archive, containing everything " +
-		"in the -${distZip.classifier} archive plus all dependencies."
+			"in the -${distZip.classifier} archive plus all dependencies."
 
 	from zipTree(distZip.archivePath)
 

@@ -1,24 +1,22 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2016 the original author or authors.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.springframework.integration.aws.config.xml;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,9 +24,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
-import org.springframework.integration.channel.NullChannel;
 import org.springframework.integration.endpoint.EventDrivenConsumer;
-import org.springframework.integration.endpoint.PollingConsumer;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -62,18 +58,21 @@ public class SqsMessageHandlerParserTests {
 
 	@Test
 	public void testSqsMessageHandlerParser() {
-		assertSame(this.amazonSqs,
-				TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "template.amazonSqs"));
-		assertSame(this.resourceIdResolver, TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"template.destinationResolver.targetDestinationResolver.resourceIdResolver"));
-		assertEquals("foo", TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"queueExpression.literalValue"));
-		assertEquals(100, this.sqsOutboundChannelAdapter.getPhase());
-		assertFalse(this.sqsOutboundChannelAdapter.isAutoStartup());
-		assertFalse(this.sqsOutboundChannelAdapter.isRunning());
-		assertSame(this.errorChannel, TestUtils.getPropertyValue(this.sqsOutboundChannelAdapter, "inputChannel"));
-		assertSame(this.sqsOutboundChannelAdapterHandler,
-				TestUtils.getPropertyValue(this.sqsOutboundChannelAdapter, "handler"));
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "template.amazonSqs"))
+				.isSameAs(this.amazonSqs);
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
+				"template.destinationResolver.targetDestinationResolver.resourceIdResolver"))
+				.isSameAs(this.resourceIdResolver);
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
+				"queueExpression.literalValue"))
+				.isEqualTo("foo");
+		assertThat(this.sqsOutboundChannelAdapter.getPhase()).isEqualTo(100);
+		assertThat(this.sqsOutboundChannelAdapter.isAutoStartup()).isFalse();
+		assertThat(this.sqsOutboundChannelAdapter.isRunning()).isFalse();
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapter, "inputChannel"))
+				.isSameAs(this.errorChannel);
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapter, "handler"))
+				.isSameAs(this.sqsOutboundChannelAdapterHandler);
 	}
 
 }

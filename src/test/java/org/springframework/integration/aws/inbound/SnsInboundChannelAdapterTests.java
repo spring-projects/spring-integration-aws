@@ -1,25 +1,23 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2016 the original author or authors.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.springframework.integration.aws.inbound;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,7 +26,7 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
+import org.mockito.BDDMockito;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -98,11 +96,11 @@ public class SnsInboundChannelAdapterTests {
 				.andExpect(status().isNoContent());
 
 		Message<?> receive = inputChannel.receive(10000);
-		assertNotNull(receive);
-		assertTrue(receive.getHeaders().containsKey(AwsHeaders.SNS_MESSAGE_TYPE));
-		assertEquals("SubscriptionConfirmation", receive.getHeaders().get(AwsHeaders.SNS_MESSAGE_TYPE));
+		assertThat(receive).isNotNull();
+		assertThat(receive.getHeaders().containsKey(AwsHeaders.SNS_MESSAGE_TYPE)).isTrue();
+		assertThat(receive.getHeaders().get(AwsHeaders.SNS_MESSAGE_TYPE)).isEqualTo("SubscriptionConfirmation");
 
-		assertTrue(receive.getHeaders().containsKey(AwsHeaders.NOTIFICATION_STATUS));
+		assertThat(receive.getHeaders().containsKey(AwsHeaders.NOTIFICATION_STATUS)).isTrue();
 		NotificationStatus notificationStatus = (NotificationStatus) receive.getHeaders()
 				.get(AwsHeaders.NOTIFICATION_STATUS);
 
@@ -123,11 +121,11 @@ public class SnsInboundChannelAdapterTests {
 				.andExpect(status().isNoContent());
 
 		Message<?> receive = inputChannel.receive(10000);
-		assertNotNull(receive);
+		assertThat(receive).isNotNull();
 		Map<String, String> payload = (Map<String, String>) receive.getPayload();
 
-		assertEquals("foo", payload.get("Subject"));
-		assertEquals("bar", payload.get("Message"));
+		assertThat(payload.get("Subject")).isEqualTo("foo");
+		assertThat(payload.get("Message")).isEqualTo("bar");
 	}
 
 	@Test
@@ -140,11 +138,11 @@ public class SnsInboundChannelAdapterTests {
 				.andExpect(status().isNoContent());
 
 		Message<?> receive = inputChannel.receive(10000);
-		assertNotNull(receive);
-		assertTrue(receive.getHeaders().containsKey(AwsHeaders.SNS_MESSAGE_TYPE));
-		assertEquals("UnsubscribeConfirmation", receive.getHeaders().get(AwsHeaders.SNS_MESSAGE_TYPE));
+		assertThat(receive).isNotNull();
+		assertThat(receive.getHeaders().containsKey(AwsHeaders.SNS_MESSAGE_TYPE)).isTrue();
+		assertThat(receive.getHeaders().get(AwsHeaders.SNS_MESSAGE_TYPE)).isEqualTo("UnsubscribeConfirmation");
 
-		assertTrue(receive.getHeaders().containsKey(AwsHeaders.NOTIFICATION_STATUS));
+		assertThat(receive.getHeaders().containsKey(AwsHeaders.NOTIFICATION_STATUS)).isTrue();
 		NotificationStatus notificationStatus = (NotificationStatus) receive.getHeaders()
 				.get(AwsHeaders.NOTIFICATION_STATUS);
 
@@ -160,7 +158,7 @@ public class SnsInboundChannelAdapterTests {
 
 		@Bean
 		public AmazonSNS amazonSns() {
-			return Mockito.mock(AmazonSNS.class);
+			return BDDMockito.mock(AmazonSNS.class);
 		}
 
 		@Bean

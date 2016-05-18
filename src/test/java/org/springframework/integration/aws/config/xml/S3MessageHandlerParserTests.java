@@ -16,10 +16,7 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -86,59 +83,69 @@ public class S3MessageHandlerParserTests {
 
 	@Test
 	public void testS3OutboundChannelAdapterParser() {
-		assertSame(this.amazonS3,
-				TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "transferManager.s3"));
-		assertEquals("foo", TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"bucketExpression.literalValue"));
-		assertEquals("'bar'", TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"destinationBucketExpression.expression"));
-		assertEquals("'baz'", TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"destinationKeyExpression.expression"));
-		assertEquals("payload.name", TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"keyExpression.expression"));
-		assertEquals("'qux'", TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"objectAclExpression.expression"));
-		assertEquals(S3MessageHandler.Command.COPY.name(),
-				TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "commandExpression.literalValue"));
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "transferManager.s3"))
+				.isSameAs(this.amazonS3);
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
+				"bucketExpression.literalValue"))
+				.isEqualTo("foo");
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
+				"destinationBucketExpression.expression"))
+				.isEqualTo("'bar'");
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
+				"destinationKeyExpression.expression"))
+				.isEqualTo("'baz'");
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
+				"keyExpression.expression"))
+				.isEqualTo("payload.name");
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
+				"objectAclExpression.expression"))
+				.isEqualTo("'qux'");
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "commandExpression.literalValue"))
+				.isEqualTo(S3MessageHandler.Command.COPY.name());
 
-		assertFalse(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "produceReply", Boolean.class));
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "produceReply", Boolean.class))
+				.isFalse();
 
-		assertSame(this.progressListener,
-				TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "s3ProgressListener"));
-		assertSame(this.uploadMetadataProvider,
-				TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "uploadMetadataProvider"));
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "s3ProgressListener"))
+				.isSameAs(this.progressListener);
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "uploadMetadataProvider"))
+				.isSameAs(this.uploadMetadataProvider);
 
-		assertEquals(100, this.s3OutboundChannelAdapter.getPhase());
-		assertFalse(this.s3OutboundChannelAdapter.isAutoStartup());
-		assertFalse(this.s3OutboundChannelAdapter.isRunning());
-		assertSame(this.errorChannel, TestUtils.getPropertyValue(this.s3OutboundChannelAdapter, "inputChannel"));
-		assertSame(this.s3OutboundChannelAdapterHandler,
-				TestUtils.getPropertyValue(this.s3OutboundChannelAdapter, "handler"));
+		assertThat(this.s3OutboundChannelAdapter.getPhase()).isEqualTo(100);
+		assertThat(this.s3OutboundChannelAdapter.isAutoStartup()).isFalse();
+		assertThat(this.s3OutboundChannelAdapter.isRunning()).isFalse();
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapter, "inputChannel"))
+				.isSameAs(this.errorChannel);
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapter, "handler"))
+				.isSameAs(this.s3OutboundChannelAdapterHandler);
 	}
 
 	@Test
 	public void testS3OutboundGatewayParser() {
-		assertSame(this.transferManager,
-				TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "transferManager"));
-		assertEquals("'FOO'", TestUtils.getPropertyValue(this.s3OutboundGatewayHandler,
-				"bucketExpression.expression"));
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "transferManager"))
+				.isSameAs(this.transferManager);
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler,
+				"bucketExpression.expression"))
+				.isEqualTo("'FOO'");
 		Expression commandExpression =
 				TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "commandExpression", Expression.class);
-		assertEquals("'" + S3MessageHandler.Command.DOWNLOAD.name() + "'",
-				TestUtils.getPropertyValue(commandExpression, "expression"));
+		assertThat(TestUtils.getPropertyValue(commandExpression, "expression"))
+				.isEqualTo("'" + S3MessageHandler.Command.DOWNLOAD.name() + "'");
 
 		StandardEvaluationContext evaluationContext = ExpressionUtils.createStandardEvaluationContext(this.beanFactory);
 		S3MessageHandler.Command command =
 				commandExpression.getValue(evaluationContext, S3MessageHandler.Command.class);
 
-		assertEquals(S3MessageHandler.Command.DOWNLOAD, command);
+		assertThat(command).isEqualTo(S3MessageHandler.Command.DOWNLOAD);
 
-		assertTrue(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "produceReply", Boolean.class));
-		assertSame(this.nullChannel, TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "outputChannel"));
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "produceReply", Boolean.class)).isTrue();
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "outputChannel"))
+				.isSameAs(this.nullChannel);
 
-		assertTrue(this.s3OutboundGateway.isRunning());
-		assertSame(this.errorChannel, TestUtils.getPropertyValue(this.s3OutboundGateway, "inputChannel"));
-		assertSame(this.s3OutboundGatewayHandler, TestUtils.getPropertyValue(this.s3OutboundGateway, "handler"));
+		assertThat(this.s3OutboundGateway.isRunning()).isTrue();
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGateway, "inputChannel")).isSameAs(this.errorChannel);
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGateway, "handler"))
+				.isSameAs(this.s3OutboundGatewayHandler);
 	}
 
 }

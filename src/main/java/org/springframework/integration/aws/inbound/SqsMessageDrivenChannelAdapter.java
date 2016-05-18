@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ import com.amazonaws.services.sqs.AmazonSQSAsync;
  * Works in 'listener' manner and delegates hard to the {@link SimpleMessageListenerContainer}.
  *
  * @author Artem Bilan
- * *
+ *
  * @see SimpleMessageListenerContainerFactory
  * @see SimpleMessageListenerContainer
  * @see QueueMessageHandler
@@ -135,7 +135,9 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 		@Override
 		public Map<MappingInformation, HandlerMethod> getHandlerMethods() {
 			Set<String> queues = new HashSet<>(Arrays.asList(SqsMessageDrivenChannelAdapter.this.queues));
-			return Collections.singletonMap(new MappingInformation(queues, messageDeletionPolicy), null);
+			MappingInformation mappingInformation = new MappingInformation(queues,
+					SqsMessageDrivenChannelAdapter.this.messageDeletionPolicy);
+			return Collections.singletonMap(mappingInformation, null);
 		}
 
 		@Override

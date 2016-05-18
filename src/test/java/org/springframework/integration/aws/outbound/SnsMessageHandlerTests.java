@@ -1,34 +1,30 @@
 /*
  * Copyright 2016 the original author or authors.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.springframework.integration.aws.outbound;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -83,21 +79,22 @@ public class SnsMessageHandlerTests {
 		this.sendToSnsChannel.send(message);
 
 		Message<?> reply = replyChannel.receive(1000);
-		assertNotNull(reply);
+		assertThat(reply).isNotNull();
 
 		ArgumentCaptor<PublishRequest> captor = ArgumentCaptor.forClass(PublishRequest.class);
 		verify(this.amazonSNS).publish(captor.capture());
 
 		PublishRequest publishRequest = captor.getValue();
 
-		assertEquals("json", publishRequest.getMessageStructure());
-		assertEquals("topic", publishRequest.getTopicArn());
-		assertEquals("subject", publishRequest.getSubject());
-		assertEquals("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}", publishRequest.getMessage());
+		assertThat(publishRequest.getMessageStructure()).isEqualTo("json");
+		assertThat(publishRequest.getTopicArn()).isEqualTo("topic");
+		assertThat(publishRequest.getSubject()).isEqualTo("subject");
+		assertThat(publishRequest.getMessage())
+				.isEqualTo("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}");
 
-		assertEquals("111", reply.getHeaders().get(AwsHeaders.SNS_PUBLISHED_MESSAGE_ID));
-		assertEquals("topic", reply.getHeaders().get(AwsHeaders.TOPIC));
-		assertSame(publishRequest, reply.getPayload());
+		assertThat(reply.getHeaders().get(AwsHeaders.SNS_PUBLISHED_MESSAGE_ID)).isEqualTo("111");
+		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("topic");
+		assertThat(reply.getPayload()).isSameAs(publishRequest);
 	}
 
 	@Configuration
@@ -108,13 +105,9 @@ public class SnsMessageHandlerTests {
 		public AmazonSNS amazonSNS() {
 			AmazonSNS mock = mock(AmazonSNS.class);
 
-			doAnswer(new Answer<PublishResult>() {
-
-				@Override
-				public PublishResult answer(InvocationOnMock invocation) throws Throwable {
-					return new PublishResult().withMessageId("111");
-				}
-			}).when(mock).publish(any(PublishRequest.class));
+			willAnswer(invocation -> new PublishResult().withMessageId("111"))
+					.given(mock)
+					.publish(any(PublishRequest.class));
 
 			return mock;
 		}

@@ -1,30 +1,26 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2016 the original author or authors.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.springframework.integration.aws.config.xml;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doThrow;
 
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,8 +74,8 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 	@Bean
 	public DestinationResolver<?> destinationResolver() {
 		DestinationResolver<?> destinationResolver = Mockito.mock(DestinationResolver.class);
-		doThrow(DestinationResolutionException.class)
-				.when(destinationResolver)
+		willThrow(DestinationResolutionException.class)
+				.given(destinationResolver)
 				.resolveDestination(anyString());
 		return destinationResolver;
 	}
@@ -89,30 +85,35 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		SimpleMessageListenerContainer listenerContainer =
 				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "listenerContainer",
 						SimpleMessageListenerContainer.class);
-		assertSame(this.amazonSqs, TestUtils.getPropertyValue(listenerContainer, "amazonSqs"));
-		assertSame(this.resourceIdResolver, TestUtils.getPropertyValue(listenerContainer, "resourceIdResolver"));
-		assertSame(this.taskExecutor, TestUtils.getPropertyValue(listenerContainer, "taskExecutor"));
-		assertSame(this.destinationResolver, TestUtils.getPropertyValue(listenerContainer, "destinationResolver"));
-		assertFalse(listenerContainer.isRunning());
-		assertEquals(5, TestUtils.getPropertyValue(listenerContainer, "maxNumberOfMessages"));
-		assertEquals(200, TestUtils.getPropertyValue(listenerContainer, "visibilityTimeout"));
-		assertEquals(40, TestUtils.getPropertyValue(listenerContainer, "waitTimeOut"));
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "amazonSqs")).isSameAs(this.amazonSqs);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "resourceIdResolver"))
+				.isSameAs(this.resourceIdResolver);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "taskExecutor")).isSameAs(this.taskExecutor);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "destinationResolver"))
+				.isSameAs(this.destinationResolver);
+		assertThat(listenerContainer.isRunning()).isFalse();
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "maxNumberOfMessages")).isEqualTo(5);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "visibilityTimeout")).isEqualTo(200);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "waitTimeOut")).isEqualTo(40);
 
 		@SuppressWarnings("rawtypes")
 		Map queues = TestUtils.getPropertyValue(listenerContainer, "registeredQueues", Map.class);
-		assertTrue(queues.keySet().contains("foo"));
-		assertTrue(queues.keySet().contains("bar"));
+		assertThat(queues.keySet().contains("foo")).isTrue();
+		assertThat(queues.keySet().contains("bar")).isTrue();
 
-		assertEquals(100, this.sqsMessageDrivenChannelAdapter.getPhase());
-		assertFalse(this.sqsMessageDrivenChannelAdapter.isAutoStartup());
-		assertFalse(this.sqsMessageDrivenChannelAdapter.isRunning());
-		assertSame(this.errorChannel, TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "outputChannel"));
-		assertSame(this.nullChannel, TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "errorChannel"));
-		assertEquals(2000L, TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
-				"messagingTemplate.sendTimeout"));
-		assertEquals(SqsMessageDeletionPolicy.NEVER,
-				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messageDeletionPolicy",
-						SqsMessageDeletionPolicy.class));
+		assertThat(this.sqsMessageDrivenChannelAdapter.getPhase()).isEqualTo(100);
+		assertThat(this.sqsMessageDrivenChannelAdapter.isAutoStartup()).isFalse();
+		assertThat(this.sqsMessageDrivenChannelAdapter.isRunning()).isFalse();
+		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "outputChannel"))
+				.isSameAs(this.errorChannel);
+		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "errorChannel"))
+				.isSameAs(this.nullChannel);
+		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
+				"messagingTemplate.sendTimeout"))
+				.isEqualTo(2000L);
+		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messageDeletionPolicy",
+				SqsMessageDeletionPolicy.class))
+				.isEqualTo(SqsMessageDeletionPolicy.NEVER);
 	}
 
 }

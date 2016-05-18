@@ -1,29 +1,22 @@
 /*
  * Copyright 2016 the original author or authors.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.springframework.integration.aws.config.xml;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
@@ -85,42 +78,43 @@ public class SnsOutboundChannelAdapterParserTests {
 	@Test
 	public void testSnsOutboundChannelAdapterDefaultParser() throws Exception {
 		Object handler = TestUtils.getPropertyValue(this.defaultAdapter, "handler");
-		assertFalse(AopUtils.isAopProxy(handler));
+		assertThat(AopUtils.isAopProxy(handler)).isFalse();
 
-		assertSame(this.defaultAdapterHandler, handler);
+		assertThat(handler).isSameAs(this.defaultAdapterHandler);
 
-		assertThat(TestUtils.getPropertyValue(handler, "adviceChain", List.class).get(0),
-				instanceOf(RequestHandlerRetryAdvice.class));
+		assertThat(TestUtils.getPropertyValue(handler, "adviceChain", List.class).get(0))
+				.isInstanceOf(RequestHandlerRetryAdvice.class);
 
-		assertSame(this.defaultAdapterChannel, TestUtils.getPropertyValue(this.defaultAdapter, "inputChannel"));
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapter, "inputChannel"))
+				.isSameAs(this.defaultAdapterChannel);
 
-		assertSame(this.amazonSns, TestUtils.getPropertyValue(this.defaultAdapterHandler, "amazonSns"));
-		assertNotNull(TestUtils.getPropertyValue(this.defaultAdapterHandler, "evaluationContext"));
-		assertNull(TestUtils.getPropertyValue(this.defaultAdapterHandler, "topicArnExpression"));
-		assertNull(TestUtils.getPropertyValue(this.defaultAdapterHandler, "subjectExpression"));
-		assertNull(TestUtils.getPropertyValue(this.defaultAdapterHandler, "bodyExpression"));
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "amazonSns")).isSameAs(this.amazonSns);
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "evaluationContext")).isNotNull();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "topicArnExpression")).isNull();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "subjectExpression")).isNull();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "bodyExpression")).isNull();
 	}
 
 	@Test
 	public void testSnsOutboundChannelAdapterParser() {
-		assertSame(this.notificationChannel, TestUtils.getPropertyValue(this.snsGateway, "inputChannel"));
-		assertSame(this.snsGatewayHandler, TestUtils.getPropertyValue(this.snsGateway, "handler"));
-		assertFalse(TestUtils.getPropertyValue(this.snsGateway, "autoStartup", Boolean.class));
-		assertEquals(new Integer(201), TestUtils.getPropertyValue(this.snsGateway, "phase", Integer.class));
-		assertTrue(TestUtils.getPropertyValue(this.snsGatewayHandler, "produceReply", Boolean.class));
-		assertSame(this.errorChannel, TestUtils.getPropertyValue(this.snsGatewayHandler, "outputChannel"));
+		assertThat(TestUtils.getPropertyValue(this.snsGateway, "inputChannel")).isSameAs(this.notificationChannel);
+		assertThat(TestUtils.getPropertyValue(this.snsGateway, "handler")).isSameAs(this.snsGatewayHandler);
+		assertThat(TestUtils.getPropertyValue(this.snsGateway, "autoStartup", Boolean.class)).isFalse();
+		assertThat(TestUtils.getPropertyValue(this.snsGateway, "phase", Integer.class)).isEqualTo(201);
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "produceReply", Boolean.class)).isTrue();
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "outputChannel")).isSameAs(this.errorChannel);
 
-		assertSame(this.amazonSns, TestUtils.getPropertyValue(this.snsGatewayHandler, "amazonSns"));
-		assertNotNull(TestUtils.getPropertyValue(this.snsGatewayHandler, "evaluationContext"));
-		assertEquals("foo",
-				TestUtils.getPropertyValue(this.snsGatewayHandler, "topicArnExpression", Expression.class)
-						.getExpressionString());
-		assertEquals("bar",
-				TestUtils.getPropertyValue(this.snsGatewayHandler, "subjectExpression", Expression.class)
-						.getExpressionString());
-		assertEquals("payload.toUpperCase()",
-				TestUtils.getPropertyValue(this.snsGatewayHandler, "bodyExpression", Expression.class)
-						.getExpressionString());
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "amazonSns")).isSameAs(this.amazonSns);
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "evaluationContext")).isNotNull();
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "topicArnExpression", Expression.class)
+				.getExpressionString())
+				.isEqualTo("foo");
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "subjectExpression", Expression.class)
+				.getExpressionString())
+				.isEqualTo("bar");
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "bodyExpression", Expression.class)
+				.getExpressionString())
+				.isEqualTo("payload.toUpperCase()");
 	}
 
 }

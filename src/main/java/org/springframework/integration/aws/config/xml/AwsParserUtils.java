@@ -17,7 +17,7 @@
 package org.springframework.integration.aws.config.xml;
 
 /**
- * The utility class for the namespace parsers
+ * The utility class for the namespace parsers.
  *
  * @author Amol Nayak
  * @author Artem Bilan
@@ -26,13 +26,30 @@ package org.springframework.integration.aws.config.xml;
  */
 public final class AwsParserUtils {
 
+	/**
+	 * The 'sqs' reference attribute name.
+	 */
 	public static final String SQS_REF = "sqs";
 
+	/**
+	 * The 'sns' reference attribute name.
+	 */
 	public static final String SNS_REF = "sns";
 
+	/**
+	 * The 's3' reference attribute name.
+	 */
 	public static final String S3_REF = "s3";
 
+	/**
+	 * The 'resource-id-resolver' reference attribute name.
+	 */
 	public static final String RESOURCE_ID_RESOLVER_REF = "resource-id-resolver";
+
+	/**
+	 * The 'queue-messaging-template' reference attribute name.
+	 */
+	public static final String QUEUE_MESSAGING_TEMPLATE_REF = "queue-messaging-template";
 
 	private AwsParserUtils() {
 		super();

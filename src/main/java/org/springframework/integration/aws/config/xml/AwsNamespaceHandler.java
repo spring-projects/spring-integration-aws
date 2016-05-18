@@ -19,7 +19,7 @@ package org.springframework.integration.aws.config.xml;
 import org.springframework.integration.config.xml.AbstractIntegrationNamespaceHandler;
 
 /**
- * The namespace handler for "int-aws" namespace
+ * The namespace handler for "int-aws" namespace.
  *
  * @author Amol Nayak
  * @author Artem Bilan

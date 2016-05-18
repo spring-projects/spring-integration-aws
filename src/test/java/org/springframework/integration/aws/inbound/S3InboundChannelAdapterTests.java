@@ -16,13 +16,7 @@
 
 package org.springframework.integration.aws.inbound;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Matchers.any;
 
@@ -34,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -84,8 +77,6 @@ public class S3InboundChannelAdapterTests {
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private static File REMOTE_FOLDER;
-
 	private static List<S3Object> S3_OBJECTS;
 
 	private static File LOCAL_FOLDER;
@@ -95,17 +86,18 @@ public class S3InboundChannelAdapterTests {
 
 	@BeforeClass
 	public static void setup() throws IOException {
-		REMOTE_FOLDER = TEMPORARY_FOLDER.newFolder("remote");
-		File aFile = new File(REMOTE_FOLDER, "a.test");
+		File remoteFolder = TEMPORARY_FOLDER.newFolder("remote");
+
+		File aFile = new File(remoteFolder, "a.test");
 		FileCopyUtils.copy("Hello".getBytes(), aFile);
-		File bFile = new File(REMOTE_FOLDER, "b.test");
+		File bFile = new File(remoteFolder, "b.test");
 		FileCopyUtils.copy("Bye".getBytes(), bFile);
-		File otherFile = new File(REMOTE_FOLDER, "otherFile");
+		File otherFile = new File(remoteFolder, "otherFile");
 		FileCopyUtils.copy("Other".getBytes(), otherFile);
 
 		S3_OBJECTS = new ArrayList<>();
 
-		for (File file : REMOTE_FOLDER.listFiles()) {
+		for (File file : remoteFolder.listFiles()) {
 			S3Object s3Object = new S3Object();
 			s3Object.setBucketName(S3_BUCKET);
 			s3Object.setKey(file.getName());
@@ -113,41 +105,41 @@ public class S3InboundChannelAdapterTests {
 			S3_OBJECTS.add(s3Object);
 		}
 
-		LOCAL_FOLDER = new File(TEMPORARY_FOLDER.getRoot(), "local");
+		LOCAL_FOLDER = TEMPORARY_FOLDER.newFolder("local");
 	}
 
 	@Test
 	public void testS3InboundChannelAdapter() throws IOException {
 		Message<?> message = this.s3FilesChannel.receive(10000);
-		assertNotNull(message);
-		assertThat(message.getPayload(), instanceOf(File.class));
+		assertThat(message).isNotNull();
+		assertThat(message.getPayload()).isInstanceOf(File.class);
 		File localFile = (File) message.getPayload();
-		assertEquals("A.TEST.a", localFile.getName());
+		assertThat(localFile.getName()).isEqualTo("A.TEST.a");
 
 		// The test remote files are created with the current timestamp + 1 day.
-		assertThat(localFile.lastModified(), Matchers.greaterThan(System.currentTimeMillis()));
+		assertThat(localFile.lastModified()).isGreaterThan(System.currentTimeMillis());
 
 		message = this.s3FilesChannel.receive(10000);
-		assertNotNull(message);
-		assertThat(message.getPayload(), instanceOf(File.class));
+		assertThat(message).isNotNull();
+		assertThat(message.getPayload()).isInstanceOf(File.class);
 		localFile = (File) message.getPayload();
-		assertEquals("B.TEST.a", localFile.getName());
+		assertThat(localFile.getName()).isEqualTo("B.TEST.a");
 
-		assertThat(localFile.lastModified(), Matchers.greaterThan(System.currentTimeMillis()));
+		assertThat(localFile.lastModified()).isGreaterThan(System.currentTimeMillis());
 
-		assertNull(this.s3FilesChannel.receive(10));
+		assertThat(this.s3FilesChannel.receive(10)).isNull();
 
 		File file = new File(LOCAL_FOLDER, "A.TEST.a");
-		assertTrue(file.exists());
+		assertThat(file.exists()).isTrue();
 		String content = FileCopyUtils.copyToString(new FileReader(file));
-		assertEquals("Hello", content);
+		assertThat(content).isEqualTo("Hello");
 
 		file = new File(LOCAL_FOLDER, "B.TEST.a");
-		assertTrue(file.exists());
+		assertThat(file.exists()).isTrue();
 		content = FileCopyUtils.copyToString(new FileReader(file));
-		assertEquals("Bye", content);
+		assertThat(content).isEqualTo("Bye");
 
-		assertFalse(new File(LOCAL_FOLDER, "otherFile.a").exists());
+		assertThat(new File(LOCAL_FOLDER, "otherFile.a").exists()).isFalse();
 	}
 
 	@Configuration
