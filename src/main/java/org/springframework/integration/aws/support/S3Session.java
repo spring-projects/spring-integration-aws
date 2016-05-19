@@ -56,6 +56,9 @@ public class S3Session implements Session<S3ObjectSummary> {
 	public S3ObjectSummary[] list(String path) throws IOException {
 		Assert.hasText(path, "'path' must not be empty String.");
 		String[] bucketPrefix = path.split("/");
+		Assert.state(bucketPrefix.length > 0 && bucketPrefix[0].length() >= 3,
+				"S3 bucket name must be at least 3 characters long.");
+
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
 				.withBucketName(bucketPrefix[0]);
 		if (bucketPrefix.length > 1) {
@@ -82,6 +85,9 @@ public class S3Session implements Session<S3ObjectSummary> {
 	@Override
 	public String[] listNames(String path) throws IOException {
 		String[] bucketPrefix = path.split("/");
+		Assert.state(bucketPrefix.length > 0 && bucketPrefix[0].length() >= 3,
+				"S3 bucket name must be at least 3 characters long.");
+
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
 				.withBucketName(bucketPrefix[0]);
 		if (bucketPrefix.length > 1) {
@@ -209,8 +215,10 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private static String[] splitPathToBucketAndKey(String path) {
 		Assert.hasText(path, "'path' must not be empty String.");
-		Assert.state(path.indexOf('/') != -1, "'path' must in pattern [BUCKET/KEY].");
-		return path.split("/");
+		String[] bucketKey = path.split("/");
+		Assert.state(bucketKey.length == 2, "'path' must in pattern [BUCKET/KEY].");
+		Assert.state(bucketKey[0].length() >= 3,	"S3 bucket name must be at least 3 characters long.");
+		return bucketKey;
 	}
 
 }
