@@ -11,7 +11,14 @@
 		<constructor-arg value="com.amazonaws.services.sns.AmazonSNS"/>
 	</bean>
 
-	<int-aws:sns-outbound-channel-adapter id="defaultAdapter" sns="amazonSns">
+	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver" />
+	</bean>
+
+	<int-aws:sns-outbound-channel-adapter
+			id="defaultAdapter"
+			sns="amazonSns"
+			resource-id-resolver="resourceIdResolver">
 		<int-aws:request-handler-advice-chain>
 			<bean class="org.springframework.integration.handler.advice.RequestHandlerRetryAdvice"/>
 		</int-aws:request-handler-advice-chain>
@@ -27,6 +34,7 @@
 			topic-arn="foo"
 			subject="bar"
 			body-expression="payload.toUpperCase()"
+			resource-id-resolver="resourceIdResolver"
 			auto-startup="false"
 			phase="201"/>
 

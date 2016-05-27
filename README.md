@@ -286,7 +286,7 @@ Other interested clients may subscribe using different protocols like HTTP/HTTPS
 receive the messages. Plus mobile devices can be registered as subscribers from the AWS Management Console.
 
 Unfortunately [Spring Cloud AWS][] doesn't provide flexible components which can be used from the channel adapter
-implementations, but Amazon SNS API is pretty simple, from other side. Hence Spring Integration AWS SNS Support is
+implementations, but Amazon SNS API is pretty simple, on the other hand. Hence Spring Integration AWS SNS Support is
 straightforward and just allows to provide channel adapter foundation for Spring Integration applications.
 
 Since e-mail, SMS and mobile devices subscription/unsubscription confirmation is out of the Spring Integration
@@ -353,15 +353,15 @@ HTTP headers, populated by the `DefaultHttpHeaderMapper`, are available for the 
 ###Outbound Channel Adapter
 
 The `SnsMessageHandler` (`<int-aws:sns-outbound-channel-adapter>`) is a simple one-way Outbound Channel Adapter
-to send Topic Notification using `AmasonSNS` service.
+to send Topic Notification using `AmazonSNS` service.
 
 This Channel Adapter (`MessageHandler`) accepts these options:
 
-- `topic-arn` (`topic-arn-expression`) - the SNS Topic to send notification for. The `ResourceIdResolver` can be used
-from the SpEL definition to determine the target Topic Arn from the local logical name;
+- `topic-arn` (`topic-arn-expression`) - the SNS Topic to send notification for.
 - `subject` (`subject-expression`) - the SNS Notification Subject;
 - `body-expression` - the SpEL expression to evaluate the `message` property for the
 `com.amazonaws.services.sns.model.PublishRequest`.
+- `resource-id-resolver` - a `ResourceIdResolver` bean reference to resolve logical topic names to physical resource ids;
 
 See `SnsMessageHandler` JavaDocs for more information.
 

@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.http.HttpStatus;
 
+import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
@@ -47,7 +48,14 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private final AmazonS3 amazonS3;
 
+	private final ResourceIdResolver resourceIdResolver;
+
 	public S3Session(AmazonS3 amazonS3) {
+		this(amazonS3, null);
+	}
+
+	public S3Session(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
+		this.resourceIdResolver = resourceIdResolver;
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
 		this.amazonS3 = amazonS3;
 	}
@@ -59,8 +67,10 @@ public class S3Session implements Session<S3ObjectSummary> {
 		Assert.state(bucketPrefix.length > 0 && bucketPrefix[0].length() >= 3,
 				"S3 bucket name must be at least 3 characters long.");
 
+		String bucket = resolveBucket(bucketPrefix[0]);
+
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
-				.withBucketName(bucketPrefix[0]);
+				.withBucketName(bucket);
 		if (bucketPrefix.length > 1) {
 			listObjectsRequest.setPrefix(bucketPrefix[1]);
 		}
@@ -82,14 +92,25 @@ public class S3Session implements Session<S3ObjectSummary> {
 		return objectSummaries.toArray(new S3ObjectSummary[objectSummaries.size()]);
 	}
 
+	private String resolveBucket(String bucket) {
+		if (this.resourceIdResolver != null) {
+			return this.resourceIdResolver.resolveToPhysicalResourceId(bucket);
+		}
+		else {
+			return bucket;
+		}
+	}
+
 	@Override
 	public String[] listNames(String path) throws IOException {
 		String[] bucketPrefix = path.split("/");
 		Assert.state(bucketPrefix.length > 0 && bucketPrefix[0].length() >= 3,
 				"S3 bucket name must be at least 3 characters long.");
 
+		String bucket = resolveBucket(bucketPrefix[0]);
+
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
-				.withBucketName(bucketPrefix[0]);
+				.withBucketName(bucket);
 		if (bucketPrefix.length > 1) {
 			listObjectsRequest.setPrefix(bucketPrefix[1]);
 		}
@@ -165,7 +186,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public boolean rmdir(String directory) throws IOException {
-		this.amazonS3.deleteBucket(directory);
+		this.amazonS3.deleteBucket(resolveBucket(directory));
 		return true;
 	}
 
@@ -213,11 +234,12 @@ public class S3Session implements Session<S3ObjectSummary> {
 		return this.amazonS3;
 	}
 
-	private static String[] splitPathToBucketAndKey(String path) {
+	private String[] splitPathToBucketAndKey(String path) {
 		Assert.hasText(path, "'path' must not be empty String.");
 		String[] bucketKey = path.split("/");
 		Assert.state(bucketKey.length == 2, "'path' must in pattern [BUCKET/KEY].");
-		Assert.state(bucketKey[0].length() >= 3,	"S3 bucket name must be at least 3 characters long.");
+		Assert.state(bucketKey[0].length() >= 3, "S3 bucket name must be at least 3 characters long.");
+		bucketKey[0] = resolveBucket(bucketKey[0]);
 		return bucketKey;
 	}
 

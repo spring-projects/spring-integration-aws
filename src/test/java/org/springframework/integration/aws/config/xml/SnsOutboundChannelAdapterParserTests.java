@@ -26,6 +26,7 @@ import org.junit.runner.RunWith;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.expression.Expression;
 import org.springframework.integration.endpoint.AbstractEndpoint;
 import org.springframework.integration.handler.advice.RequestHandlerRetryAdvice;
@@ -75,6 +76,9 @@ public class SnsOutboundChannelAdapterParserTests {
 	@Qualifier("snsGateway.handler")
 	private MessageHandler snsGatewayHandler;
 
+	@Autowired
+	private ResourceIdResolver resourceIdResolver;
+
 	@Test
 	public void testSnsOutboundChannelAdapterDefaultParser() throws Exception {
 		Object handler = TestUtils.getPropertyValue(this.defaultAdapter, "handler");
@@ -93,16 +97,20 @@ public class SnsOutboundChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "topicArnExpression")).isNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "subjectExpression")).isNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "bodyExpression")).isNull();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "resourceIdResolver"))
+				.isSameAs(this.resourceIdResolver);
 	}
 
 	@Test
-	public void testSnsOutboundChannelAdapterParser() {
+	public void testSnsOutboundGatewayParser() {
 		assertThat(TestUtils.getPropertyValue(this.snsGateway, "inputChannel")).isSameAs(this.notificationChannel);
 		assertThat(TestUtils.getPropertyValue(this.snsGateway, "handler")).isSameAs(this.snsGatewayHandler);
 		assertThat(TestUtils.getPropertyValue(this.snsGateway, "autoStartup", Boolean.class)).isFalse();
 		assertThat(TestUtils.getPropertyValue(this.snsGateway, "phase", Integer.class)).isEqualTo(201);
 		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "produceReply", Boolean.class)).isTrue();
 		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "outputChannel")).isSameAs(this.errorChannel);
+		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "resourceIdResolver"))
+				.isSameAs(this.resourceIdResolver);
 
 		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "amazonSns")).isSameAs(this.amazonSns);
 		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "evaluationContext")).isNotNull();

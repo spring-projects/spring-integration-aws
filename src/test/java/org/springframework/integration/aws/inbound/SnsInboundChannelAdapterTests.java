@@ -167,7 +167,7 @@ public class SnsInboundChannelAdapterTests {
 		}
 
 		@Bean
-		public HttpRequestHandler sqsMessageDrivenChannelAdapter() {
+		public HttpRequestHandler snsInboundChannelAdapter() {
 			SnsInboundChannelAdapter adapter = new SnsInboundChannelAdapter(amazonSns(), "/mySampleTopic");
 			adapter.setRequestChannel(inputChannel());
 			adapter.setHandleNotificationStatus(true);

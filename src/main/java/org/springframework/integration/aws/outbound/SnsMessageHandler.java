@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.outbound;
 
+import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
@@ -96,6 +97,7 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 
 	private Expression bodyExpression;
 
+	private ResourceIdResolver resourceIdResolver;
 
 	public SnsMessageHandler(AmazonSNS amazonSns) {
 		this(amazonSns, false);
@@ -140,6 +142,14 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 		this.bodyExpression = bodyExpression;
 	}
 
+	/**
+	 * Specify a {@link ResourceIdResolver} to resolve logical topic names to physical resource ids.
+	 * @param resourceIdResolver the {@link ResourceIdResolver} to use.
+	 */
+	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
+		this.resourceIdResolver = resourceIdResolver;
+	}
+
 	@Override
 	protected void doInit() {
 		super.doInit();
@@ -164,11 +174,13 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 			publishRequest = (PublishRequest) payload;
 		}
 		else {
+			Assert.state(this.topicArnExpression != null, "'topicArn' or 'topicArnExpression' must be specified.");
 			publishRequest = new PublishRequest();
-			if (this.topicArnExpression != null) {
-				String topicArn = this.topicArnExpression.getValue(this.evaluationContext, requestMessage, String.class);
-				publishRequest.setTopicArn(topicArn);
+			String topicArn = this.topicArnExpression.getValue(this.evaluationContext, requestMessage, String.class);
+			if (this.resourceIdResolver != null) {
+				topicArn = this.resourceIdResolver.resolveToPhysicalResourceId(topicArn);
 			}
+			publishRequest.setTopicArn(topicArn);
 
 			if (this.subjectExpression != null) {
 				String subject = this.subjectExpression.getValue(this.evaluationContext, requestMessage, String.class);

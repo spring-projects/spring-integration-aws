@@ -24,6 +24,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.expression.Expression;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.integration.aws.outbound.S3MessageHandler;
@@ -79,6 +80,9 @@ public class S3MessageHandlerParserTests {
 	private S3MessageHandler.UploadMetadataProvider uploadMetadataProvider;
 
 	@Autowired
+	private ResourceIdResolver resourceIdResolver;
+
+	@Autowired
 	private BeanFactory beanFactory;
 
 	@Test
@@ -110,6 +114,8 @@ public class S3MessageHandlerParserTests {
 				.isSameAs(this.progressListener);
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "uploadMetadataProvider"))
 				.isSameAs(this.uploadMetadataProvider);
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "resourceIdResolver"))
+				.isSameAs(this.resourceIdResolver);
 
 		assertThat(this.s3OutboundChannelAdapter.getPhase()).isEqualTo(100);
 		assertThat(this.s3OutboundChannelAdapter.isAutoStartup()).isFalse();

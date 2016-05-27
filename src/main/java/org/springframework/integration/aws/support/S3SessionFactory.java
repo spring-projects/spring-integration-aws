@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.support;
 
+import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.file.remote.session.SharedSessionCapable;
 import org.springframework.util.Assert;
@@ -40,8 +41,12 @@ public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, Shared
 	}
 
 	public S3SessionFactory(AmazonS3 amazonS3) {
+		this(amazonS3, null);
+	}
+
+	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
-		this.s3Session = new S3Session(amazonS3);
+		this.s3Session = new S3Session(amazonS3, resourceIdResolver);
 	}
 
 	@Override

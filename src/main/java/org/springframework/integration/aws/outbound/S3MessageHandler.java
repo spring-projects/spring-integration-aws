@@ -23,6 +23,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
@@ -119,6 +120,8 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	private S3ProgressListener s3ProgressListener;
 
 	private UploadMetadataProvider uploadMetadataProvider;
+
+	private ResourceIdResolver resourceIdResolver;
 
 	public S3MessageHandler(AmazonS3 amazonS3, String bucket) {
 		this(amazonS3, bucket, false);
@@ -230,6 +233,14 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	 */
 	public void setUploadMetadataProvider(UploadMetadataProvider uploadMetadataProvider) {
 		this.uploadMetadataProvider = uploadMetadataProvider;
+	}
+
+	/**
+	 * Specify a {@link ResourceIdResolver} to resolve logical bucket names to physical resource ids.
+	 * @param resourceIdResolver the {@link ResourceIdResolver} to use.
+	 */
+	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
+		this.resourceIdResolver = resourceIdResolver;
 	}
 
 	@Override
@@ -470,6 +481,10 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					String.class);
 		}
 
+		if (this.resourceIdResolver != null) {
+			destinationBucketName = this.resourceIdResolver.resolveToPhysicalResourceId(destinationBucketName);
+		}
+
 		Assert.state(destinationBucketName != null,
 				"The 'destinationBucketExpression' must not be null for 'copy' operation and can't evaluate to null. " +
 						"Root object is: " + requestMessage);
@@ -501,6 +516,10 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		Assert.state(bucketName != null, "The 'bucketExpression' ["
 				+ this.bucketExpression.getExpressionString()
 				+ "] must not evaluate to null. Root object is: " + requestMessage);
+
+		if (this.resourceIdResolver != null) {
+			bucketName = this.resourceIdResolver.resolveToPhysicalResourceId(bucketName);
+		}
 
 		return bucketName;
 	}

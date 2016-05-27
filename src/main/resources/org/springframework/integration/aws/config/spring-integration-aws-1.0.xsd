@@ -232,6 +232,18 @@
 				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
+		<xsd:attribute name="resource-id-resolver">
+			<xsd:annotation>
+				<xsd:documentation>
+					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean reference.
+				</xsd:documentation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+					</tool:annotation>
+				</xsd:appinfo>
+			</xsd:annotation>
+		</xsd:attribute>
 	</xsd:complexType>
 
 	<xsd:simpleType name="s3CommandType">
@@ -830,8 +842,6 @@
 					This attribute isn't mandatory and the the topic can be specified on the
 					'com.amazonaws.services.sns.model.PublishRequest'
 					payload of the request Message.
-					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean can be used from
-					the expression to resolve logical topic name to the real ARN.
 				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>

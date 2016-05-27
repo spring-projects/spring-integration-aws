@@ -17,6 +17,10 @@
 		<constructor-arg value="org.springframework.integration.aws.outbound.S3MessageHandler$UploadMetadataProvider"/>
 	</bean>
 
+	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver" />
+	</bean>
+
 	<int-aws:s3-outbound-channel-adapter s3="s3"
 										 auto-startup="false"
 										 channel="errorChannel"
@@ -29,7 +33,8 @@
 										 destination-key-expression="'baz'"
 										 object-acl-expression="'qux'"
 										 progress-listener="s3ProgressListener"
-										 upload-metadata-provider="uploadMetadataProvider"/>
+										 upload-metadata-provider="uploadMetadataProvider"
+										 resource-id-resolver="resourceIdResolver" />
 
 	<bean id="transferManager" class="com.amazonaws.services.s3.transfer.TransferManager"/>
 

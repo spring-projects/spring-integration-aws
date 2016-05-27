@@ -65,6 +65,7 @@ public class SnsOutboundGatewayParser extends AbstractConsumerEndpointParser {
 
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "reply-timeout", "sendTimeout");
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "reply-channel", "outputChannel");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "resource-id-resolver");
 
 		return builder;
 	}
