@@ -45,6 +45,7 @@ import com.amazonaws.services.sqs.AmazonSQS;
 
 /**
  * @author Artem Bilan
+ * @author Patrick Fitzsimons
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
@@ -95,6 +96,7 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "maxNumberOfMessages")).isEqualTo(5);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "visibilityTimeout")).isEqualTo(200);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "waitTimeOut")).isEqualTo(40);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "autoStartup")).isEqualTo(false);
 
 		@SuppressWarnings("rawtypes")
 		Map queues = TestUtils.getPropertyValue(listenerContainer, "registeredQueues", Map.class);
