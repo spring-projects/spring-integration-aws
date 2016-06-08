@@ -89,8 +89,10 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 		this.simpleMessageListenerContainerFactory.setResourceIdResolver(resourceIdResolver);
 	}
 
-	public void setAutoStartUp(boolean autoStartUp) {
+	@Override
+	public void setAutoStartup(boolean autoStartUp) {
 		super.setAutoStartup(autoStartUp);
+		this.simpleMessageListenerContainerFactory.setAutoStartup(autoStartUp);
 	}
 
 	public void setDestinationResolver(DestinationResolver<String> destinationResolver) {

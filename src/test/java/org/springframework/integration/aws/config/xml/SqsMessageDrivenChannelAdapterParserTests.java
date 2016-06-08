@@ -86,7 +86,6 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		SimpleMessageListenerContainer listenerContainer =
 				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "listenerContainer",
 						SimpleMessageListenerContainer.class);
-		listenerContainer.setAutoStartup(false);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "amazonSqs")).isSameAs(this.amazonSqs);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "resourceIdResolver"))
 				.isSameAs(this.resourceIdResolver);
