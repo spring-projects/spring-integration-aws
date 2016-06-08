@@ -45,6 +45,7 @@ import com.amazonaws.services.sqs.AmazonSQSAsync;
  * Works in 'listener' manner and delegates hard to the {@link SimpleMessageListenerContainer}.
  *
  * @author Artem Bilan
+ * @author Patrick Fitzsimons
  *
  * @see SimpleMessageListenerContainerFactory
  * @see SimpleMessageListenerContainer
@@ -89,7 +90,7 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	public void setAutoStartUp(boolean autoStartUp) {
-		this.simpleMessageListenerContainerFactory.setAutoStartup(autoStartUp);
+		super.setAutoStartup(autoStartUp);
 	}
 
 	public void setDestinationResolver(DestinationResolver<String> destinationResolver) {
