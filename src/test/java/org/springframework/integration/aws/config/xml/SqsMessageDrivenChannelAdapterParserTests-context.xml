@@ -32,6 +32,7 @@
 										  visibility-timeout="200"
 										  wait-time-out="40"
 										  send-timeout="2000"
+										  queue-stop-timeout="11000"
 										  destination-resolver="destinationResolver"
 										  resource-id-resolver="resourceIdResolver"/>
 

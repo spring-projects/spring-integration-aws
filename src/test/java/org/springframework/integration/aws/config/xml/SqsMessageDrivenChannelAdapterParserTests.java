@@ -96,6 +96,7 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "maxNumberOfMessages")).isEqualTo(5);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "visibilityTimeout")).isEqualTo(200);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "waitTimeOut")).isEqualTo(40);
+		assertThat(TestUtils.getPropertyValue(listenerContainer, "queueStopTimeout")).isEqualTo(11000L);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "autoStartup")).isEqualTo(false);
 
 		@SuppressWarnings("rawtypes")
