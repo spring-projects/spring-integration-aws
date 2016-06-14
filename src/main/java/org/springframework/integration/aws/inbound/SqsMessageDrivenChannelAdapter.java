@@ -61,6 +61,8 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private SimpleMessageListenerContainer listenerContainer;
 
+	private long queueStopTimeout;
+
 	private SqsMessageDeletionPolicy messageDeletionPolicy = SqsMessageDeletionPolicy.NO_REDRIVE;
 
 	public SqsMessageDrivenChannelAdapter(AmazonSQSAsync amazonSqs, String... queues) {
@@ -83,6 +85,10 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	public void setWaitTimeOut(Integer waitTimeOut) {
 		this.simpleMessageListenerContainerFactory.setWaitTimeOut(waitTimeOut);
+	}
+
+	public void setQueueStopTimeout(long queueStopTimeout) {
+		this.queueStopTimeout = queueStopTimeout;
 	}
 
 	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
@@ -109,6 +115,7 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 		super.onInit();
 		this.listenerContainer = this.simpleMessageListenerContainerFactory.createSimpleMessageListenerContainer();
 		this.listenerContainer.setMessageHandler(new IntegrationQueueMessageHandler());
+		this.listenerContainer.setQueueStopTimeout(this.queueStopTimeout);
 		try {
 			this.listenerContainer.afterPropertiesSet();
 		}

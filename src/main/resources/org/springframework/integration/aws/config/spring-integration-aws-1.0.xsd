@@ -560,6 +560,14 @@
 							</xsd:documentation>
 						</xsd:annotation>
 					</xsd:attribute>
+					<xsd:attribute name="queue-stop-timeout">
+						<xsd:annotation>
+							<xsd:documentation>
+								Configure the maximum number of milliseconds the method waits for a queue
+								to stop before interrupting the current thread. Defaults to 10000.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
 					<xsd:attribute name="wait-time-out">
 						<xsd:annotation>
 							<xsd:documentation>
