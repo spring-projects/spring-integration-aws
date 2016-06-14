@@ -31,6 +31,7 @@ import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.core.MessageProducer;
+import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -54,8 +55,14 @@ public class SqsMessageDrivenChannelAdapterTests {
 	@Autowired
 	private PollableChannel inputChannel;
 
+	@Autowired
+	private SqsMessageDrivenChannelAdapter sqsMessageDrivenChannelAdapter;
+
 	@Test
 	public void testSqsMessageDrivenChannelAdapter() {
+		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
+				"listenerContainer.queueStopTimeout"))
+				.isEqualTo(10000L);
 		org.springframework.messaging.Message<?> receive = this.inputChannel.receive(1000);
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");

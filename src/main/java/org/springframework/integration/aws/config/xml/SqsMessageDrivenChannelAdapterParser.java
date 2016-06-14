@@ -32,6 +32,7 @@ import org.springframework.util.StringUtils;
  * The parser for the {@code <int-aws:sqs-message-driven-channel-adapter>}.
  *
  * @author Artem Bilan
+ * @author Patrick Fitzsimons
  */
 public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefinitionParser {
 
@@ -81,6 +82,7 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "max-number-of-messages");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "visibility-timeout");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "wait-time-out");
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "queue-stop-timeout");
 	}
 
 }

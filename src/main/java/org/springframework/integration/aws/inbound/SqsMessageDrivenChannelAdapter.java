@@ -51,8 +51,7 @@ import com.amazonaws.services.sqs.AmazonSQSAsync;
  * @see SimpleMessageListenerContainer
  * @see QueueMessageHandler
  */
-public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
-		implements DisposableBean {
+public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
 
 	private final SimpleMessageListenerContainerFactory simpleMessageListenerContainerFactory =
 			new SimpleMessageListenerContainerFactory();
@@ -60,6 +59,8 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 	private final String[] queues;
 
 	private SimpleMessageListenerContainer listenerContainer;
+
+	private Long queueStopTimeout;
 
 	private SqsMessageDeletionPolicy messageDeletionPolicy = SqsMessageDeletionPolicy.NO_REDRIVE;
 
@@ -99,6 +100,10 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 		this.simpleMessageListenerContainerFactory.setDestinationResolver(destinationResolver);
 	}
 
+	public void setQueueStopTimeout(long queueStopTimeout) {
+		this.queueStopTimeout = queueStopTimeout;
+	}
+
 	public void setMessageDeletionPolicy(SqsMessageDeletionPolicy messageDeletionPolicy) {
 		Assert.notNull(messageDeletionPolicy, "'messageDeletionPolicy' must not be null.");
 		this.messageDeletionPolicy = messageDeletionPolicy;
@@ -108,6 +113,9 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport
 	protected void onInit() {
 		super.onInit();
 		this.listenerContainer = this.simpleMessageListenerContainerFactory.createSimpleMessageListenerContainer();
+		if (this.queueStopTimeout != null) {
+			this.listenerContainer.setQueueStopTimeout(this.queueStopTimeout);
+		}
 		this.listenerContainer.setMessageHandler(new IntegrationQueueMessageHandler());
 		try {
 			this.listenerContainer.afterPropertiesSet();
