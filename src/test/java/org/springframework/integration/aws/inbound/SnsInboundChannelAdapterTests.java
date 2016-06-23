@@ -54,6 +54,7 @@ import com.amazonaws.services.sns.AmazonSNS;
 
 /**
  * @author Artem Bilan
+ * @author Kamil Przerwa
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
@@ -116,7 +117,7 @@ public class SnsInboundChannelAdapterTests {
 		this.mockMvc.perform(
 				post("/mySampleTopic")
 						.header("x-amz-sns-message-type", "Notification")
-						.contentType(MediaType.APPLICATION_JSON)
+						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.notificationMessage.getInputStream())))
 				.andExpect(status().isNoContent());
 
@@ -133,7 +134,7 @@ public class SnsInboundChannelAdapterTests {
 		this.mockMvc.perform(
 				post("/mySampleTopic")
 						.header("x-amz-sns-message-type", "UnsubscribeConfirmation")
-						.contentType(MediaType.APPLICATION_JSON)
+						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.unsubscribeConfirmation.getInputStream())))
 				.andExpect(status().isNoContent());
 

@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.inbound;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.springframework.expression.Expression;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -64,7 +66,9 @@ import com.fasterxml.jackson.databind.JsonNode;
  * <p>
  * For the convenience on the underlying message flow routing a {@link AwsHeaders#SNS_MESSAGE_TYPE}
  * header is present.
+ *
  * @author Artem Bilan
+ * @author Kamil Przerwa
  */
 public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGateway {
 
@@ -89,6 +93,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 		requestMapping.setMethods(HttpMethod.POST);
 		requestMapping.setHeaders("x-amz-sns-message-type");
 		requestMapping.setPathPatterns(path);
+		this.jackson2HttpMessageConverter.setSupportedMediaTypes(
+				Arrays.asList(MediaType.APPLICATION_JSON_UTF8, MediaType.TEXT_PLAIN));
 		super.setRequestMapping(requestMapping);
 		super.setStatusCodeExpression(new ValueExpression<>(HttpStatus.NO_CONTENT));
 		super.setMessageConverters(
