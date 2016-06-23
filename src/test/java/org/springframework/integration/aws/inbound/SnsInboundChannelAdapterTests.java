@@ -91,7 +91,7 @@ public class SnsInboundChannelAdapterTests {
 		this.mockMvc.perform(
 				post("/mySampleTopic")
 						.header("x-amz-sns-message-type", "SubscriptionConfirmation")
-						.contentType(MediaType.APPLICATION_JSON)
+						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.subscriptionConfirmation.getInputStream())))
 				.andExpect(status().isNoContent());
 
@@ -116,7 +116,7 @@ public class SnsInboundChannelAdapterTests {
 		this.mockMvc.perform(
 				post("/mySampleTopic")
 						.header("x-amz-sns-message-type", "Notification")
-						.contentType(MediaType.APPLICATION_JSON)
+						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.notificationMessage.getInputStream())))
 				.andExpect(status().isNoContent());
 
@@ -133,7 +133,7 @@ public class SnsInboundChannelAdapterTests {
 		this.mockMvc.perform(
 				post("/mySampleTopic")
 						.header("x-amz-sns-message-type", "UnsubscribeConfirmation")
-						.contentType(MediaType.APPLICATION_JSON)
+						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.unsubscribeConfirmation.getInputStream())))
 				.andExpect(status().isNoContent());
 

@@ -28,6 +28,7 @@ import org.springframework.expression.Expression;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -42,6 +43,7 @@ import org.springframework.web.multipart.MultipartResolver;
 
 import com.amazonaws.services.sns.AmazonSNS;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.sun.javafx.collections.ImmutableObservableList;
 
 /**
  * The {@link HttpRequestHandlingMessagingGateway} extension for the Amazon WS SNS HTTP(S) endpoints.
@@ -89,6 +91,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 		requestMapping.setMethods(HttpMethod.POST);
 		requestMapping.setHeaders("x-amz-sns-message-type");
 		requestMapping.setPathPatterns(path);
+		this.jackson2HttpMessageConverter.setSupportedMediaTypes(
+				new ImmutableObservableList<>(MediaType.APPLICATION_JSON_UTF8, MediaType.TEXT_PLAIN));
 		super.setRequestMapping(requestMapping);
 		super.setStatusCodeExpression(new ValueExpression<>(HttpStatus.NO_CONTENT));
 		super.setMessageConverters(
