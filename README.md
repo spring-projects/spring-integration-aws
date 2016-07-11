@@ -31,6 +31,10 @@ Of the above libraries, *SES* and *SNS* provide outbound adapters only. All othe
 and outbound adapters. The *SQS* inbound adapter is capable of receiving notifications sent out from *SNS*
 where the topic is an *SQS* Queue.
 
+## Contributing
+
+[Pull requests][] are welcome. Please see the [contributor guidelines][] for details. Additionally, if you are contributing, we recommend following the process for Spring Integration as outlined in the [administrator guidelines][].
+
 #Adapters
 
 ##Amazon Simple Storage Service (Amazon S3)
@@ -424,3 +428,5 @@ By default the `SnsMessageHandler` is one-way `MessageHandler`.
 [http://aws.amazon.com/ses/]: http://aws.amazon.com/ses/
 [http://aws.amazon.com/documentation/ses/]: http://aws.amazon.com/documentation/ses/
 [Reference Manual]: http://docs.spring.io/spring-integration/reference/html/ftp.html
+[Pull requests]: http://help.github.com/send-pull-requests
+[contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc
