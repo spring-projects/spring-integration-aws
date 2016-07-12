@@ -143,8 +143,8 @@ public class S3MessageHandlerTests {
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
 		assertThat(putObjectRequest.getBucketName()).isEqualTo("myBucket");
 		assertThat(putObjectRequest.getKey()).isEqualTo("foo.mp3");
-		assertThat(putObjectRequest.getFile()).isNull();
-		assertThat(putObjectRequest.getInputStream()).isNotNull();
+		assertThat(putObjectRequest.getFile()).isNotNull();
+		assertThat(putObjectRequest.getInputStream()).isNull();
 
 		ObjectMetadata metadata = putObjectRequest.getMetadata();
 		assertThat(metadata.getContentMD5()).isEqualTo(Md5Utils.md5AsBase64(file));

@@ -18,8 +18,6 @@ package org.springframework.integration.aws.outbound;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -35,7 +33,6 @@ import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.Assert;
-import org.springframework.util.StreamUtils;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.event.ProgressEvent;
@@ -312,39 +309,57 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 			if (this.uploadMetadataProvider != null) {
 				this.uploadMetadataProvider.populateMetadata(metadata, requestMessage);
 			}
-			InputStream inputStream;
-			if (payload instanceof InputStream) {
-				inputStream = (InputStream) payload;
-			}
-			else if (payload instanceof File) {
-				File fileToUpload = (File) payload;
-				if (key == null) {
-					key = fileToUpload.getName();
-				}
-				try {
-					inputStream = new FileInputStream(fileToUpload);
 
+			PutObjectRequest putObjectRequest = null;
+
+			try {
+				if (payload instanceof InputStream) {
+					InputStream inputStream = (InputStream) payload;
+					Assert.state(inputStream.markSupported(),
+							"The markSupported() method for an InputStream must evaluate to " +
+							"true for an upload request. ");
+					String contentMd5 = Md5Utils.md5AsBase64(inputStream);
+					metadata.setContentMD5(contentMd5);
+					inputStream.reset();
+					putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
+				}
+				else if (payload instanceof File) {
+					File fileToUpload = (File) payload;
+					if (key == null) {
+						key = fileToUpload.getName();
+					}
+					String contentMd5 = Md5Utils.md5AsBase64(fileToUpload);
+					metadata.setContentMD5(contentMd5);
+					putObjectRequest = new PutObjectRequest(bucketName, key, fileToUpload).withMetadata(metadata);
 					if (metadata.getContentLength() == 0) {
 						metadata.setContentLength(fileToUpload.length());
 					}
 					if (metadata.getContentType() == null) {
 						metadata.setContentType(Mimetypes.getInstance().getMimetype(fileToUpload));
 					}
+				}
+				else if (payload instanceof byte[]) {
+					byte[] payloadBytes = (byte[]) payload;
+					InputStream inputStream = new ByteArrayInputStream(payloadBytes);
+					String contentMd5 = Md5Utils.md5AsBase64(inputStream);
+					metadata.setContentMD5(contentMd5);
+					if (metadata.getContentLength() == 0) {
+						metadata.setContentLength(payloadBytes.length);
+					}
+					inputStream.reset();
+					putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
+				}
+				else {
+					throw new IllegalArgumentException("Unsupported payload type: ["
+							+ payload.getClass()
+							+ "]. The only supported payloads for the upload request are " +
+							"java.io.File, java.io.InputStream, byte[] and PutObjectRequest.");
+				}
+			}
+			catch (IOException e) {
+				throw new MessageHandlingException(requestMessage, e);
+			}
 
-				}
-				catch (FileNotFoundException e) {
-					throw new AmazonClientException(e);
-				}
-			}
-			else if (payload instanceof byte[]) {
-				inputStream = new ByteArrayInputStream((byte[]) payload);
-			}
-			else {
-				throw new IllegalArgumentException("Unsupported payload type: ["
-						+ payload.getClass()
-						+ "]. The only supported payloads for the upload request are " +
-						"java.io.File, java.io.InputStream, byte[] and PutObjectRequest.");
-			}
 
 			Assert.state(key != null,
 					"The 'keyExpression' must not be null for non-File payloads and can't evaluate to null. " +
@@ -360,21 +375,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					throw new IllegalStateException("Specify a 'keyExpression' for non-java.io.File payloads");
 				}
 			}
-
-			if (metadata.getContentMD5() == null) {
-				String contentMd5 = null;
-				try {
-					contentMd5 = Md5Utils.md5AsBase64(StreamUtils.copyToByteArray(inputStream));
-					if (inputStream.markSupported()) {
-						inputStream.reset();
-					}
-					metadata.setContentMD5(contentMd5);
-				}
-				catch (IOException e) {
-					throw new MessageHandlingException(requestMessage, e);
-				}
-			}
-			PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
 
 			S3ProgressListener progressListener = this.s3ProgressListener;
 
