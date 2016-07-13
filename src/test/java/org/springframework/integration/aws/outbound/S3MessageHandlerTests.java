@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Matchers.any;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.verify;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,6 +62,7 @@ import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.test.annotation.DirtiesContext;
@@ -143,8 +146,8 @@ public class S3MessageHandlerTests {
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
 		assertThat(putObjectRequest.getBucketName()).isEqualTo("myBucket");
 		assertThat(putObjectRequest.getKey()).isEqualTo("foo.mp3");
-		assertThat(putObjectRequest.getFile()).isNull();
-		assertThat(putObjectRequest.getInputStream()).isNotNull();
+		assertThat(putObjectRequest.getFile()).isNotNull();
+		assertThat(putObjectRequest.getInputStream()).isNull();
 
 		ObjectMetadata metadata = putObjectRequest.getMetadata();
 		assertThat(metadata.getContentMD5()).isEqualTo(Md5Utils.md5AsBase64(file));
@@ -172,6 +175,52 @@ public class S3MessageHandlerTests {
 	@Test
 	public void testUploadInputStream() throws IOException {
 		InputStream payload = new StringInputStream("a");
+		Message<?> message = MessageBuilder.withPayload(payload)
+				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
+				.setHeader("key", "myStream")
+				.build();
+
+		this.s3SendChannel.send(message);
+
+		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor =
+				ArgumentCaptor.forClass(PutObjectRequest.class);
+		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
+
+		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
+		assertThat(putObjectRequest.getBucketName()).isEqualTo("myBucket");
+		assertThat(putObjectRequest.getKey()).isEqualTo("myStream");
+		assertThat(putObjectRequest.getFile()).isNull();
+		assertThat(putObjectRequest.getInputStream()).isNotNull();
+
+		ObjectMetadata metadata = putObjectRequest.getMetadata();
+		assertThat(metadata.getContentMD5()).isEqualTo(Md5Utils.md5AsBase64(payload));
+		assertThat(metadata.getContentLength()).isEqualTo(1);
+		assertThat(metadata.getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+		assertThat(metadata.getContentDisposition()).isEqualTo("test.json");
+	}
+
+	@Test
+	public void testUploadInputStreamNoMarkSupported() throws IOException, InterruptedException {
+		File file = this.temporaryFolder.newFile("foo.mp3");
+		FileInputStream fileInputStream = new FileInputStream(file);
+		Message<?> message = MessageBuilder.withPayload(fileInputStream)
+				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
+				.setHeader("key", "myStream")
+				.build();
+
+		try {
+			this.s3SendChannel.send(message);
+			fail("Expected send() failure with FileInputStream, got success.");
+		}
+		catch (Exception e) {
+			assertThat(e).isInstanceOf(MessageHandlingException.class);
+			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
+		}
+	}
+
+	@Test
+	public void testUploadByteArray() throws IOException {
+		byte[] payload = "b".getBytes("UTF-8");
 		Message<?> message = MessageBuilder.withPayload(payload)
 				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
 				.setHeader("key", "myStream")
@@ -368,7 +417,7 @@ public class S3MessageHandlerTests {
 			s3MessageHandler.setKeyExpression(keyExpression);
 			s3MessageHandler.setObjectAclExpression(new ValueExpression<>(CannedAccessControlList.PublicReadWrite));
 			s3MessageHandler.setUploadMetadataProvider((metadata, message) -> {
-				if (message.getPayload() instanceof InputStream) {
+				if (message.getPayload() instanceof InputStream || message.getPayload() instanceof byte[]) {
 					metadata.setContentLength(1);
 					metadata.setContentType(MediaType.APPLICATION_JSON_VALUE);
 					metadata.setContentDisposition("test.json");
