@@ -91,6 +91,7 @@ import com.amazonaws.util.Md5Utils;
  * {@link #destinationKeyExpression} are required and must not evaluate to {@code null}.
  *
  * @author Artem Bilan
+ * @author John Logan
  *
  * @see TransferManager
  */
@@ -315,10 +316,10 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 			try {
 				if (payload instanceof InputStream) {
 					InputStream inputStream = (InputStream) payload;
-					Assert.state(inputStream.markSupported(),
-							"The markSupported() method for an InputStream must evaluate to " +
-							"true for an upload request. ");
 					if (metadata.getContentMD5() == null) {
+						Assert.state(inputStream.markSupported(),
+								"For an upload InputStream with no MD5 digest metadata, the " +
+								"markSupported() method must evaluate to true. ");
 						String contentMd5 = Md5Utils.md5AsBase64(inputStream);
 						metadata.setContentMD5(contentMd5);
 						inputStream.reset();

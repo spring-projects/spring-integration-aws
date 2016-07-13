@@ -101,6 +101,7 @@ import com.amazonaws.util.StringUtils;
 
 /**
  * @author Artem Bilan
+ * @author John Logan
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
