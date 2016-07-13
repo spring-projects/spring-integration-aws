@@ -84,6 +84,7 @@ checkstyle {
 dependencies {
 
 	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
+	compile "org.springframework.cloud:spring-cloud-aws-core:$springCloudAwsVersion"
 	compile("org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion", optional)
 	compile("org.springframework.integration:spring-integration-file:$springIntegrationVersion", optional)
 	compile("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
