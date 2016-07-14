@@ -158,16 +158,19 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		@Override
 		protected void handleMessageInternal(Message<?> message, String lookupDestination) {
 			MessageHeaders headers = message.getHeaders();
+
 			Message<?> messageToSend = getMessageBuilderFactory()
 					.fromMessage(message)
 					.removeHeaders("LogicalResourceId",
 							"MessageId",
-							"ReceiptHandle")
+							"ReceiptHandle",
+							"Acknowledgment")
 					.setHeader(AwsHeaders.MESSAGE_ID, headers.get("MessageId"))
 					.setHeader(AwsHeaders.RECEIPT_HANDLE, headers.get("ReceiptHandle"))
-					.setHeader(AwsHeaders.QUEUE,
-							headers.get("LogicalResourceId"))
+					.setHeader(AwsHeaders.QUEUE, headers.get("LogicalResourceId"))
+					.setHeader(AwsHeaders.ACKNOWLEDGMENT, headers.get("Acknowledgment"))
 					.build();
+
 			sendMessage(messageToSend);
 		}
 

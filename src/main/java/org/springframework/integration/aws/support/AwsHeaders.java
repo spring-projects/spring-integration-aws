@@ -46,6 +46,11 @@ public abstract class AwsHeaders {
 	public static final String RECEIPT_HANDLE = PREFIX + "receiptHandle";
 
 	/**
+	 * The {@value ACKNOWLEDGMENT} header for received SQS message.
+	 */
+	public static final String ACKNOWLEDGMENT = PREFIX + "acknowledgment";
+
+	/**
 	 * The {@value NOTIFICATION_STATUS} header for SNS notification status.
 	 */
 	public static final String NOTIFICATION_STATUS = PREFIX + "notificationStatus";
