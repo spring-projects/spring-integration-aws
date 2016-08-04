@@ -236,7 +236,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private String[] splitPathToBucketAndKey(String path) {
 		Assert.hasText(path, "'path' must not be empty String.");
-		String[] bucketKey = path.split("/");
+		String[] bucketKey = path.split("/", 2);
 		Assert.state(bucketKey.length == 2, "'path' must in pattern [BUCKET/KEY].");
 		Assert.state(bucketKey[0].length() >= 3, "S3 bucket name must be at least 3 characters long.");
 		bucketKey[0] = resolveBucket(bucketKey[0]);
