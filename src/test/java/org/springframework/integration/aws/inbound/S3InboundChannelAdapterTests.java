@@ -100,7 +100,7 @@ public class S3InboundChannelAdapterTests {
 		for (File file : remoteFolder.listFiles()) {
 			S3Object s3Object = new S3Object();
 			s3Object.setBucketName(S3_BUCKET);
-			s3Object.setKey(file.getName());
+			s3Object.setKey("subdir/" + file.getName());
 			s3Object.setObjectContent(new FileInputStream(file));
 			S3_OBJECTS.add(s3Object);
 		}
@@ -191,7 +191,7 @@ public class S3InboundChannelAdapterTests {
 			synchronizer.setPreserveTimestamp(true);
 			synchronizer.setRemoteDirectory(S3_BUCKET);
 			synchronizer.setFilter(new S3RegexPatternFileListFilter(".*\\.test$"));
-			Expression expression = PARSER.parseExpression("#this.toUpperCase() + '.a'");
+			Expression expression = PARSER.parseExpression("(#this.contains('/') ? #this.substring(#this.lastIndexOf('/') + 1) : #this).toUpperCase() + '.a'");
 			synchronizer.setLocalFilenameGeneratorExpression(expression);
 			return synchronizer;
 		}
