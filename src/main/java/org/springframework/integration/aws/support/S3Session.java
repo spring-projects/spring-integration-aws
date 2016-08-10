@@ -62,15 +62,10 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public S3ObjectSummary[] list(String path) throws IOException {
-		Assert.hasText(path, "'path' must not be empty String.");
-		String[] bucketPrefix = path.split("/");
-		Assert.state(bucketPrefix.length > 0 && bucketPrefix[0].length() >= 3,
-				"S3 bucket name must be at least 3 characters long.");
-
-		String bucket = resolveBucket(bucketPrefix[0]);
+		String[] bucketPrefix = splitPathToBucketAndKey(path, false);
 
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
-				.withBucketName(bucket);
+				.withBucketName(bucketPrefix[0]);
 		if (bucketPrefix.length > 1) {
 			listObjectsRequest.setPrefix(bucketPrefix[1]);
 		}
@@ -103,14 +98,10 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public String[] listNames(String path) throws IOException {
-		String[] bucketPrefix = path.split("/");
-		Assert.state(bucketPrefix.length > 0 && bucketPrefix[0].length() >= 3,
-				"S3 bucket name must be at least 3 characters long.");
-
-		String bucket = resolveBucket(bucketPrefix[0]);
+		String[] bucketPrefix = splitPathToBucketAndKey(path, false);
 
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
-				.withBucketName(bucket);
+				.withBucketName(bucketPrefix[0]);
 		if (bucketPrefix.length > 1) {
 			listObjectsRequest.setPrefix(bucketPrefix[1]);
 		}
@@ -136,15 +127,15 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public boolean remove(String path) throws IOException {
-		String[] bucketKey = splitPathToBucketAndKey(path);
+		String[] bucketKey = splitPathToBucketAndKey(path, true);
 		this.amazonS3.deleteObject(bucketKey[0], bucketKey[1]);
 		return true;
 	}
 
 	@Override
 	public void rename(String pathFrom, String pathTo) throws IOException {
-		String[] bucketKeyFrom = splitPathToBucketAndKey(pathFrom);
-		String[] bucketKeyTo = splitPathToBucketAndKey(pathTo);
+		String[] bucketKeyFrom = splitPathToBucketAndKey(pathFrom, true);
+		String[] bucketKeyTo = splitPathToBucketAndKey(pathTo, true);
 		CopyObjectRequest copyRequest = new CopyObjectRequest(bucketKeyFrom[0], bucketKeyFrom[1],
 				bucketKeyTo[0], bucketKeyTo[1]);
 		this.amazonS3.copyObject(copyRequest);
@@ -155,7 +146,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public void read(String source, OutputStream outputStream) throws IOException {
-		String[] bucketKey = splitPathToBucketAndKey(source);
+		String[] bucketKey = splitPathToBucketAndKey(source, true);
 		S3Object s3Object = this.amazonS3.getObject(bucketKey[0], bucketKey[1]);
 		S3ObjectInputStream objectContent = s3Object.getObjectContent();
 		try {
@@ -169,7 +160,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 	@Override
 	public void write(InputStream inputStream, String destination) throws IOException {
 		Assert.notNull(inputStream, "'inputStream' must not be null.");
-		String[] bucketKey = splitPathToBucketAndKey(destination);
+		String[] bucketKey = splitPathToBucketAndKey(destination, true);
 		this.amazonS3.putObject(bucketKey[0], bucketKey[1], inputStream, new ObjectMetadata());
 	}
 
@@ -192,7 +183,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public boolean exists(String path) throws IOException {
-		String[] bucketKey = splitPathToBucketAndKey(path);
+		String[] bucketKey = splitPathToBucketAndKey(path, true);
 		try {
 			this.amazonS3.getObjectMetadata(bucketKey[0], bucketKey[1]);
 		}
@@ -209,7 +200,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public InputStream readRaw(String source) throws IOException {
-		String[] bucketKey = splitPathToBucketAndKey(source);
+		String[] bucketKey = splitPathToBucketAndKey(source, true);
 		S3Object s3Object = this.amazonS3.getObject(bucketKey[0], bucketKey[1]);
 		return s3Object.getObjectContent();
 	}
@@ -234,11 +225,19 @@ public class S3Session implements Session<S3ObjectSummary> {
 		return this.amazonS3;
 	}
 
-	private String[] splitPathToBucketAndKey(String path) {
+	private String[] splitPathToBucketAndKey(String path, boolean requireKey) {
 		Assert.hasText(path, "'path' must not be empty String.");
 		String[] bucketKey = path.split("/", 2);
-		Assert.state(bucketKey.length == 2, "'path' must in pattern [BUCKET/KEY].");
-		Assert.state(bucketKey[0].length() >= 3, "S3 bucket name must be at least 3 characters long.");
+
+		if (requireKey) {
+			Assert.state(bucketKey.length == 2, "'path' must in pattern [BUCKET/KEY].");
+			Assert.state(bucketKey[0].length() >= 3, "S3 bucket name must be at least 3 characters long.");
+		}
+		else {
+			Assert.state(bucketKey.length > 0 && bucketKey[0].length() >= 3,
+				"S3 bucket name must be at least 3 characters long.");
+		}
+
 		bucketKey[0] = resolveBucket(bucketKey[0]);
 		return bucketKey;
 	}
