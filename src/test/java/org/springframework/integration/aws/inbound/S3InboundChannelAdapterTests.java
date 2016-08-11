@@ -64,6 +64,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
  * @author Artem Bilan
+ * @autor Jim Krygowski
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
