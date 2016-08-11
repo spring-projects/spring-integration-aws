@@ -131,6 +131,11 @@ public class S3MessageHandlerTests {
 	@Autowired
 	private PollableChannel s3ReplyChannel;
 
+	// define the bucket and file names used throughout the test
+	public static final String S3_BUCKET_NAME = "myBucket";
+	public static final String S3_FILE_KEY_BAR = "subdir/bar";
+	public static final String S3_FILE_KEY_FOO = "subdir/foo";
+
 	@Test
 	public void testUploadFile() throws IOException, InterruptedException {
 		File file = this.temporaryFolder.newFile("foo.mp3");
@@ -145,7 +150,7 @@ public class S3MessageHandlerTests {
 		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
 
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
-		assertThat(putObjectRequest.getBucketName()).isEqualTo("myBucket");
+		assertThat(putObjectRequest.getBucketName()).isEqualTo(S3_BUCKET_NAME);
 		assertThat(putObjectRequest.getKey()).isEqualTo("foo.mp3");
 		assertThat(putObjectRequest.getFile()).isNotNull();
 		assertThat(putObjectRequest.getInputStream()).isNull();
@@ -167,7 +172,7 @@ public class S3MessageHandlerTests {
 
 		SetObjectAclRequest setObjectAclRequest = setObjectAclRequestArgumentCaptor.getValue();
 
-		assertThat(setObjectAclRequest.getBucketName()).isEqualTo("myBucket");
+		assertThat(setObjectAclRequest.getBucketName()).isEqualTo(S3_BUCKET_NAME);
 		assertThat(setObjectAclRequest.getKey()).isEqualTo("foo.mp3");
 		assertThat(setObjectAclRequest.getAcl()).isNull();
 		assertThat(setObjectAclRequest.getCannedAcl()).isEqualTo(CannedAccessControlList.PublicReadWrite);
@@ -188,7 +193,7 @@ public class S3MessageHandlerTests {
 		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
 
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
-		assertThat(putObjectRequest.getBucketName()).isEqualTo("myBucket");
+		assertThat(putObjectRequest.getBucketName()).isEqualTo(S3_BUCKET_NAME);
 		assertThat(putObjectRequest.getKey()).isEqualTo("myStream");
 		assertThat(putObjectRequest.getFile()).isNull();
 		assertThat(putObjectRequest.getInputStream()).isNotNull();
@@ -234,7 +239,7 @@ public class S3MessageHandlerTests {
 		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
 
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
-		assertThat(putObjectRequest.getBucketName()).isEqualTo("myBucket");
+		assertThat(putObjectRequest.getBucketName()).isEqualTo(S3_BUCKET_NAME);
 		assertThat(putObjectRequest.getKey()).isEqualTo("myStream");
 		assertThat(putObjectRequest.getFile()).isNull();
 		assertThat(putObjectRequest.getInputStream()).isNotNull();
@@ -255,7 +260,13 @@ public class S3MessageHandlerTests {
 
 		this.s3SendChannel.send(message);
 
-		File[] fileArray = directoryForDownload.listFiles();
+		// get the "root" directory
+		File[] directoryArray = directoryForDownload.listFiles();
+		assertThat(directoryArray).isNotNull();
+		assertThat(directoryArray.length).isEqualTo(1);
+
+		// get the files we downloaded
+		File[] fileArray = directoryArray[0].listFiles();
 		assertThat(fileArray).isNotNull();
 		assertThat(fileArray.length).isEqualTo(2);
 
@@ -263,11 +274,11 @@ public class S3MessageHandlerTests {
 		Collections.sort(files, (o1, o2) -> o1.getName().compareTo(o2.getName()));
 
 		File file1 = files.get(0);
-		assertThat(file1.getName()).isEqualTo("bar");
+		assertThat(file1.getName()).isEqualTo(S3_FILE_KEY_BAR.split("/", 2)[1]);
 		assertThat(FileCopyUtils.copyToString(new FileReader(file1))).isEqualTo("bb");
 
 		File file2 = files.get(1);
-		assertThat(file2.getName()).isEqualTo("foo");
+		assertThat(file2.getName()).isEqualTo(S3_FILE_KEY_FOO.split("/", 2)[1]);
 		assertThat(FileCopyUtils.copyToString(new FileReader(file2))).isEqualTo("f");
 	}
 
@@ -308,14 +319,14 @@ public class S3MessageHandlerTests {
 			List<S3ObjectSummary> s3ObjectSummaries = new LinkedList<>();
 
 			S3ObjectSummary fileSummary1 = new S3ObjectSummary();
-			fileSummary1.setBucketName("myBucket");
-			fileSummary1.setKey("foo");
+			fileSummary1.setBucketName(S3_BUCKET_NAME);
+			fileSummary1.setKey(S3_FILE_KEY_FOO);
 			fileSummary1.setSize(1);
 			s3ObjectSummaries.add(fileSummary1);
 
 			S3ObjectSummary fileSummary2 = new S3ObjectSummary();
-			fileSummary2.setBucketName("myBucket");
-			fileSummary2.setKey("bar");
+			fileSummary2.setBucketName(S3_BUCKET_NAME);
+			fileSummary2.setKey(S3_FILE_KEY_BAR);
 			fileSummary2.setSize(2);
 			s3ObjectSummaries.add(fileSummary2);
 
@@ -323,8 +334,8 @@ public class S3MessageHandlerTests {
 			given(amazonS3.listObjects(any(ListObjectsRequest.class))).willReturn(objectListing);
 
 			final S3Object file1 = new S3Object();
-			file1.setBucketName("myBucket");
-			file1.setKey("foo");
+			file1.setBucketName(S3_BUCKET_NAME);
+			file1.setKey(S3_FILE_KEY_FOO);
 			try {
 				byte[] data = "f".getBytes(StringUtils.UTF8);
 				byte[] md5 = Md5Utils.computeMD5Hash(data);
@@ -338,8 +349,8 @@ public class S3MessageHandlerTests {
 			}
 
 			final S3Object file2 = new S3Object();
-			file2.setBucketName("myBucket");
-			file2.setKey("bar");
+			file2.setBucketName(S3_BUCKET_NAME);
+			file2.setKey(S3_FILE_KEY_BAR);
 			try {
 				byte[] data = "bb".getBytes(StringUtils.UTF8);
 				byte[] md5 = Md5Utils.computeMD5Hash(data);
@@ -355,10 +366,10 @@ public class S3MessageHandlerTests {
 			willAnswer(invocation -> {
 				GetObjectRequest getObjectRequest = (GetObjectRequest) invocation.getArguments()[0];
 				String key = getObjectRequest.getKey();
-				if ("foo".equals(key)) {
+				if (S3_FILE_KEY_FOO.equals(key)) {
 					return file1;
 				}
-				else if ("bar".equals(key)) {
+				else if (S3_FILE_KEY_BAR.equals(key)) {
 					return file2;
 				}
 				else {
@@ -411,7 +422,7 @@ public class S3MessageHandlerTests {
 		@Bean
 		@ServiceActivator(inputChannel = "s3SendChannel")
 		public MessageHandler s3MessageHandler() {
-			S3MessageHandler s3MessageHandler = new S3MessageHandler(amazonS3(), "myBucket");
+			S3MessageHandler s3MessageHandler = new S3MessageHandler(amazonS3(), S3_BUCKET_NAME);
 			s3MessageHandler.setCommandExpression(PARSER.parseExpression("headers.s3Command"));
 			Expression keyExpression =
 					PARSER.parseExpression("payload instanceof T(java.io.File) ? payload.name : headers.key");
@@ -436,7 +447,7 @@ public class S3MessageHandlerTests {
 		@Bean
 		@ServiceActivator(inputChannel = "s3ProcessChannel")
 		public MessageHandler s3ProcessMessageHandler() {
-			S3MessageHandler s3MessageHandler = new S3MessageHandler(amazonS3(), "myBucket", true);
+			S3MessageHandler s3MessageHandler = new S3MessageHandler(amazonS3(), S3_BUCKET_NAME, true);
 			s3MessageHandler.setOutputChannel(s3ReplyChannel());
 			s3MessageHandler.setCommand(S3MessageHandler.Command.COPY);
 			s3MessageHandler.setKeyExpression(PARSER.parseExpression("payload.key"));
