@@ -43,6 +43,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * An Amazon S3 {@link Session} implementation.
  *
  * @author Artem Bilan
+ * @author Jim Krygowski
  */
 public class S3Session implements Session<S3ObjectSummary> {
 
