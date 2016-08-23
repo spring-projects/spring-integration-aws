@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -317,7 +318,9 @@ public class S3MessageHandlerTests {
 			AmazonS3 amazonS3 = mock(AmazonS3.class);
 
 			given(amazonS3.putObject(any(PutObjectRequest.class))).willReturn(new PutObjectResult());
-			given(amazonS3.getObjectMetadata(any(GetObjectMetadataRequest.class))).willReturn(new ObjectMetadata());
+			ObjectMetadata objectMetadata = new ObjectMetadata();
+			objectMetadata.setLastModified(new Date());
+			given(amazonS3.getObjectMetadata(any(GetObjectMetadataRequest.class))).willReturn(objectMetadata);
 			given(amazonS3.copyObject(any(CopyObjectRequest.class))).willReturn(new CopyObjectResult());
 
 			ObjectListing objectListing = spy(new ObjectListing());

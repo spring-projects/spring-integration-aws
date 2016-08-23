@@ -32,6 +32,9 @@ import org.springframework.cloud.aws.messaging.listener.SqsMessageDeletionPolicy
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
+import org.springframework.integration.support.management.IntegrationManagedResource;
+import org.springframework.jmx.export.annotation.ManagedOperation;
+import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.core.DestinationResolver;
@@ -51,6 +54,8 @@ import com.amazonaws.services.sqs.AmazonSQSAsync;
  * @see SimpleMessageListenerContainer
  * @see QueueMessageHandler
  */
+@ManagedResource
+@IntegrationManagedResource
 public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
 
 	private final SimpleMessageListenerContainerFactory simpleMessageListenerContainerFactory =
@@ -138,6 +143,21 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	@Override
 	protected void doStop() {
 		this.listenerContainer.stop();
+	}
+
+	@ManagedOperation
+	public void stop(String logicalQueueName) {
+		this.listenerContainer.stop(logicalQueueName);
+	}
+
+	@ManagedOperation
+	public void start(String logicalQueueName) {
+		this.listenerContainer.start(logicalQueueName);
+	}
+
+	@ManagedOperation
+	public boolean isRunning(String logicalQueueName) {
+		return this.listenerContainer.isRunning(logicalQueueName);
 	}
 
 	@Override

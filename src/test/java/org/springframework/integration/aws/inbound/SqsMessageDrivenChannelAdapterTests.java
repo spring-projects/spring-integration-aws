@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 import static org.mockito.Matchers.any;
@@ -27,12 +28,16 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
+import org.springframework.integration.config.ExpressionControlBusFactoryBean;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.test.util.TestUtils;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.PollableChannel;
+import org.springframework.messaging.support.GenericMessage;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -58,6 +63,12 @@ public class SqsMessageDrivenChannelAdapterTests {
 	@Autowired
 	private SqsMessageDrivenChannelAdapter sqsMessageDrivenChannelAdapter;
 
+	@Autowired
+	private MessageChannel controlBusInput;
+
+	@Autowired
+	private PollableChannel controlBusOutput;
+
 	@Test
 	public void testSqsMessageDrivenChannelAdapter() {
 		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
@@ -71,6 +82,25 @@ public class SqsMessageDrivenChannelAdapterTests {
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");
 		assertThat(receive.getHeaders().get(AwsHeaders.QUEUE)).isEqualTo("testQueue");
+
+		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.stop('testQueue')"));
+		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.isRunning('testQueue')"));
+
+		receive = this.controlBusOutput.receive(1000);
+		assertThat(receive).isNotNull();
+		assertThat((Boolean) receive.getPayload()).isFalse();
+
+		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.start('testQueue')"));
+		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.isRunning('testQueue')"));
+
+		receive = this.controlBusOutput.receive(1000);
+		assertThat(receive).isNotNull();
+		assertThat((Boolean) receive.getPayload()).isTrue();
+
+		assertThatThrownBy(() ->
+				this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.start('foo')")))
+				.hasCauseExactlyInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Queue with name 'foo' does not exist");
 	}
 
 	@Configuration
@@ -109,6 +139,19 @@ public class SqsMessageDrivenChannelAdapterTests {
 			SqsMessageDrivenChannelAdapter adapter = new SqsMessageDrivenChannelAdapter(amazonSqs(), "testQueue");
 			adapter.setOutputChannel(inputChannel());
 			return adapter;
+		}
+
+		@Bean
+		@ServiceActivator(inputChannel = "controlBusInput")
+		public ExpressionControlBusFactoryBean controlBus() {
+			ExpressionControlBusFactoryBean controlBusFactoryBean = new ExpressionControlBusFactoryBean();
+			controlBusFactoryBean.setOutputChannel(controlBusOutput());
+			return controlBusFactoryBean;
+		}
+
+		@Bean
+		public PollableChannel controlBusOutput() {
+			return new QueueChannel();
 		}
 
 	}
