@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
@@ -50,6 +51,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.expression.Expression;
@@ -60,6 +62,7 @@ import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.support.MessageBuilder;
+import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -140,6 +143,12 @@ public class S3MessageHandlerTests {
 	@Autowired
 	private PollableChannel s3ReplyChannel;
 
+	@Autowired
+	@Qualifier("s3MessageHandler")
+	private S3MessageHandler s3MessageHandler;
+
+
+
 	@Test
 	public void testUploadFile() throws IOException, InterruptedException {
 		File file = this.temporaryFolder.newFile("foo.mp3");
@@ -184,11 +193,22 @@ public class S3MessageHandlerTests {
 
 	@Test
 	public void testUploadInputStream() throws IOException {
+		Expression actualKeyExpression = TestUtils.getPropertyValue(this.s3MessageHandler, "keyExpression",
+				Expression.class);
+
+		this.s3MessageHandler.setKeyExpression(null);
+
 		InputStream payload = new StringInputStream("a");
 		Message<?> message = MessageBuilder.withPayload(payload)
 				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
 				.setHeader("key", "myStream")
 				.build();
+
+		assertThatThrownBy(() -> this.s3SendChannel.send(message))
+				.hasCauseExactlyInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("Specify a 'keyExpression' for non-java.io.File payloads");
+
+		this.s3MessageHandler.setKeyExpression(actualKeyExpression);
 
 		this.s3SendChannel.send(message);
 

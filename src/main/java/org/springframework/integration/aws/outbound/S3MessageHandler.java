@@ -367,11 +367,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 				throw new MessageHandlingException(requestMessage, e);
 			}
 
-
-			Assert.state(key != null,
-					"The 'keyExpression' must not be null for non-File payloads and can't evaluate to null. " +
-							"Root object is: " + requestMessage);
-
 			if (key == null) {
 				if (this.keyExpression != null) {
 					throw new IllegalStateException("The 'keyExpression' ["
@@ -479,7 +474,8 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		}
 
 		Assert.state(sourceKey != null,
-				"The 'keyExpression' must not be null for 'copy' operation and can't evaluate to null. " +
+				"The 'keyExpression' must not be null for 'copy' operation " +
+						"and 'keyExpression' can't evaluate to null. " +
 						"Root object is: " + requestMessage);
 
 		String destinationBucketName = null;
