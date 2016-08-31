@@ -115,6 +115,78 @@ An XML variant may look like:
 </int-aws:s3-inbound-channel-adapter>
 ````
 
+###Streaming Inbound Channel Adapter
+
+This adapter produces message with payloads of type `InputStream`, allowing S3 objects to be fetched without writing to the local file system. Since the session remains open, the consuming application is responsible for closing the session when the file has been consumed. 
+The session is provided in the closeableResource header (`IntegrationMessageHeaderAccessor.CLOSEABLE_RESOURCE`). Standard framework components, such as the `FileSplitter` and `StreamTransformer` will automatically close the session.
+ 
+The following Spring Boot application provides an example of configuring the S3 inbound streaming adapter using Java configuration:
+
+````java
+@SpringBootApplication
+public class S3JavaApplication {
+
+    public static void main(String[] args) {
+        new SpringApplicationBuilder(S3JavaApplication.class)
+            .web(false)
+            .run(args);
+    }
+    
+    @Autowired
+    private AmazonS3 amazonS3;
+
+    @Bean
+    @InboundChannelAdapter(value = "s3Channel", poller = @Poller(fixedDelay = "100"))
+    public MessageSource<InputStream> s3InboundStreamingMessageSource() {    
+        S3StreamingMessageSource messageSource = new S3StreamingMessageSource(template());
+        messageSource.setRemoteDirectory(S3_BUCKET);
+        messageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(),
+                                   "streaming"));    	
+    	return messageSource;
+    }
+
+    @Bean
+    @Transformer(inputChannel = "s3Channel", outputChannel = "data")
+    public org.springframework.integration.transformer.Transformer transformer() {
+        return new StreamTransformer();
+    }
+    
+    @Bean
+    public S3RemoteFileTemplate template() {
+        return new S3RemoteFileTemplate(new S3SessionFactory(amazonS3));
+    }
+
+    @Bean
+    public PollableChannel s3Channel() {
+    	return new QueueChannel();
+    }
+}
+````
+
+An XML variant may look like:
+
+````xml
+<bean id="metadataStore" class="org.springframework.integration.metadata.SimpleMetadataStore"/>
+
+<bean id="acceptOnceFilter" class="org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter">
+	<constructor-arg index="0" ref="metadataStore"/>
+	<constructor-arg index="1" value="streaming"/>
+</bean>
+
+<bean id="s3SessionFactory" class="org.springframework.integration.aws.support.S3SessionFactory"/>
+
+<int-aws:s3-inbound-streaming-channel-adapter channel="s3Channel"
+                   session-factory="s3SessionFactory"
+                   filter="acceptOnceFilter"
+                   remote-directory-expression="'my_bucket'">
+    <int:poller fixed-rate="1000"/>
+</int-aws:s3-inbound-streaming-channel-adapter>
+````
+
+Only one of `filename-pattern`, `filename-regex` or `filter` is allowed.
+
+NOTE: Unlike the non-streaming inbound channel adapter, this adapter does not prevent duplicates by default. If you do not delete the remote file and you wish to prevent the file being processed again, you can configure an `S3PersistentFileListFilter` in the `filter` attribute. If you don’t actually want to persist the state, an in-memory `SimpleMetadataStore` can be used with the filter. If you wish to use a filename pattern (or regex) as well, use a `CompositeFileListFilter`.
+
 ###Outbound Channel Adapter
 
 The S3 Outbound Channel Adapter is represented by the `S3MessageHandler` (`<int-aws:s3-outbound-channel-adapter>`
