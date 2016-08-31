@@ -73,12 +73,12 @@ ext.javadocLinks = [
 ] as String[]
 
 jacoco {
-	toolVersion = "0.7.6.201602180812"
+	toolVersion = "0.7.7.201606060606"
 }
 
 checkstyle {
 	configFile = file('src/checkstyle/checkstyle.xml')
-	toolVersion = '6.18'
+	toolVersion = "6.16.1"
 }
 
 dependencies {

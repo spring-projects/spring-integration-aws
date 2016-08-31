@@ -32,6 +32,7 @@ public class AwsNamespaceHandler extends AbstractIntegrationNamespaceHandler {
 		registerBeanDefinitionParser("s3-outbound-channel-adapter", new S3OutboundChannelAdapterParser());
 		registerBeanDefinitionParser("s3-outbound-gateway", new S3OutboundGatewayParser());
 		registerBeanDefinitionParser("s3-inbound-channel-adapter", new S3InboundChannelAdapterParser());
+		registerBeanDefinitionParser("s3-inbound-streaming-channel-adapter", new S3InboundStreamingChannelAdapterParser());
 		registerBeanDefinitionParser("sqs-outbound-channel-adapter", new SqsOutboundChannelAdapterParser());
 		registerBeanDefinitionParser("sqs-message-driven-channel-adapter", new SqsMessageDrivenChannelAdapterParser());
 		registerBeanDefinitionParser("sns-inbound-channel-adapter", new SnsInboundChannelAdapterParser());
