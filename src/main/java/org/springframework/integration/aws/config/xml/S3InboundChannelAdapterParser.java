@@ -21,6 +21,8 @@ import org.springframework.integration.aws.inbound.S3InboundFileSynchronizingMes
 import org.springframework.integration.aws.support.filters.S3RegexPatternFileListFilter;
 import org.springframework.integration.aws.support.filters.S3SimplePatternFileListFilter;
 import org.springframework.integration.file.config.AbstractRemoteFileInboundChannelAdapterParser;
+import org.springframework.integration.file.filters.FileListFilter;
+import org.springframework.integration.file.remote.synchronizer.InboundFileSynchronizer;
 
 /**
  * Parser for the AWS 's3-inbound-channel-adapter' element.
@@ -35,18 +37,18 @@ public class S3InboundChannelAdapterParser extends AbstractRemoteFileInboundChan
 	}
 
 	@Override
-	protected String getInboundFileSynchronizerClassname() {
-		return S3InboundFileSynchronizer.class.getName();
+	protected Class<? extends FileListFilter<?>> getSimplePatternFileListFilterClass() {
+		return S3SimplePatternFileListFilter.class;
 	}
 
 	@Override
-	protected String getSimplePatternFileListFilterClassname() {
-		return S3SimplePatternFileListFilter.class.getName();
+	protected Class<? extends FileListFilter<?>> getRegexPatternFileListFilterClass() {
+		return S3RegexPatternFileListFilter.class;
 	}
 
 	@Override
-	protected String getRegexPatternFileListFilterClassname() {
-		return S3RegexPatternFileListFilter.class.getName();
+	protected Class<? extends InboundFileSynchronizer> getInboundFileSynchronizerClass() {
+		return S3InboundFileSynchronizer.class;
 	}
 
 }
