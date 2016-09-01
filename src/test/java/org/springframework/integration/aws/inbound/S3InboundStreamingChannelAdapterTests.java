@@ -65,6 +65,8 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
  * @author Christian Tzolov
+ * @author Artem Bilan
+ * @since 1.1
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
@@ -103,7 +105,7 @@ public class S3InboundStreamingChannelAdapterTests {
 	}
 
 	@Test
-	public void testS3InboundChannelAdapter() throws IOException {
+	public void testS3InboundStreamingChannelAdapter() throws IOException {
 		Message<?> message = this.s3FilesChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(InputStream.class);
@@ -120,7 +122,7 @@ public class S3InboundStreamingChannelAdapterTests {
 		InputStream inputStreamB = (InputStream) message.getPayload();
 		assertThat(IOUtils.toString(inputStreamB)).isEqualTo("Bye");
 
-		assertThat(this.s3FilesChannel.receive(10000)).isNull();
+		assertThat(this.s3FilesChannel.receive(10)).isNull();
 	}
 
 	@Configuration
@@ -168,19 +170,12 @@ public class S3InboundStreamingChannelAdapterTests {
 		@Bean
 		@InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
 		public S3InboundStreamingMessageSource s3InboundStreamingMessageSource(AmazonS3 amazonS3) {
-
 			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
-
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
-
-			s3FileTemplate.setUseTemporaryFileName(false);
-
-			S3InboundStreamingMessageSource s3MessageSource = new S3InboundStreamingMessageSource(s3FileTemplate);
-
+			S3InboundStreamingMessageSource s3MessageSource = new S3InboundStreamingMessageSource(s3FileTemplate,
+							(o1, o2) -> o1.getFilename().compareTo(o2.getFilename()));
 			s3MessageSource.setRemoteDirectory(S3_BUCKET);
-
-			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(),
-					"streaming"));
+			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));
 
 			return s3MessageSource;
 		}
