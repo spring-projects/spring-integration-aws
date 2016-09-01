@@ -77,8 +77,8 @@ jacoco {
 }
 
 checkstyle {
-	configFile = file('src/checkstyle/checkstyle.xml')
-	toolVersion = '6.18'
+	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
+	toolVersion = "6.16.1"
 }
 
 dependencies {

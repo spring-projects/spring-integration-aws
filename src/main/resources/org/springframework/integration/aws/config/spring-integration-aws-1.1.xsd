@@ -433,6 +433,144 @@
 		</xsd:complexType>
 	</xsd:element>
 
+	<xsd:element name="s3-inbound-streaming-channel-adapter">
+		<xsd:annotation>
+			<xsd:documentation>
+				Configures a 'SourcePollingChannelAdapter' Endpoint for the
+				'org.springframework.integration.aws.inbound.S3InboundStreamingMessageSource'.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:complexContent>
+				<xsd:extension base="base-inbound-adapter-type">
+					<xsd:attribute name="comparator" type="xsd:string">
+						<xsd:annotation>
+							<xsd:documentation><![CDATA[
+								Specify a Comparator to be used when ordering Files. If none is provided, the
+								order in which files are processed is the order they are received from the
+								S3 server. The generic type of the Comparator must be 'S3FileInfo'.
+							]]></xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:complexContent>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:complexType name="base-inbound-adapter-type">
+		<xsd:complexContent>
+			<xsd:extension base="base-adapter-type">
+				<xsd:sequence>
+					<xsd:element ref="integration:poller" minOccurs="0"
+								 maxOccurs="1" />
+				</xsd:sequence>
+				<xsd:attribute name="channel" type="xsd:string">
+					<xsd:annotation>
+						<xsd:appinfo>
+							<tool:annotation kind="ref">
+								<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
+							</tool:annotation>
+						</xsd:appinfo>
+						<xsd:documentation>
+							Identifies channel attached to this adapter.
+							The channel to which messages will be sent
+							by this adapter.
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+				<xsd:attribute name="filename-pattern" type="xsd:string">
+					<xsd:annotation>
+						<xsd:documentation>
+							Allows you to provide a file name pattern to
+							determine the file names
+							that need to be scanned.
+							This is based on
+							simple pattern matching (e.g., "*.txt, fo*.txt"
+							etc.)
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+				<xsd:attribute name="filename-regex" type="xsd:string">
+					<xsd:annotation>
+						<xsd:documentation>
+							Allows you to provide a Regular Expression to
+							determine the file names
+							that need to be scanned.
+							(e.g.,
+							"f[o]+\.txt" etc.)
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+				<xsd:attribute name="filter" type="xsd:string">
+					<xsd:annotation>
+						<xsd:appinfo>
+							<tool:annotation kind="ref">
+								<tool:expected-type
+										type="org.springframework.integration.file.filters.FileListFilter" />
+							</tool:annotation>
+						</xsd:appinfo>
+						<xsd:documentation>
+							Allows you to specify a reference to a
+							[org.springframework.integration.file.filters.FileListFilter]
+							bean. This filter is applied to files on the remote server and
+							only files that pass the filter are retrieved.
+						</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+			</xsd:extension>
+		</xsd:complexContent>
+	</xsd:complexType>
+
+	<xsd:complexType name="base-adapter-type">
+		<xsd:attribute name="id" type="xsd:string" />
+		<xsd:attribute name="session-factory" type="xsd:string" use="required">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type
+								type="org.springframework.integration.file.remote.session.SessionFactory" />
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation><![CDATA[
+					Reference to an [org.springframework.integration.file.remote.session.SessionFactory] bean with
+					a [com.amazonaws.services.s3.model.S3ObjectSummary] generic type parameter.
+				]]></xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="remote-file-separator" type="xsd:string"
+					   default="/">
+			<xsd:annotation>
+				<xsd:documentation>
+					Allows you to provide remote file/directory
+					separator character. DEFAULT:
+					'/'
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="remote-directory" type="xsd:string" use="optional">
+			<xsd:annotation>
+				<xsd:documentation>
+					Identifies the remote directory path (e.g., "/remote/mytransfers")
+					Mutually exclusive with 'remote-directory-expression'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="remote-directory-expression"
+					   type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specify a SpEL expression which
+					will be used to evaluate the directory
+					path to where the files will be transferred
+					(e.g., "headers.['remote_dir'] + '/myTransfers'" for outbound endpoints)
+					There is no root object (message) for inbound endpoints
+					(e.g., "@someBean.fetchDirectory");
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
+	</xsd:complexType>
+
 	<xsd:element name="sqs-outbound-channel-adapter">
 		<xsd:complexType>
 			<xsd:annotation>
