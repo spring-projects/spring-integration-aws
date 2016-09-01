@@ -78,7 +78,7 @@ public class S3InboundStreamingChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(source, "comparator")).isSameAs(this.comparator);
 		String remoteFileSeparator = (String) TestUtils.getPropertyValue(source, "remoteFileSeparator");
 		assertThat(remoteFileSeparator).isNotNull();
-		assertThat(remoteFileSeparator).isEqualTo("/");
+		assertThat(remoteFileSeparator).isEqualTo("\\");
 
 		S3PersistentAcceptOnceFileListFilter filter = TestUtils.getPropertyValue(source, "filter",
 				S3PersistentAcceptOnceFileListFilter.class);

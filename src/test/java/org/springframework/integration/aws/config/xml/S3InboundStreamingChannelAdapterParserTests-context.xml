@@ -36,6 +36,7 @@
 												  auto-startup="false"
 												  comparator="comparator"
 												  filter="acceptOnceFilter"
+												  remote-file-separator="\"
 												  remote-directory-expression="foo/bar">
 		<int:poller fixed-rate="1000"/>
 	</int-aws:s3-inbound-streaming-channel-adapter>

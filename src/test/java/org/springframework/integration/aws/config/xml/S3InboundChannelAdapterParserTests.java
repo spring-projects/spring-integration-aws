@@ -87,8 +87,7 @@ public class S3InboundChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(fisync, "preserveTimestamp", Boolean.class)).isTrue();
 		assertThat(TestUtils.getPropertyValue(fisync, "temporaryFileSuffix", String.class)).isEqualTo(".foo");
 		String remoteFileSeparator = (String) TestUtils.getPropertyValue(fisync, "remoteFileSeparator");
-		assertThat(remoteFileSeparator).isNotNull();
-		assertThat(remoteFileSeparator).isEmpty();
+		assertThat(remoteFileSeparator).isEqualTo("\\");
 		S3SimplePatternFileListFilter filter = TestUtils.getPropertyValue(fisync, "filter",
 				S3SimplePatternFileListFilter.class);
 		assertThat(filter).isNotNull();

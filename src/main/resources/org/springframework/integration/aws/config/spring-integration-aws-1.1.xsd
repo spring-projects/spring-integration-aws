@@ -255,181 +255,96 @@
 	</xsd:simpleType>
 
 	<xsd:element name="s3-inbound-channel-adapter">
+		<xsd:annotation>
+			<xsd:documentation>
+				Configures a 'SourcePollingChannelAdapter' Endpoint for the
+				'org.springframework.integration.aws.inbound.S3InboundFileSynchronizingMessageSource' that
+				synchronizes a local directory with the contents of a remote Amazon S3 bucket.
+			</xsd:documentation>
+		</xsd:annotation>
 		<xsd:complexType>
-			<xsd:annotation>
-				<xsd:documentation>
-					Configures a 'SourcePollingChannelAdapter' Endpoint for the
-					'org.springframework.integration.aws.inbound.S3InboundFileSynchronizingMessageSource' that
-					synchronizes a local directory with the contents of a remote Amazon S3 bucket.
-				</xsd:documentation>
-			</xsd:annotation>
-			<xsd:sequence minOccurs="0" maxOccurs="1">
-				<xsd:element ref="integration:poller"/>
-			</xsd:sequence>
-			<xsd:attribute name="session-factory" use="required">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type
-									type="org.springframework.integration.file.remote.session.SessionFactory" />
-						</tool:annotation>
-					</xsd:appinfo>
-					<xsd:documentation><![CDATA[
-					Reference to an [org.springframework.integration.file.remote.session.SessionFactory] bean with
-					an [com.amazonaws.services.s3.model.S3ObjectSummary] generic type parameter.
-				]]></xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="local-directory" use="required">
-				<xsd:annotation>
-					<xsd:documentation>
-						Identifies the directory path (e.g.,
-						"/local/mytransfers") where files
-						will be transferred TO.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="remote-directory">
-				<xsd:annotation>
-					<xsd:documentation>
-						Identifies the remote directory path (e.g., "/remote/mytransfers")
-						Mutually exclusive with 'remote-directory-expression'.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="remote-directory-expression">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specify a SpEL expression which
-						will be used to evaluate the directory
-						path from where the files will be transferred
-						(e.g., "@someBean.fetchDirectory");
-						Mutually exclusive with 'remote-directory'.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="temporary-file-suffix">
-				<xsd:annotation>
-					<xsd:documentation>
-						Extension used when downloading files.
-						We change it right after we know it's downloaded.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="filename-pattern">
-				<xsd:annotation>
-					<xsd:documentation>
-						Allows you to provide a file name pattern to
-						determine the file names
-						that need to be scanned.
-						This is based on
-						simple pattern matching (e.g., "*.txt, fo*.txt" etc.)
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="local-filename-generator-expression">
-				<xsd:annotation>
-					<xsd:documentation>
-						Allows you to provide a SpEL expression to
-						generate the file name of
-						the local (transferred) file. The root
-						object of the SpEL
-						evaluation is the name of the original
-						file.
-						For example, a valid expression would be "#this.toUpperCase() +
-						'.a'" where #this represents the
-						original name of the remote
-						file.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="filename-regex" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						Allows you to provide a Regular Expression to
-						determine the file names
-						that need to be scanned.
-						(e.g., "f[o]+\.txt" etc.)
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="comparator" type="xsd:string">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specify a Comparator to be used when ordering Files. If none is provided, the
-						order will be determined by the java.io.File implementation of Comparable.
-					</xsd:documentation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type type="java.util.Comparator" />
-						</tool:annotation>
-					</xsd:appinfo>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="filter" type="xsd:string">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type type="org.springframework.integration.file.filters.FileListFilter" />
-						</tool:annotation>
-					</xsd:appinfo>
-					<xsd:documentation>
-						Allows you to specify a reference to a
-						[org.springframework.integration.file.filters.FileListFilter]
-						bean. This filter is applied to files on the remote server and
-						only files that pass the filter are retrieved.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="local-filter" type="xsd:string">
-				<xsd:annotation>
-					<xsd:appinfo>
-						<tool:annotation kind="ref">
-							<tool:expected-type type="org.springframework.integration.file.filters.FileListFilter" />
-						</tool:annotation>
-					</xsd:appinfo>
-					<xsd:documentation>
-						Allows you to specify a reference to a
-						[org.springframework.integration.file.filters.FileListFilter]
-						bean. This filter is applied to files after they have been
-						retrieved. The default is an AcceptOnceFileListFilter which means that,
-						even if a new instance of a file is retrieved from the remote server,
-						a message won't be generated. The filter provided here is combined
-						with a filter that prevents the message source from processing
-						files that are currently being downloaded.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="auto-create-local-directory">
-				<xsd:annotation>
-					<xsd:documentation>
-						Tells this adapter if the local directory must
-						be auto-created if it
-						doesn't exist. Default is TRUE.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="delete-remote-files" type="xsd:string" default="false">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specify whether to delete the remote source
-						file after copying.
-						By default, the remote files will NOT be
-						deleted.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attribute name="preserve-timestamp" type="xsd:string" default="false">
-				<xsd:annotation>
-					<xsd:documentation>
-						Specify whether to preserve the modified timestamp from the remote source
-						file on the local file after copying.
-						By default, the remote timestamp will NOT be
-						preserved.
-					</xsd:documentation>
-				</xsd:annotation>
-			</xsd:attribute>
-			<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
+			<xsd:complexContent>
+				<xsd:extension base="base-s3-inbound-adapter-type">
+					<xsd:attribute name="local-directory" use="required">
+						<xsd:annotation>
+							<xsd:documentation>
+								Identifies the directory path (e.g.,
+								"/local/mytransfers") where files
+								will be transferred TO.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="temporary-file-suffix">
+						<xsd:annotation>
+							<xsd:documentation>
+								Extension used when downloading files.
+								We change it right after we know it's downloaded.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="local-filename-generator-expression">
+						<xsd:annotation>
+							<xsd:documentation>
+								Allows you to provide a SpEL expression to
+								generate the file name of
+								the local (transferred) file. The root
+								object of the SpEL
+								evaluation is the name of the original
+								file.
+								For example, a valid expression would be "#this.toUpperCase() +
+								'.a'" where #this represents the
+								original name of the remote
+								file.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="local-filter" type="xsd:string">
+						<xsd:annotation>
+							<xsd:appinfo>
+								<tool:annotation kind="ref">
+									<tool:expected-type
+											type="org.springframework.integration.file.filters.FileListFilter" />
+								</tool:annotation>
+							</xsd:appinfo>
+							<xsd:documentation>
+								Allows you to specify a reference to a
+								[org.springframework.integration.file.filters.FileListFilter]
+								bean. This filter is applied to files after they have been
+								retrieved. The default is an AcceptOnceFileListFilter which means that,
+								even if a new instance of a file is retrieved from the remote server,
+								a message won't be generated. The filter provided here is combined
+								with a filter that prevents the message source from processing
+								files that are currently being downloaded.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="auto-create-local-directory">
+						<xsd:annotation>
+							<xsd:documentation>
+								Tells this adapter if the local directory must
+								be auto-created if it doesn't exist. Default is TRUE.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="delete-remote-files" type="xsd:string" default="false">
+						<xsd:annotation>
+							<xsd:documentation>
+								Specify whether to delete the remote source file after copying.
+								By default, the remote files will NOT be deleted.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="preserve-timestamp" type="xsd:string" default="false">
+						<xsd:annotation>
+							<xsd:documentation>
+								Specify whether to preserve the modified timestamp from the remote source
+								file on the local file after copying.
+								By default, the remote timestamp will NOT be preserved.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+				</xsd:extension>
+			</xsd:complexContent>
 		</xsd:complexType>
 	</xsd:element>
 
@@ -442,87 +357,16 @@
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:complexContent>
-				<xsd:extension base="base-inbound-adapter-type">
-					<xsd:attribute name="comparator" type="xsd:string">
-						<xsd:annotation>
-							<xsd:documentation><![CDATA[
-								Specify a Comparator to be used when ordering Files. If none is provided, the
-								order in which files are processed is the order they are received from the
-								S3 server. The generic type of the Comparator must be 'S3FileInfo'.
-							]]></xsd:documentation>
-						</xsd:annotation>
-					</xsd:attribute>
-				</xsd:extension>
+				<xsd:extension base="base-s3-inbound-adapter-type" />
 			</xsd:complexContent>
 		</xsd:complexType>
 	</xsd:element>
 
-	<xsd:complexType name="base-inbound-adapter-type">
-		<xsd:complexContent>
-			<xsd:extension base="base-adapter-type">
-				<xsd:sequence>
-					<xsd:element ref="integration:poller" minOccurs="0"
-								 maxOccurs="1" />
-				</xsd:sequence>
-				<xsd:attribute name="channel" type="xsd:string">
-					<xsd:annotation>
-						<xsd:appinfo>
-							<tool:annotation kind="ref">
-								<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
-							</tool:annotation>
-						</xsd:appinfo>
-						<xsd:documentation>
-							Identifies channel attached to this adapter.
-							The channel to which messages will be sent
-							by this adapter.
-						</xsd:documentation>
-					</xsd:annotation>
-				</xsd:attribute>
-				<xsd:attribute name="filename-pattern" type="xsd:string">
-					<xsd:annotation>
-						<xsd:documentation>
-							Allows you to provide a file name pattern to
-							determine the file names
-							that need to be scanned.
-							This is based on
-							simple pattern matching (e.g., "*.txt, fo*.txt"
-							etc.)
-						</xsd:documentation>
-					</xsd:annotation>
-				</xsd:attribute>
-				<xsd:attribute name="filename-regex" type="xsd:string">
-					<xsd:annotation>
-						<xsd:documentation>
-							Allows you to provide a Regular Expression to
-							determine the file names
-							that need to be scanned.
-							(e.g.,
-							"f[o]+\.txt" etc.)
-						</xsd:documentation>
-					</xsd:annotation>
-				</xsd:attribute>
-				<xsd:attribute name="filter" type="xsd:string">
-					<xsd:annotation>
-						<xsd:appinfo>
-							<tool:annotation kind="ref">
-								<tool:expected-type
-										type="org.springframework.integration.file.filters.FileListFilter" />
-							</tool:annotation>
-						</xsd:appinfo>
-						<xsd:documentation>
-							Allows you to specify a reference to a
-							[org.springframework.integration.file.filters.FileListFilter]
-							bean. This filter is applied to files on the remote server and
-							only files that pass the filter are retrieved.
-						</xsd:documentation>
-					</xsd:annotation>
-				</xsd:attribute>
-			</xsd:extension>
-		</xsd:complexContent>
-	</xsd:complexType>
-
-	<xsd:complexType name="base-adapter-type">
-		<xsd:attribute name="id" type="xsd:string" />
+	<xsd:complexType name="base-s3-inbound-adapter-type">
+		<xsd:sequence>
+			<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1" />
+		</xsd:sequence>
+		<xsd:attributeGroup ref="integration:channelAdapterAttributes" />
 		<xsd:attribute name="session-factory" type="xsd:string" use="required">
 			<xsd:annotation>
 				<xsd:appinfo>
@@ -531,20 +375,18 @@
 								type="org.springframework.integration.file.remote.session.SessionFactory" />
 					</tool:annotation>
 				</xsd:appinfo>
-				<xsd:documentation><![CDATA[
+				<xsd:documentation>
 					Reference to an [org.springframework.integration.file.remote.session.SessionFactory] bean with
 					a [com.amazonaws.services.s3.model.S3ObjectSummary] generic type parameter.
-				]]></xsd:documentation>
+				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
-		<xsd:attribute name="remote-file-separator" type="xsd:string"
-					   default="/">
+		<xsd:attribute name="remote-file-separator" type="xsd:string" default="/">
 			<xsd:annotation>
-				<xsd:documentation>
-					Allows you to provide remote file/directory
-					separator character. DEFAULT:
-					'/'
-				</xsd:documentation>
+						<xsd:documentation>
+							Allows you to provide remote file/directory
+							separator character. DEFAULT: '/'
+						</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
 		<xsd:attribute name="remote-directory" type="xsd:string" use="optional">
@@ -555,12 +397,10 @@
 				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
-		<xsd:attribute name="remote-directory-expression"
-					   type="xsd:string">
+		<xsd:attribute name="remote-directory-expression" type="xsd:string">
 			<xsd:annotation>
 				<xsd:documentation>
-					Specify a SpEL expression which
-					will be used to evaluate the directory
+					Specify a SpEL expression which will be used to evaluate the directory
 					path to where the files will be transferred
 					(e.g., "headers.['remote_dir'] + '/myTransfers'" for outbound endpoints)
 					There is no root object (message) for inbound endpoints
@@ -568,7 +408,46 @@
 				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
-		<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
+		<xsd:attribute name="filename-pattern" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Allows you to provide a file name pattern to determine the file names that need to be scanned.
+					This is based on simple pattern matching (e.g., "*.txt, fo*.txt" etc.)
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="filename-regex" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Allows you to provide a Regular Expression to determine the file names that need to be scanned.
+					(e.g., "f[o]+\.txt" etc.)
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="filter" type="xsd:string">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.integration.file.filters.FileListFilter" />
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation>
+					Allows you to specify a reference to a
+					[org.springframework.integration.file.filters.FileListFilter]
+					bean. This filter is applied to files on the remote server and
+					only files that pass the filter are retrieved.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="comparator" type="xsd:string">
+			<xsd:annotation>
+				<xsd:documentation>
+					Specify a Comparator to be used when ordering Files. If none is provided, the
+					order in which files are processed is the order they are received from the S3 server.
+					The generic type of the Comparator must be 'S3FileInfo'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
 	</xsd:complexType>
 
 	<xsd:element name="sqs-outbound-channel-adapter">

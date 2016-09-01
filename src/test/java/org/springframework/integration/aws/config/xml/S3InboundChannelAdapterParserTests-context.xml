@@ -38,6 +38,7 @@
 										preserve-timestamp="true"
 										filename-pattern="*.txt"
 										local-directory="."
+										remote-file-separator="\"
 										local-filename-generator-expression="#this.toUpperCase() + '.a' + @fooString"
 										comparator="comparator"
 										temporary-file-suffix=".foo"
