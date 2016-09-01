@@ -16,6 +16,8 @@
 
 package org.springframework.integration.aws.support;
 
+import java.util.Date;
+
 import org.springframework.integration.file.remote.AbstractFileInfo;
 import org.springframework.util.Assert;
 
@@ -24,6 +26,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 /**
  * An Amazon S3 {@link org.springframework.integration.file.remote.FileInfo} implementation.
  * @author Christian Tzolov
+ * @since 1.1
  */
 public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
 
@@ -46,27 +49,34 @@ public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
 
 	@Override
 	public long getSize() {
-		return s3ObjectSummary.getSize();
+		return this.s3ObjectSummary.getSize();
 	}
 
 	@Override
 	public long getModified() {
-		return s3ObjectSummary.getLastModified().getTime();
+		return this.s3ObjectSummary.getLastModified().getTime();
 	}
 
 	@Override
 	public String getFilename() {
-		return s3ObjectSummary.getKey();
+		return this.s3ObjectSummary.getKey();
 	}
 
-	@Override
 	public String getPermissions() {
-		return "-rw-r--r--";
+		throw new UnsupportedOperationException("Use [AmazonS3.getObjectAcl()] to obtain permissions.");
 	}
 
 	@Override
 	public S3ObjectSummary getFileInfo() {
-		return s3ObjectSummary;
+		return this.s3ObjectSummary;
+	}
+
+	@Override
+	public String toString() {
+		return "FileInfo [isDirectory=" + isDirectory() + ", isLink=" + isLink()
+				+ ", Size=" + getSize() + ", ModifiedTime="
+				+ new Date(getModified()) + ", Filename=" + getFilename()
+				+ ", RemoteDirectory=" + getRemoteDirectory() + "]";
 	}
 
 }

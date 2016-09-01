@@ -62,6 +62,7 @@ public class S3InboundStreamingChannelAdapterParserTests {
 
 	@Test
 	public void testS3StreamingInboundChannelAdapterComplete() throws Exception {
+
 		assertThat(TestUtils.getPropertyValue(this.s3Inbound, "autoStartup", Boolean.class)).isFalse();
 		assertThat(this.s3Inbound.getComponentName()).isEqualTo("s3Inbound");
 		assertThat(this.s3Inbound.getComponentType()).isEqualTo("aws:s3-inbound-streaming-channel-adapter");
@@ -74,15 +75,14 @@ public class S3InboundStreamingChannelAdapterParserTests {
 				.getExpressionString())
 				.isEqualTo("foo/bar");
 
-		assertThat(TestUtils.getPropertyValue(source, "comparator")).isNotNull();
+		assertThat(TestUtils.getPropertyValue(source, "comparator")).isSameAs(this.comparator);
 		String remoteFileSeparator = (String) TestUtils.getPropertyValue(source, "remoteFileSeparator");
 		assertThat(remoteFileSeparator).isNotNull();
 		assertThat(remoteFileSeparator).isEqualTo("/");
 
 		S3PersistentAcceptOnceFileListFilter filter = TestUtils.getPropertyValue(source, "filter",
 				S3PersistentAcceptOnceFileListFilter.class);
-		assertThat(filter).isNotNull();
-		assertThat(filter).isEqualTo(acceptOnceFilter);
+		assertThat(filter).isSameAs(this.acceptOnceFilter);
 		assertThat(TestUtils.getPropertyValue(source, "remoteFileTemplate.sessionFactory"))
 				.isSameAs(this.s3SessionFactory);
 

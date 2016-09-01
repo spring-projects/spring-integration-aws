@@ -117,7 +117,8 @@ An XML variant may look like:
 
 ###Streaming Inbound Channel Adapter
 
-This adapter produces message with payloads of type `InputStream`, allowing S3 objects to be fetched without writing to the local file system. Since the session remains open, the consuming application is responsible for closing the session when the file has been consumed. 
+This adapter produces message with payloads of type `InputStream`, allowing S3 objects to be fetched without writing to the local file system. 
+Since the session remains open, the consuming application is responsible for closing the session when the file has been consumed. 
 The session is provided in the closeableResource header (`IntegrationMessageHeaderAccessor.CLOSEABLE_RESOURCE`). Standard framework components, such as the `FileSplitter` and `StreamTransformer` will automatically close the session.
  
 The following Spring Boot application provides an example of configuring the S3 inbound streaming adapter using Java configuration:
@@ -185,7 +186,10 @@ An XML variant may look like:
 
 Only one of `filename-pattern`, `filename-regex` or `filter` is allowed.
 
-NOTE: Unlike the non-streaming inbound channel adapter, this adapter does not prevent duplicates by default. If you do not delete the remote file and you wish to prevent the file being processed again, you can configure an `S3PersistentFileListFilter` in the `filter` attribute. If you don’t actually want to persist the state, an in-memory `SimpleMetadataStore` can be used with the filter. If you wish to use a filename pattern (or regex) as well, use a `CompositeFileListFilter`.
+> NOTE: Unlike the non-streaming inbound channel adapter, this adapter does not prevent duplicates by default. 
+> If you do not delete the remote file and you wish to prevent the file being processed again, you can configure an `S3PersistentFileListFilter` in the `filter` attribute. 
+> If you don’t actually want to persist the state, an in-memory `SimpleMetadataStore` can be used with the filter. 
+> If you wish to use a filename pattern (or regex) as well, use a `CompositeFileListFilter`.
 
 ###Outbound Channel Adapter
 

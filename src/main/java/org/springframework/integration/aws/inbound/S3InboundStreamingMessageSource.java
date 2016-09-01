@@ -32,6 +32,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * A {@link AbstractRemoteFileStreamingMessageSource} implementation for the Amazon S3.
  *
  * @author Christian Tzolov
+ * @since 1.1
  */
 public class S3InboundStreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<S3ObjectSummary> {
 
@@ -39,7 +40,8 @@ public class S3InboundStreamingMessageSource extends AbstractRemoteFileStreaming
 		super(template, null);
 	}
 
-	public S3InboundStreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template, Comparator<AbstractFileInfo<S3ObjectSummary>> comparator) {
+	public S3InboundStreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template,
+			Comparator<AbstractFileInfo<S3ObjectSummary>> comparator) {
 		super(template, comparator);
 	}
 

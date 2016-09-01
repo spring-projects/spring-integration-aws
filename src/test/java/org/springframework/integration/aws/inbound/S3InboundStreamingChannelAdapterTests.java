@@ -171,11 +171,11 @@ public class S3InboundStreamingChannelAdapterTests {
 
 			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
 
-			S3RemoteFileTemplate s3FileTempalte = new S3RemoteFileTemplate(s3SessionFactory);
+			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
 
-			s3FileTempalte.setUseTemporaryFileName(false);
+			s3FileTemplate.setUseTemporaryFileName(false);
 
-			S3InboundStreamingMessageSource s3MessageSource = new S3InboundStreamingMessageSource(s3FileTempalte);
+			S3InboundStreamingMessageSource s3MessageSource = new S3InboundStreamingMessageSource(s3FileTemplate);
 
 			s3MessageSource.setRemoteDirectory(S3_BUCKET);
 
@@ -191,4 +191,5 @@ public class S3InboundStreamingChannelAdapterTests {
 		}
 
 	}
+
 }
