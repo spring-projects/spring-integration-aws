@@ -25,7 +25,9 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
  * An Amazon S3 {@link org.springframework.integration.file.remote.FileInfo} implementation.
+ *
  * @author Christian Tzolov
+ *
  * @since 1.1
  */
 public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {

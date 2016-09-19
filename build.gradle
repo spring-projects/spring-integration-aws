@@ -8,17 +8,16 @@ buildscript {
 }
 
 plugins {
-	id "org.sonarqube" version "1.2"
+	id 'java'
+	id 'eclipse'
+	id 'idea'
+	id 'jacoco'
+	id 'org.sonarqube' version '1.2'
+	id 'checkstyle'
 }
-
 description = 'Spring Integration AWS Support'
 
-apply plugin: 'java'
 apply from: "${rootProject.projectDir}/publish-maven.gradle"
-apply plugin: 'eclipse'
-apply plugin: 'idea'
-apply plugin: 'jacoco'
-apply plugin: 'checkstyle'
 
 group = 'org.springframework.integration'
 
@@ -56,7 +55,7 @@ ext {
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.21'
 	springCloudAwsVersion = '1.1.1.RELEASE'
-	springIntegrationVersion = '4.3.1.RELEASE'
+	springIntegrationVersion = '4.3.2.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -77,8 +76,8 @@ jacoco {
 }
 
 checkstyle {
-	configFile = file('src/checkstyle/checkstyle.xml')
-	toolVersion = "7.1"
+	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
+	toolVersion = "6.16.1"
 }
 
 dependencies {

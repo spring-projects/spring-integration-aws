@@ -16,11 +16,15 @@
 
 package org.springframework.integration.aws.inbound;
 
+import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.S3SessionFactory;
+import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter;
+import org.springframework.integration.file.filters.FileListFilter;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.file.remote.synchronizer.AbstractInboundFileSynchronizer;
+import org.springframework.integration.metadata.SimpleMetadataStore;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
@@ -47,6 +51,17 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	public S3InboundFileSynchronizer(SessionFactory<S3ObjectSummary> sessionFactory) {
 		super(sessionFactory);
 		setRemoteDirectoryExpression(new LiteralExpression(null));
+		setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "s3MessageSource"));
+	}
+
+	@Override
+	public final void setRemoteDirectoryExpression(Expression remoteDirectoryExpression) {
+		super.setRemoteDirectoryExpression(remoteDirectoryExpression);
+	}
+
+	@Override
+	public final void setFilter(FileListFilter<S3ObjectSummary> filter) {
+		super.setFilter(filter);
 	}
 
 	@Override
