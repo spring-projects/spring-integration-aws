@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSAsync;
 
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon SQS {@code sendMessage}.
@@ -48,11 +48,11 @@ public class SqsMessageHandler extends AbstractMessageHandler {
 
 	private EvaluationContext evaluationContext;
 
-	public SqsMessageHandler(AmazonSQS amazonSqs) {
+	public SqsMessageHandler(AmazonSQSAsync amazonSqs) {
 		this(amazonSqs, null);
 	}
 
-	public SqsMessageHandler(AmazonSQS amazonSqs, ResourceIdResolver resourceIdResolver) {
+	public SqsMessageHandler(AmazonSQSAsync amazonSqs, ResourceIdResolver resourceIdResolver) {
 		this(new QueueMessagingTemplate(amazonSqs, resourceIdResolver));
 	}
 

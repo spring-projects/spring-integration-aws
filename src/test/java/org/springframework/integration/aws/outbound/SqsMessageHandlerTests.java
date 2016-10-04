@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2015-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSAsync;
 import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
 
@@ -50,8 +50,8 @@ public class SqsMessageHandlerTests extends AbstractSqsMessageHandlerTests {
 	public static class ContextConfiguration {
 
 		@Bean
-		public AmazonSQS amazonSqs() {
-			AmazonSQS amazonSqs = mock(AmazonSQS.class);
+		public AmazonSQSAsync amazonSqs() {
+			AmazonSQSAsync amazonSqs = mock(AmazonSQSAsync.class);
 
 			willAnswer(invocation -> {
 				GetQueueUrlRequest getQueueUrlRequest = (GetQueueUrlRequest) invocation.getArguments()[0];
