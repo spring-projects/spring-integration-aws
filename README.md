@@ -274,7 +274,7 @@ The Java Configuration is pretty simple:
 public static class MyConfiguration {
 
     @Autowired
-    private AmazonSQS amazonSqs;
+    private AmazonSQSAsync amazonSqs;
 
     @Bean
     public QueueMessagingTemplate queueMessagingTemplate() {
