@@ -65,4 +65,19 @@ public abstract class AwsHeaders {
 	 */
 	public static final String SNS_PUBLISHED_MESSAGE_ID = PREFIX + "snsPublishedMessageId";
 
+	/**
+	 * The {@value STREAM} header for sending/receiving data over Kinesis.
+	 */
+	public static final String STREAM = PREFIX + "stream";
+
+	/**
+	 * The {@value PARTITION_KEY} header for sending/receiving data over Kinesis.
+	 */
+	public static final String PARTITION_KEY = PREFIX + "partitionKey";
+
+	/**
+	 * The {@value SEQUENCE_NUMBER} header for sending/receiving data over Kinesis.
+	 */
+	public static final String SEQUENCE_NUMBER = PREFIX + "sequenceNumber";
+
 }
