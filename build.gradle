@@ -12,7 +12,7 @@ plugins {
 	id 'eclipse'
 	id 'idea'
 	id 'jacoco'
-	id 'org.sonarqube' version '1.2'
+	id 'org.sonarqube' version '2.1'
 	id 'checkstyle'
 }
 description = 'Spring Integration AWS Support'
@@ -52,10 +52,11 @@ if (project.hasProperty('platformVersion')) {
 
 ext {
 	assertjVersion = '3.5.2'
+	awsKinesisVersion = '1.7.0'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.21'
 	springCloudAwsVersion = '1.1.1.RELEASE'
-	springIntegrationVersion = '4.3.2.RELEASE'
+	springIntegrationVersion = '4.3.4.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -81,12 +82,15 @@ checkstyle {
 }
 
 dependencies {
-
 	compile "org.springframework.integration:spring-integration-core:$springIntegrationVersion"
 	compile "org.springframework.cloud:spring-cloud-aws-core:$springCloudAwsVersion"
+
 	compile("org.springframework.cloud:spring-cloud-aws-messaging:$springCloudAwsVersion", optional)
 	compile("org.springframework.integration:spring-integration-file:$springIntegrationVersion", optional)
 	compile("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
+
+	compile("com.amazonaws:amazon-kinesis-client:$awsKinesisVersion", optional)
+
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
@@ -153,6 +157,7 @@ jacocoTestReport {
 	}
 }
 
+check.dependsOn javadoc
 build.dependsOn jacocoTestReport
 
 task sourcesJar(type: Jar) {
