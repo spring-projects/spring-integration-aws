@@ -35,10 +35,13 @@ import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
 import com.amazonaws.services.kinesis.model.PutRecordResult;
+import com.amazonaws.services.kinesis.model.PutRecordsRequest;
+import com.amazonaws.services.kinesis.model.PutRecordsResult;
 
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis {@code putRecord(s)}.
@@ -55,7 +58,7 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 
 	private final AmazonKinesisAsync amazonKinesis;
 
-	private AsyncHandler<PutRecordRequest, PutRecordResult> asyncHandler;
+	private AsyncHandler<? extends AmazonWebServiceRequest, ?> asyncHandler;
 
 	private Converter<Object, byte[]> converter = new SerializingConverter();
 
@@ -77,7 +80,7 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 		this.amazonKinesis = amazonKinesis;
 	}
 
-	public void setAsyncHandler(AsyncHandler<PutRecordRequest, PutRecordResult> asyncHandler) {
+	public void setAsyncHandler(AsyncHandler<? extends AmazonWebServiceRequest, ?> asyncHandler) {
 		this.asyncHandler = asyncHandler;
 	}
 
@@ -145,7 +148,40 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void handleMessageInternal(Message<?> message) throws Exception {
+		Future<?> resultFuture = null;
+		if (message.getPayload() instanceof PutRecordsRequest) {
+			resultFuture = this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(),
+					(AsyncHandler<PutRecordsRequest, PutRecordsResult>) this.asyncHandler);
+		}
+		else {
+
+			PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
+					? (PutRecordRequest) message.getPayload()
+					: buildPutRecordRequest(message);
+
+			resultFuture = this.amazonKinesis.putRecordAsync(putRecordRequest,
+					(AsyncHandler<PutRecordRequest, PutRecordResult>) this.asyncHandler);
+		}
+
+		if (this.sync) {
+			Long sendTimeout = this.sendTimeoutExpression.getValue(this.evaluationContext, message, Long.class);
+			if (sendTimeout == null || sendTimeout < 0) {
+				resultFuture.get();
+			}
+			else {
+				try {
+					resultFuture.get(sendTimeout, TimeUnit.MILLISECONDS);
+				}
+				catch (TimeoutException te) {
+					throw new MessageTimeoutException(message, "Timeout waiting for response from AmazonKinesis", te);
+				}
+			}
+		}
+	}
+
+	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
 		String stream = message.getHeaders().get(AwsHeaders.STREAM, String.class);
 		if (!StringUtils.hasText(stream) && this.streamExpression != null) {
 			stream = this.streamExpression.getValue(this.evaluationContext, message, String.class);
@@ -172,29 +208,12 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 			partitionKey = this.sequenceNumberExpression.getValue(this.evaluationContext, message, String.class);
 		}
 
-		PutRecordRequest putRecordRequest = new PutRecordRequest()
+		return new PutRecordRequest()
 				.withStreamName(stream)
 				.withPartitionKey(partitionKey)
 				.withExplicitHashKey(explicitHashKey)
 				.withSequenceNumberForOrdering(sequenceNumber)
 				.withData(ByteBuffer.wrap(this.converter.convert(message.getPayload())));
-
-		Future<PutRecordResult> resultFuture = this.amazonKinesis.putRecordAsync(putRecordRequest, this.asyncHandler);
-
-		if (this.sync) {
-			Long sendTimeout = this.sendTimeoutExpression.getValue(this.evaluationContext, message, Long.class);
-			if (sendTimeout == null || sendTimeout < 0) {
-				resultFuture.get();
-			}
-			else {
-				try {
-					resultFuture.get(sendTimeout, TimeUnit.MILLISECONDS);
-				}
-				catch (TimeoutException te) {
-					throw new MessageTimeoutException(message, "Timeout waiting for response from AmazonKinesis", te);
-				}
-			}
-		}
 	}
 
 }
