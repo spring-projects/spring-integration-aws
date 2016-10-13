@@ -52,7 +52,7 @@ if (project.hasProperty('platformVersion')) {
 
 ext {
 	assertjVersion = '3.5.2'
-	awsKinesisVersion = '1.7.0'
+	awsSdkVersion = '1.11.42'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.21'
 	springCloudAwsVersion = '1.1.1.RELEASE'
@@ -89,7 +89,7 @@ dependencies {
 	compile("org.springframework.integration:spring-integration-file:$springIntegrationVersion", optional)
 	compile("org.springframework.integration:spring-integration-http:$springIntegrationVersion", optional)
 
-	compile("com.amazonaws:amazon-kinesis-client:$awsKinesisVersion", optional)
+	compile("com.amazonaws:aws-java-sdk-kinesis:$awsSdkVersion", optional)
 
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
