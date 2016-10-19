@@ -80,4 +80,9 @@ public abstract class AwsHeaders {
 	 */
 	public static final String SEQUENCE_NUMBER = PREFIX + "sequenceNumber";
 
+	/**
+	 * The {@value CHECKPOINTER} header for checkpoint the shard sequenceNumber.
+	 */
+	public static final String CHECKPOINTER = PREFIX + "checkpointer";
+
 }
