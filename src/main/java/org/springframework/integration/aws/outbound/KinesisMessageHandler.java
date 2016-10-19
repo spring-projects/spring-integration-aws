@@ -77,6 +77,7 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 	private Expression sendTimeoutExpression = new ValueExpression<>(DEFAULT_SEND_TIMEOUT);
 
 	public KinesisMessageHandler(AmazonKinesisAsync amazonKinesis) {
+		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		this.amazonKinesis = amazonKinesis;
 	}
 
