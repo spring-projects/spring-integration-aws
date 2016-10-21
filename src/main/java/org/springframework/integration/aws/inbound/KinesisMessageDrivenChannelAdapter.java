@@ -19,7 +19,7 @@ package org.springframework.integration.aws.inbound;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -50,6 +50,7 @@ import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.messaging.Message;
 import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
@@ -60,6 +61,7 @@ import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamStatus;
 
 /**
@@ -100,7 +102,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private int startTimeout = 60 * 1000;
 
-	private boolean resetShards;
+	private boolean resetCheckpoints;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -112,9 +114,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis,
 			KinesisShardOffset... shardOffsets) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
-		Assert.notEmpty(shardOffsets, "'shardInitialSequences' must not be null.");
+		Assert.notEmpty(shardOffsets, "'shardOffsets' must not be null.");
+		Assert.noNullElements(shardOffsets, "'shardOffsets' must not contain null elements.");
+		for (KinesisShardOffset shardOffset : shardOffsets) {
+			Assert.isTrue(StringUtils.hasText(shardOffset.getStream()) && StringUtils.hasText(shardOffset.getShard()),
+					"The 'shardOffsets' must be provided with particular 'stream' and 'shard' values.");
+			this.shardOffsets.add(new KinesisShardOffset(shardOffset));
+		}
 		this.amazonKinesis = amazonKinesis;
-		Collections.addAll(this.shardOffsets, shardOffsets);
 		this.streams = null;
 	}
 
@@ -185,13 +192,84 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 	}
 
 	@ManagedOperation
-	public void resetShards() {
-		if (isRunning()) {
-			stop();
-			start();
+	public void stopConsumer(String stream, String shard) {
+		ShardConsumer shardConsumer = this.shardConsumers.get(KinesisShardOffset.latest(stream, shard));
+		if (shardConsumer != null) {
+			shardConsumer.stop();
 		}
 		else {
-			this.resetShards = true;
+			if (this.logger.isDebugEnabled()) {
+				this.logger.debug("There is no ShardConsumer for shard [" + shard + "] in stream [" + shard
+						+ "] to stop.");
+			}
+		}
+	}
+
+	@ManagedOperation
+	public void startConsumer(String stream, String shard) {
+		KinesisShardOffset shardOffsetForSearch = KinesisShardOffset.latest(stream, shard);
+		ShardConsumer shardConsumer = this.shardConsumers.get(shardOffsetForSearch);
+		if (shardConsumer != null) {
+			if (this.logger.isDebugEnabled()) {
+				this.logger.debug("The [" + shardConsumer + "] has been started before.");
+			}
+		}
+		else {
+			for (KinesisShardOffset shardOffset : this.shardOffsets) {
+				if (shardOffsetForSearch.equals(shardOffset)) {
+					startConsumer(shardOffset, shardOffset.isReset());
+					break;
+				}
+			}
+		}
+	}
+
+	@ManagedOperation
+	public void resetCheckpointForShardToLatest(String stream, String shard) {
+		restartShardConsumerForOffset(KinesisShardOffset.latest(stream, shard));
+	}
+
+	@ManagedOperation
+	public void resetCheckpointForShardToTrimHorizon(String stream, String shard) {
+		restartShardConsumerForOffset(KinesisShardOffset.trimHorizon(stream, shard));
+	}
+
+	@ManagedOperation
+	public void resetCheckpointForShardToSequenceNumber(String stream, String shard, String sequenceNumber) {
+		restartShardConsumerForOffset(KinesisShardOffset.atSequenceNumber(stream, shard, sequenceNumber));
+	}
+
+	@ManagedOperation
+	public void resetCheckpointForShardAtTimestamp(String stream, String shard, long timestamp) {
+		restartShardConsumerForOffset(KinesisShardOffset.atTimestamp(stream, shard, new Date(timestamp)));
+	}
+
+	private void restartShardConsumerForOffset(KinesisShardOffset shardOffset) {
+		Assert.isTrue(this.shardOffsets.contains(shardOffset),
+				"The [" + this +
+						"] doesn't operate shard [" + shardOffset.getShard() +
+						"] for stream [" + shardOffset.getStream() + "]");
+		if (logger.isDebugEnabled()) {
+			logger.debug("Resetting ");
+		}
+		shardOffset.reset();
+		this.shardOffsets.remove(shardOffset);
+		this.shardOffsets.add(shardOffset);
+		if (isRunning()) {
+			ShardConsumer oldShardConsumer = this.shardConsumers.remove(shardOffset);
+			if (oldShardConsumer != null) {
+				oldShardConsumer.close();
+			}
+			startConsumer(shardOffset, true);
+		}
+	}
+
+	@ManagedOperation
+	public void resetCheckpoints() {
+		this.resetCheckpoints = true;
+		if (isRunning()) {
+			stopConsumers();
+			startConsumers();
 		}
 	}
 
@@ -202,11 +280,23 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 			populateShardsForStreams();
 		}
 
-		if (this.resetShards) {
-			for (KinesisShardOffset shardOffset : this.shardOffsets) {
-				shardOffset.reset();
-			}
+		startConsumers();
+	}
+
+	private void startConsumers() {
+		for (KinesisShardOffset shardOffset : this.shardOffsets) {
+			startConsumer(shardOffset, this.resetCheckpoints);
 		}
+
+		this.resetCheckpoints = false;
+	}
+
+
+	private void startConsumer(KinesisShardOffset shardOffset, boolean reset) {
+		shardOffset.setReset(reset);
+		ShardConsumer shardConsumer = new ShardConsumer(shardOffset);
+		this.shardConsumers.put(shardOffset, shardConsumer);
+		this.consumerExecutor.execute(shardConsumer);
 	}
 
 	private void populateShardsForStreams() {
@@ -276,7 +366,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 			shardsGatherLatch.await(this.startTimeout, TimeUnit.MILLISECONDS);
 		}
 		catch (InterruptedException e) {
-			throw new IllegalStateException("The KinesisMessageDrivenChannelAdapter [ "
+			throw new IllegalStateException("The [ "
 					+ this +
 					"] could not start during timeout: " + this.startTimeout);
 		}
@@ -285,10 +375,22 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 	@Override
 	protected void doStop() {
 		super.doStop();
+		stopConsumers();
+	}
+
+	private void stopConsumers() {
 		for (ShardConsumer shardConsumer : this.shardConsumers.values()) {
 			shardConsumer.stop();
 		}
 		this.shardConsumers.clear();
+	}
+
+	@Override
+	public String toString() {
+		return "KinesisMessageDrivenChannelAdapter{" +
+				"shardOffsets=" + this.shardOffsets +
+				", consumerGroup='" + this.consumerGroup + '\'' +
+				'}';
 	}
 
 	/**
@@ -338,7 +440,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 		private volatile boolean active = true;
 
 		private ShardConsumer(KinesisShardOffset shardOffset) {
-			this.shardOffset = shardOffset;
+			this.shardOffset = new KinesisShardOffset(shardOffset);
 			String key = KinesisMessageDrivenChannelAdapter.this.consumerGroup +
 					":" + shardOffset.getStream() +
 					":" + shardOffset.getShard();
@@ -350,10 +452,29 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 			this.active = false;
 		}
 
+		public void close() {
+			stop();
+			this.checkpointer.close();
+		}
+
 		@Override
 		public void run() {
+			if (logger.isInfoEnabled()) {
+				logger.info("The [" + this + "] has been started.");
+			}
 			try {
-				GetShardIteratorRequest shardIteratorRequest = this.shardOffset.toGetShardIteratorRequest();
+				if (this.shardOffset.isReset()) {
+					this.checkpointer.remove();
+				}
+				else {
+					String checkpoint = this.checkpointer.getCheckpoint();
+					if (checkpoint != null) {
+						this.shardOffset.setSequenceNumber(checkpoint);
+						this.shardOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+					}
+				}
+
+				GetShardIteratorRequest shardIteratorRequest = this.shardOffset.toShardIteratorRequest();
 				AmazonKinesis client = KinesisMessageDrivenChannelAdapter.this.amazonKinesis;
 				String shardIterator = client.getShardIterator(shardIteratorRequest)
 						.getShardIterator();
@@ -455,6 +576,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 			return true;
 		}
 
+		@Override
+		public String toString() {
+			return "ShardConsumer{" +
+					"shardOffset=" + this.shardOffset +
+					", active=" + this.active +
+					'}';
+		}
 	}
 
 	private static class ShardCheckpointer implements Checkpointer {
@@ -466,6 +594,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 		private final String key;
 
 		private volatile String lastCheckpointValue;
+
+		private volatile boolean active;
 
 		ShardCheckpointer(MetadataStore checkpointStore, String key) {
 			this.checkpointStore = checkpointStore;
@@ -494,6 +624,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 				}
 
 			}
+			else {
+				this.lastCheckpointValue = recordsToProcess.get(recordsToProcess.size() - 1).getSequenceNumber();
+			}
 			return recordsToProcess;
 		}
 
@@ -504,9 +637,40 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 		@Override
 		public void checkpoint(String sequenceNumber) {
-			this.checkpointStore.put(this.key, sequenceNumber);
+			if (this.active) {
+				String existingSequence = this.checkpointStore.get(this.key);
+				if (existingSequence == null ||
+						new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) <= 0) {
+					this.checkpointStore.put(this.key, sequenceNumber);
+				}
+			}
+			else {
+				if (logger.isInfoEnabled()) {
+					logger.info("The [" + this + "] has been closed. Checkpoints aren't accepted anymore.");
+				}
+			}
 		}
 
+		private String getCheckpoint() {
+			return this.checkpointStore.get(this.key);
+		}
+
+		private void remove() {
+			this.checkpointStore.remove(this.key);
+		}
+
+		private void close() {
+			this.active = false;
+		}
+
+		@Override
+		public String toString() {
+			return "ShardCheckpointer{" +
+					"key='" + this.key + '\'' +
+					", lastCheckpointValue='" + this.lastCheckpointValue + '\'' +
+					'}';
+		}
+		
 	}
 
 }

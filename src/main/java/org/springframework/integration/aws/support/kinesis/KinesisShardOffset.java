@@ -32,7 +32,7 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
  */
 public class KinesisShardOffset {
 
-	private final ShardIteratorType iteratorType;
+	private ShardIteratorType iteratorType;
 
 	private String sequenceNumber;
 
@@ -58,6 +58,14 @@ public class KinesisShardOffset {
 		this.reset = other.isReset();
 	}
 
+	public void setIteratorType(ShardIteratorType iteratorType) {
+		this.iteratorType = iteratorType;
+	}
+
+	public ShardIteratorType getIteratorType() {
+		return this.iteratorType;
+	}
+
 	public void setSequenceNumber(String sequenceNumber) {
 		this.sequenceNumber = sequenceNumber;
 	}
@@ -76,10 +84,6 @@ public class KinesisShardOffset {
 
 	public void setReset(boolean reset) {
 		this.reset = reset;
-	}
-
-	public ShardIteratorType getIteratorType() {
-		return this.iteratorType;
 	}
 
 	public String getSequenceNumber() {
@@ -107,7 +111,7 @@ public class KinesisShardOffset {
 		return this;
 	}
 
-	public GetShardIteratorRequest toGetShardIteratorRequest() {
+	public GetShardIteratorRequest toShardIteratorRequest() {
 		Assert.state(this.stream != null && this.shard != null,
 				"'stream' and 'shard' must not be null for conversion to the GetShardIteratorRequest.");
 		return new GetShardIteratorRequest()
@@ -136,6 +140,18 @@ public class KinesisShardOffset {
 		return Objects.hash(this.stream, this.shard);
 	}
 
+
+	@Override
+	public String toString() {
+		return "KinesisShardOffset{" +
+				"iteratorType=" + this.iteratorType +
+				", sequenceNumber='" + this.sequenceNumber + '\'' +
+				", timestamp=" + this.timestamp +
+				", stream='" + this.stream + '\'' +
+				", shard='" + this.shard + '\'' +
+				", reset=" + this.reset +
+				'}';
+	}
 
 	public static KinesisShardOffset latest() {
 		return latest(null, null);
