@@ -60,6 +60,7 @@ import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
+import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -104,9 +105,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private int recordsLimit = 25;
 
-	private int consumerSleepInterval = 1000;
+	private int consumerBackoff = 1000;
 
 	private int startTimeout = 60 * 1000;
+
+	private int describeStreamBackoff = 1000;
+
+	private int maxDescribeStreamRetries = 50;
 
 	private boolean resetCheckpoints;
 
@@ -173,8 +178,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.recordsLimit = recordsLimit;
 	}
 
-	public void setConsumerSleepInterval(int consumerSleepInterval) {
-		this.consumerSleepInterval = Math.max(1000, consumerSleepInterval);
+	public void setConsumerBackoff(int consumerBackoff) {
+		this.consumerBackoff = Math.max(1000, consumerBackoff);
+	}
+
+	public void setDescribeStreamBackoff(int describeStreamBackoff) {
+		this.describeStreamBackoff = Math.max(1000, describeStreamBackoff);
 	}
 
 	public void setStartTimeout(int startTimeout) {
@@ -207,7 +216,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	@Override
 	public void destroy() throws Exception {
-		if (this.consumerExecutorExplicitlySet) {
+		if (!this.consumerExecutorExplicitlySet) {
 			((ExecutorService) this.dispatcherExecutor).shutdownNow();
 		}
 	}
@@ -323,18 +332,28 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest();
 							describeStreamRequest.setStreamName(stream);
 							describeStreamRequest.setExclusiveStartShardId(exclusiveStartShardId);
-							DescribeStreamResult describeStreamResult =
-									KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-											.describeStream(describeStreamRequest);
 
-							if (!StreamStatus.ACTIVE.toString()
+							DescribeStreamResult describeStreamResult = null;
+							// Call DescribeStream, with backoff and retries (if we get LimitExceededException).
+							try {
+								describeStreamResult = KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+										.describeStream(describeStreamRequest);
+							}
+							catch (LimitExceededException e) {
+								logger.info("Got LimitExceededException when describing stream [" + stream + "]. " +
+										"Backing off for [" +
+										KinesisMessageDrivenChannelAdapter.this.describeStreamBackoff + "] millis.");
+							}
+
+							if (describeStreamResult == null || !StreamStatus.ACTIVE.toString()
 									.equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
-								if (describeStreamRetries++ > 3) {
+								if (describeStreamRetries++ >
+										KinesisMessageDrivenChannelAdapter.this.maxDescribeStreamRetries) {
 									throw new ResourceNotFoundException("The stream [" + stream +
 											"] isn't ACTIVE or doesn't exist.");
 								}
 								try {
-									Thread.sleep(1000);
+									Thread.sleep(KinesisMessageDrivenChannelAdapter.this.describeStreamBackoff);
 									continue;
 								}
 								catch (InterruptedException e) {
@@ -344,9 +363,27 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								}
 							}
 
-							shards.addAll(describeStreamResult.getStreamDescription().getShards());
-							if (describeStreamResult.getStreamDescription().getHasMoreShards()
-									&& shards.size() > 0) {
+							for (Shard shard : describeStreamResult.getStreamDescription().getShards()) {
+								String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
+								if (endingSequenceNumber != null) {
+									String key = KinesisMessageDrivenChannelAdapter.this.consumerGroup +
+											":" + stream +
+											":" + shard.getShardId();
+									String checkpoint =
+											KinesisMessageDrivenChannelAdapter.this.checkpointStore.get(key);
+
+									if (checkpoint != null &&
+											new BigInteger(endingSequenceNumber)
+													.compareTo(new BigInteger(checkpoint)) >= 0) {
+										// Skip CLOSED shard which has been read before according a checkpoint
+										continue;
+									}
+								}
+
+								shards.add(shard);
+							}
+
+							if (describeStreamResult.getStreamDescription().getHasMoreShards()) {
 								exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
 							}
 							else {
@@ -525,7 +562,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 					if (ConsumerState.STOP != ShardConsumer.this.state && records.isEmpty()) {
 						ShardConsumer.this.sleepUntil = System.currentTimeMillis() +
-								KinesisMessageDrivenChannelAdapter.this.consumerSleepInterval;
+								KinesisMessageDrivenChannelAdapter.this.consumerBackoff;
 						ShardConsumer.this.state = ConsumerState.SLEEP;
 					}
 
