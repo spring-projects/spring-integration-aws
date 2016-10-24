@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.integration.aws.support.kinesis;
+package org.springframework.integration.aws.inbound.kinesis;
 
 import java.util.Date;
 import java.util.Objects;

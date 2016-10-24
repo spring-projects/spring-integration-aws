@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.springframework.integration.aws.support.kinesis;
+package org.springframework.integration.aws.inbound.kinesis;
 
 /**
  * A callback for target record process to perform checkpoint on the related shard.
