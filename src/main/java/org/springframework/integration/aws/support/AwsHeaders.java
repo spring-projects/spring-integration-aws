@@ -71,6 +71,11 @@ public abstract class AwsHeaders {
 	public static final String STREAM = PREFIX + "stream";
 
 	/**
+	 * The {@value SHARD} header to represent Kinesis shardId.
+	 */
+	public static final String SHARD = PREFIX + "shard";
+
+	/**
 	 * The {@value PARTITION_KEY} header for sending/receiving data over Kinesis.
 	 */
 	public static final String PARTITION_KEY = PREFIX + "partitionKey";

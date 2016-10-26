@@ -741,7 +741,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory()
 									.withPayload(payload)
 									.setHeader(AwsHeaders.STREAM, this.shardOffset.getStream())
-									.setHeader(AwsHeaders.PARTITION_KEY, this.shardOffset.getShard())
+									.setHeader(AwsHeaders.SHARD, this.shardOffset.getShard())
+									.setHeader(AwsHeaders.PARTITION_KEY, record.getPartitionKey())
 									.setHeader(AwsHeaders.SEQUENCE_NUMBER, record.getSequenceNumber());
 							if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 								messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
@@ -759,7 +760,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory()
 								.withPayload(records)
 								.setHeader(AwsHeaders.STREAM, this.shardOffset.getStream())
-								.setHeader(AwsHeaders.PARTITION_KEY, this.shardOffset.getShard());
+								.setHeader(AwsHeaders.SHARD, this.shardOffset.getShard());
 						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 							messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
 						}

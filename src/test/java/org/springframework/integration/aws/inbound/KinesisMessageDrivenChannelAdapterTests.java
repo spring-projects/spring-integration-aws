@@ -21,6 +21,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,6 +32,7 @@ import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.integration.aws.inbound.kinesis.Checkpointer;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
@@ -81,9 +83,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void testRecordListener() {
-		this.recordMessageDrivenChannelAdapter.start();
-
+	public void testKinesisMessageDrivenChannelAdapter() {
 		final Set<KinesisShardOffset> shardOffsets =
 				TestUtils.getPropertyValue(this.recordMessageDrivenChannelAdapter, "shardOffsets", Set.class);
 
@@ -104,7 +104,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isEqualTo("foo");
 		MessageHeaders headers = message.getHeaders();
-		assertThat(headers.get(AwsHeaders.PARTITION_KEY)).isEqualTo("1");
+		assertThat(headers.get(AwsHeaders.PARTITION_KEY)).isEqualTo("partition1");
+		assertThat(headers.get(AwsHeaders.SHARD)).isEqualTo("1");
 		assertThat(headers.get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("1");
 		assertThat(headers.get(AwsHeaders.STREAM)).isEqualTo(STREAM1);
 		Checkpointer checkpointer = headers.get(AwsHeaders.CHECKPOINTER, Checkpointer.class);
@@ -116,13 +117,31 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isEqualTo("bar");
 		headers = message.getHeaders();
-		assertThat(headers.get(AwsHeaders.PARTITION_KEY)).isEqualTo("1");
+		assertThat(headers.get(AwsHeaders.PARTITION_KEY)).isEqualTo("partition1");
+		assertThat(headers.get(AwsHeaders.SHARD)).isEqualTo("1");
 		assertThat(headers.get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("2");
 		assertThat(headers.get(AwsHeaders.STREAM)).isEqualTo(STREAM1);
 
 		assertThat(this.kinesisChannel.receive(10)).isNull();
 
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
+
+		this.recordMessageDrivenChannelAdapter.stop();
+		this.recordMessageDrivenChannelAdapter.setListenerMode(KinesisMessageDrivenChannelAdapter.ListenerMode.batch);
+		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
+		this.recordMessageDrivenChannelAdapter.start();
+
+		message = this.kinesisChannel.receive(10000);
+		assertThat(message).isNotNull();
+		assertThat(message.getPayload()).isInstanceOf(List.class);
+		List<Record> payload = (List<Record>) message.getPayload();
+		assertThat(payload).size().isEqualTo(1);
+		Record record = payload.get(0);
+		assertThat(record.getPartitionKey()).isEqualTo("partition1");
+		assertThat(record.getSequenceNumber()).isEqualTo("2");
+
+		DeserializingConverter deserializingConverter = new DeserializingConverter();
+		assertThat(deserializingConverter.convert(record.getData().array())).isEqualTo("bar");
 	}
 
 
@@ -134,8 +153,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		public AmazonKinesis amazonKinesis() {
 			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
 
-			given(amazonKinesis.describeStream(new DescribeStreamRequest()
-					.withStreamName(STREAM1)))
+			given(amazonKinesis.describeStream(new DescribeStreamRequest().withStreamName(STREAM1)))
 					.willReturn(new DescribeStreamResult()
 									.withStreamDescription(new StreamDescription()
 											.withStreamName(STREAM1)
@@ -198,6 +216,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 					.willReturn(new GetRecordsResult()
 							.withNextShardIterator(shardIterator11));
 
+			given(amazonKinesis.getShardIterator(KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "1")
+					.toShardIteratorRequest()))
+					.willReturn(new GetShardIteratorResult()
+							.withShardIterator(shardIterator1));
+
 			return amazonKinesis;
 		}
 
@@ -220,7 +243,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		public KinesisMessageDrivenChannelAdapter recordMessageDrivenChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter =
 					new KinesisMessageDrivenChannelAdapter(amazonKinesis(), STREAM1);
-			adapter.setAutoStartup(false);
 			adapter.setOutputChannel(kinesisChannel());
 			adapter.setExecutor(taskExecutor());
 			adapter.setCheckpointStore(checkpointStore());
