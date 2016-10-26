@@ -215,13 +215,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 									: getComponentName())
 									+ "-kinesis-dispatcher-"));
 		}
-
-		if (ListenerMode.batch.equals(this.listenerMode) && CheckpointMode.record.equals(this.checkpointMode)) {
-			this.checkpointMode = CheckpointMode.batch;
-			logger.warn("The 'checkpointMode' is overridden from [CheckpointMode.record] to [CheckpointMode.batch] " +
-					"because it does not make sense in case of [ListenerMode.batch].");
-		}
-
 	}
 
 	@Override
@@ -321,6 +314,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	@Override
 	protected void doStart() {
 		super.doStart();
+		if (ListenerMode.batch.equals(this.listenerMode) && CheckpointMode.record.equals(this.checkpointMode)) {
+			this.checkpointMode = CheckpointMode.batch;
+			logger.warn("The 'checkpointMode' is overridden from [CheckpointMode.record] to [CheckpointMode.batch] " +
+					"because it does not make sense in case of [ListenerMode.batch].");
+		}
 		if (this.streams != null) {
 			populateShardsForStreams();
 		}

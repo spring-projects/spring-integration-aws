@@ -128,6 +128,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		this.recordMessageDrivenChannelAdapter.stop();
 		this.recordMessageDrivenChannelAdapter.setListenerMode(KinesisMessageDrivenChannelAdapter.ListenerMode.batch);
+		this.recordMessageDrivenChannelAdapter
+				.setCheckpointMode(KinesisMessageDrivenChannelAdapter.CheckpointMode.record);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
 		this.recordMessageDrivenChannelAdapter.start();
 
@@ -142,6 +144,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		DeserializingConverter deserializingConverter = new DeserializingConverter();
 		assertThat(deserializingConverter.convert(record.getData().array())).isEqualTo("bar");
+
+		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
 	}
 
 
