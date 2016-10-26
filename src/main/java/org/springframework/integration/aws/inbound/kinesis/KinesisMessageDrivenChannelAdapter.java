@@ -82,7 +82,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private final String[] streams;
 
-	private final Set<KinesisShardOffset> shardOffsets = new ConcurrentSkipListSet<>();
+	private final Set<KinesisShardOffset> shardOffsets = new HashSet<>();
 
 	private final Map<KinesisShardOffset, ShardConsumer> shardConsumers = new ConcurrentHashMap<>();
 
@@ -117,6 +117,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private int describeStreamRetries = 50;
 
 	private boolean resetCheckpoints;
+
+	private volatile boolean active;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -253,10 +255,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			}
 		}
 		else {
-			for (KinesisShardOffset shardOffset : this.shardOffsets) {
-				if (shardOffsetForSearch.equals(shardOffset)) {
-					populateConsumer(shardOffset, shardOffset.isReset());
-					break;
+			synchronized (this.shardOffsets) {
+				for (KinesisShardOffset shardOffset : this.shardOffsets) {
+					if (shardOffsetForSearch.equals(shardOffset)) {
+						populateConsumer(shardOffset, shardOffset.isReset());
+						break;
+					}
 				}
 			}
 		}
@@ -292,9 +296,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			logger.debug("Resetting consumer for [" + shardOffset + "]...");
 		}
 		shardOffset.reset();
-		this.shardOffsets.remove(shardOffset);
-		this.shardOffsets.add(shardOffset);
-		if (isRunning()) {
+		synchronized (this.shardOffsets) {
+			this.shardOffsets.remove(shardOffset);
+			this.shardOffsets.add(shardOffset);
+		}
+		if (this.active) {
 			ShardConsumer oldShardConsumer = this.shardConsumers.remove(shardOffset);
 			if (oldShardConsumer != null) {
 				oldShardConsumer.close();
@@ -306,7 +312,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	@ManagedOperation
 	public void resetCheckpoints() {
 		this.resetCheckpoints = true;
-		if (isRunning()) {
+		if (this.active) {
 			stopConsumers();
 			populateConsumers();
 		}
@@ -321,6 +327,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		populateConsumers();
 
+		this.active = true;
 		this.dispatcherExecutor.execute(new ConsumerDispatcher());
 	}
 
@@ -331,12 +338,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			populateShardsForStream(stream, shardsGatherLatch);
 		}
 		try {
-			shardsGatherLatch.await(this.startTimeout, TimeUnit.MILLISECONDS);
+			if (!shardsGatherLatch.await(this.startTimeout, TimeUnit.MILLISECONDS)) {
+				throw new IllegalStateException("The [ "
+						+ this +
+						"] could not start during timeout: " + this.startTimeout);
+			}
 		}
 		catch (InterruptedException e) {
-			throw new IllegalStateException("The [ "
-					+ this +
-					"] could not start during timeout: " + this.startTimeout);
+			throw new IllegalStateException("The [ " + this + "] has been interrupted from start.");
 		}
 	}
 
@@ -348,11 +357,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				try {
 					int describeStreamRetries = 0;
 					List<Shard> shards = new ArrayList<>();
+
 					String exclusiveStartShardId = null;
-					do {
-						DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest();
-						describeStreamRequest.setStreamName(stream);
-						describeStreamRequest.setExclusiveStartShardId(exclusiveStartShardId);
+					while (true) {
+						DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest()
+								.withStreamName(stream)
+								.withExclusiveStartShardId(exclusiveStartShardId);
 
 						DescribeStreamResult describeStreamResult = null;
 						// Call DescribeStream, with backoff and retries (if we get LimitExceededException).
@@ -370,8 +380,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								.equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
 							if (describeStreamRetries++ >
 									KinesisMessageDrivenChannelAdapter.this.describeStreamRetries) {
-								throw new ResourceNotFoundException("The stream [" + stream +
-										"] isn't ACTIVE or doesn't exist.");
+								ResourceNotFoundException resourceNotFoundException =
+										new ResourceNotFoundException("The stream [" + stream +
+												"] isn't ACTIVE or doesn't exist.");
+								resourceNotFoundException.setServiceName("Kinesis");
+								throw resourceNotFoundException;
 							}
 							try {
 								Thread.sleep(KinesisMessageDrivenChannelAdapter.this.describeStreamBackoff);
@@ -395,7 +408,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 								if (checkpoint != null &&
 										new BigInteger(endingSequenceNumber)
-												.compareTo(new BigInteger(checkpoint)) >= 0) {
+												.compareTo(new BigInteger(checkpoint)) <= 0) {
 									// Skip CLOSED shard which has been read before according a checkpoint
 									continue;
 								}
@@ -408,21 +421,22 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
 						}
 						else {
-							exclusiveStartShardId = null;
+							break;
 						}
 					}
-					// Iterate until getStreamDescription().getHasMoreShards()
-					// and stop calling AWS if adapter has been stopped
-					while (exclusiveStartShardId != null && isRunning());
 
 					for (Shard shard : shards) {
 						KinesisShardOffset shardOffset =
 								new KinesisShardOffset(KinesisMessageDrivenChannelAdapter.this.streamInitialSequence);
 						shardOffset.setShard(shard.getShardId());
 						shardOffset.setStream(stream);
-						if (KinesisMessageDrivenChannelAdapter.this.shardOffsets.add(shardOffset)
+						boolean addedOffset;
+						synchronized (KinesisMessageDrivenChannelAdapter.this.shardOffsets) {
+							addedOffset = KinesisMessageDrivenChannelAdapter.this.shardOffsets.add(shardOffset);
+						}
+						if (addedOffset
 								&& shardsGatherLatch == null
-								&& isRunning()) {
+								&& KinesisMessageDrivenChannelAdapter.this.active) {
 							populateConsumer(shardOffset, shardOffset.isReset());
 						}
 					}
@@ -439,8 +453,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 	private void populateConsumers() {
-		for (KinesisShardOffset shardOffset : this.shardOffsets) {
-			populateConsumer(shardOffset, this.resetCheckpoints);
+		synchronized (this.shardOffsets) {
+			for (KinesisShardOffset shardOffset : this.shardOffsets) {
+				populateConsumer(shardOffset, this.resetCheckpoints);
+			}
 		}
 
 		this.resetCheckpoints = false;
@@ -455,6 +471,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	@Override
 	protected void doStop() {
+		this.active = false;
 		super.doStop();
 		stopConsumers();
 	}
@@ -520,7 +537,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		@Override
 		public void run() {
-			while (isRunning()) {
+			// We can't rely on the 'isRunning()' because of race condition,
+			// when 'running' is set after submitting this task
+			while (KinesisMessageDrivenChannelAdapter.this.active) {
 				for (String stream : KinesisMessageDrivenChannelAdapter.this.inResharding) {
 					// Local store to avoid several tasks for the same 'stream'
 					if (this.inReshardingProcess.add(stream)) {
@@ -538,14 +557,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					shardConsumer.execute();
 					if (ConsumerState.STOP == shardConsumer.state) {
 						iterator.remove();
-						// Shard is CLOSED and we are capable for resharding
 						if (KinesisMessageDrivenChannelAdapter.this.streams != null
 								&& shardConsumer.shardIterator == null) {
+							// Shard is CLOSED and we are capable for resharding
 							KinesisShardOffset shardOffset = shardConsumer.shardOffset;
 							String stream = shardOffset.getStream();
 							if (KinesisMessageDrivenChannelAdapter.this.inResharding.add(stream)) {
 								this.inReshardingProcess.remove(stream);
-								KinesisMessageDrivenChannelAdapter.this.shardOffsets.remove(shardOffset);
+								synchronized (KinesisMessageDrivenChannelAdapter.this.shardOffsets) {
+									KinesisMessageDrivenChannelAdapter.this.shardOffsets.remove(shardOffset);
+								}
 							}
 						}
 					}
@@ -678,7 +699,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 					List<Record> records = result.getRecords();
 
-					processRecords(records);
+					if (!records.isEmpty()) {
+						processRecords(records);
+					}
 
 					ShardConsumer.this.shardIterator = result.getNextShardIterator();
 
@@ -757,7 +780,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		public String toString() {
 			return "ShardConsumer{" +
 					"shardOffset=" + this.shardOffset +
-					", active=" + this.state +
+					", state=" + this.state +
 					'}';
 		}
 
@@ -779,7 +802,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private volatile String lastCheckpointValue;
 
-		private volatile boolean active;
+		private volatile boolean active = true;
 
 		ShardCheckpointer(MetadataStore checkpointStore, String key) {
 			this.checkpointStore = checkpointStore;
