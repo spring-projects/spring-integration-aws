@@ -83,7 +83,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void testKinesisMessageDrivenChannelAdapter() {
+	public void testKinesisMessageDrivenChannelAdapter() throws InterruptedException {
 		final Set<KinesisShardOffset> shardOffsets =
 				TestUtils.getPropertyValue(this.recordMessageDrivenChannelAdapter, "shardOffsets", Set.class);
 
@@ -145,6 +145,18 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		DeserializingConverter deserializingConverter = new DeserializingConverter();
 		assertThat(deserializingConverter.convert(record.getData().array())).isEqualTo("bar");
 
+		int n = 0;
+
+		while (n++ < 100) {
+			if (!this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1").equals("2")) {
+				Thread.sleep(100);
+			}
+			else {
+				break;
+			}
+		}
+
+		assertThat(n).isLessThan(100);
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
 	}
 
