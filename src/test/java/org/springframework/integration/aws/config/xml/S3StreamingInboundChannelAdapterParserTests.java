@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.Expression;
-import org.springframework.integration.aws.inbound.S3InboundStreamingMessageSource;
+import org.springframework.integration.aws.inbound.S3StreamingMessageSource;
 import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter;
 import org.springframework.integration.endpoint.SourcePollingChannelAdapter;
 import org.springframework.integration.file.remote.session.SessionFactory;
@@ -43,7 +43,7 @@ import org.springframework.util.ReflectionUtils;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
-public class S3InboundStreamingChannelAdapterParserTests {
+public class S3StreamingInboundChannelAdapterParserTests {
 
 	@Autowired
 	private SourcePollingChannelAdapter s3Inbound;
@@ -68,8 +68,8 @@ public class S3InboundStreamingChannelAdapterParserTests {
 		assertThat(this.s3Inbound.getComponentType()).isEqualTo("aws:s3-inbound-streaming-channel-adapter");
 		assertThat(TestUtils.getPropertyValue(this.s3Inbound, "outputChannel")).isSameAs(this.s3Channel);
 
-		S3InboundStreamingMessageSource source = TestUtils.getPropertyValue(this.s3Inbound, "source",
-				S3InboundStreamingMessageSource.class);
+		S3StreamingMessageSource source = TestUtils.getPropertyValue(this.s3Inbound, "source",
+				S3StreamingMessageSource.class);
 
 		assertThat(TestUtils.getPropertyValue(source, "remoteDirectoryExpression", Expression.class)
 				.getExpressionString())

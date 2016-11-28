@@ -16,7 +16,7 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import org.springframework.integration.aws.inbound.S3InboundStreamingMessageSource;
+import org.springframework.integration.aws.inbound.S3StreamingMessageSource;
 import org.springframework.integration.aws.support.S3RemoteFileTemplate;
 import org.springframework.integration.aws.support.filters.S3RegexPatternFileListFilter;
 import org.springframework.integration.aws.support.filters.S3SimplePatternFileListFilter;
@@ -31,7 +31,7 @@ import org.springframework.integration.file.remote.RemoteFileOperations;
  * @author Christian Tzolov
  * @since 1.1
  */
-public class S3InboundStreamingChannelAdapterParser extends AbstractRemoteFileStreamingInboundChannelAdapterParser {
+public class S3StreamingInboundChannelAdapterParser extends AbstractRemoteFileStreamingInboundChannelAdapterParser {
 
 	@Override
 	protected Class<? extends RemoteFileOperations<?>> getTemplateClass() {
@@ -40,7 +40,7 @@ public class S3InboundStreamingChannelAdapterParser extends AbstractRemoteFileSt
 
 	@Override
 	protected Class<? extends MessageSource<?>> getMessageSourceClass() {
-		return S3InboundStreamingMessageSource.class;
+		return S3StreamingMessageSource.class;
 	}
 
 	@Override

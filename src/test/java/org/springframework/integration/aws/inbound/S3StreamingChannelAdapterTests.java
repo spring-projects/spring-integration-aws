@@ -71,7 +71,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
 @DirtiesContext
-public class S3InboundStreamingChannelAdapterTests {
+public class S3StreamingChannelAdapterTests {
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -169,10 +169,10 @@ public class S3InboundStreamingChannelAdapterTests {
 
 		@Bean
 		@InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
-		public S3InboundStreamingMessageSource s3InboundStreamingMessageSource(AmazonS3 amazonS3) {
+		public S3StreamingMessageSource s3InboundStreamingMessageSource(AmazonS3 amazonS3) {
 			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
-			S3InboundStreamingMessageSource s3MessageSource = new S3InboundStreamingMessageSource(s3FileTemplate,
+			S3StreamingMessageSource s3MessageSource = new S3StreamingMessageSource(s3FileTemplate,
 							(o1, o2) -> o1.getFilename().compareTo(o2.getFilename()));
 			s3MessageSource.setRemoteDirectory(S3_BUCKET);
 			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));

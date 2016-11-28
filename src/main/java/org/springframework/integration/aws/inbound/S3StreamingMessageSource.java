@@ -34,14 +34,14 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * @author Christian Tzolov
  * @since 1.1
  */
-public class S3InboundStreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<S3ObjectSummary> {
+public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<S3ObjectSummary> {
 
-	public S3InboundStreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template) {
+	public S3StreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template) {
 		super(template, null);
 	}
 
-	public S3InboundStreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template,
-			Comparator<AbstractFileInfo<S3ObjectSummary>> comparator) {
+	public S3StreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template,
+									Comparator<AbstractFileInfo<S3ObjectSummary>> comparator) {
 		super(template, comparator);
 	}
 
