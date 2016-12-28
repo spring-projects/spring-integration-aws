@@ -46,7 +46,6 @@ import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.PollableChannel;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -76,7 +75,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	private PollableChannel kinesisChannel;
 
 	@Autowired
-	private KinesisMessageDrivenChannelAdapter recordMessageDrivenChannelAdapter;
+	private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter;
 
 	@Autowired
 	private MetadataStore checkpointStore;
@@ -85,7 +84,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void testKinesisMessageDrivenChannelAdapter() throws InterruptedException {
 		final Set<KinesisShardOffset> shardOffsets =
-				TestUtils.getPropertyValue(this.recordMessageDrivenChannelAdapter, "shardOffsets", Set.class);
+				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "shardOffsets", Set.class);
 
 
 		KinesisShardOffset testOffset1 = KinesisShardOffset.latest(STREAM1, "1");
@@ -96,7 +95,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		}
 
 		Map shardConsumers =
-				TestUtils.getPropertyValue(this.recordMessageDrivenChannelAdapter, "shardConsumers", Map.class);
+				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "shardConsumers", Map.class);
 
 		assertThat(shardConsumers).containsKeys(testOffset1, testOffset2);
 
@@ -126,12 +125,12 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
 
-		this.recordMessageDrivenChannelAdapter.stop();
-		this.recordMessageDrivenChannelAdapter.setListenerMode(KinesisMessageDrivenChannelAdapter.ListenerMode.batch);
-		this.recordMessageDrivenChannelAdapter
+		this.kinesisMessageDrivenChannelAdapter.stop();
+		this.kinesisMessageDrivenChannelAdapter.setListenerMode(KinesisMessageDrivenChannelAdapter.ListenerMode.batch);
+		this.kinesisMessageDrivenChannelAdapter
 				.setCheckpointMode(KinesisMessageDrivenChannelAdapter.CheckpointMode.record);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
-		this.recordMessageDrivenChannelAdapter.start();
+		this.kinesisMessageDrivenChannelAdapter.start();
 
 		message = this.kinesisChannel.receive(10000);
 		assertThat(message).isNotNull();
@@ -158,6 +157,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		assertThat(n).isLessThan(100);
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
+
+		List consumerInvoker =
+				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
+		assertThat(consumerInvoker.size()).isEqualTo(2);
 	}
 
 
@@ -241,13 +244,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		}
 
 		@Bean
-		public ThreadPoolTaskExecutor taskExecutor() {
-			ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-			executor.setCorePoolSize(10);
-			return executor;
-		}
-
-		@Bean
 		public MetadataStore checkpointStore() {
 			SimpleMetadataStore simpleMetadataStore = new SimpleMetadataStore();
 			String testKey = "SpringIntegration" + ":" + STREAM1 + ":" + "3";
@@ -256,15 +252,15 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		}
 
 		@Bean
-		public KinesisMessageDrivenChannelAdapter recordMessageDrivenChannelAdapter() {
+		public KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter =
 					new KinesisMessageDrivenChannelAdapter(amazonKinesis(), STREAM1);
 			adapter.setOutputChannel(kinesisChannel());
-			adapter.setExecutor(taskExecutor());
 			adapter.setCheckpointStore(checkpointStore());
 			adapter.setCheckpointMode(KinesisMessageDrivenChannelAdapter.CheckpointMode.manual);
 			adapter.setStartTimeout(10000);
 			adapter.setDescribeStreamRetries(1);
+			adapter.setConcurrency(10);
 
 			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
 			dfa.setPropertyValue("describeStreamBackoff", 10);

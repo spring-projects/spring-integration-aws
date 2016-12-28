@@ -19,6 +19,8 @@ package org.springframework.integration.aws.inbound.kinesis;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -40,7 +42,6 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.DeserializingConverter;
-import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.metadata.MetadataStore;
@@ -88,15 +89,23 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private final Set<String> inResharding = new ConcurrentSkipListSet<>();
 
+	private final List<ConsumerInvoker> consumerInvokers = new ArrayList<>();
+
 	private String consumerGroup = "SpringIntegration";
 
 	private MetadataStore checkpointStore = new SimpleMetadataStore();
 
 	private Executor dispatcherExecutor;
 
+	private boolean dispatcherExecutorExplicitlySet;
+
 	private Executor consumerExecutor;
 
 	private boolean consumerExecutorExplicitlySet;
+
+	private int maxConcurrency;
+
+	private int concurrency;
 
 	private KinesisShardOffset streamInitialSequence = KinesisShardOffset.latest();
 
@@ -119,6 +128,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private boolean resetCheckpoints;
 
 	private volatile boolean active;
+
+	private volatile int consumerInvokerMaxCapacity;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -151,11 +162,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.checkpointStore = checkpointStore;
 	}
 
-	public void setExecutor(Executor executor) {
+	public void setConsumerExecutor(Executor executor) {
 		Assert.notNull(executor, "'executor' must not be null");
 		this.consumerExecutor = executor;
-		this.dispatcherExecutor = executor;
 		this.consumerExecutorExplicitlySet = true;
+	}
+
+	public void setDispatcherExecutor(Executor dispatcherExecutor) {
+		this.dispatcherExecutor = dispatcherExecutor;
+		this.dispatcherExecutorExplicitlySet = true;
 	}
 
 	public void setStreamInitialSequence(KinesisShardOffset streamInitialSequence) {
@@ -201,15 +216,33 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.startTimeout = startTimeout;
 	}
 
+	/**
+	 * The maximum number of concurrent {@link ConsumerInvoker}s running.
+	 * The {@link ShardConsumer}s are evenly distributed between {@link ConsumerInvoker}s.
+	 * Messages from within the same shard will be processed sequentially.
+	 * In other words each shard is tied with the particular thread.
+	 * By default the concurrency is unlimited and shard
+	 * is processed in the {@link #consumerExecutor} directly.
+	 * @param concurrency the concurrency maximum number
+	 */
+	public void setConcurrency(int concurrency) {
+		this.maxConcurrency = concurrency;
+	}
+
 	@Override
 	protected void onInit() {
 		super.onInit();
 
 		if (this.consumerExecutor == null) {
-			this.consumerExecutor = new SimpleAsyncTaskExecutor(
-					(getComponentName() == null ? "" : getComponentName()) + "-kinesis-consumer-");
+			this.consumerExecutor = Executors.newCachedThreadPool(
+					new NamedThreadFactory((getComponentName() == null
+							? ""
+							: getComponentName())
+							+ "-kinesis-consumer-"));
+		}
+		if (this.dispatcherExecutor == null) {
 			this.dispatcherExecutor =
-					Executors.newSingleThreadExecutor(
+					Executors.newCachedThreadPool(
 							new NamedThreadFactory((getComponentName() == null
 									? ""
 									: getComponentName())
@@ -220,6 +253,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	@Override
 	public void destroy() throws Exception {
 		if (!this.consumerExecutorExplicitlySet) {
+			((ExecutorService) this.consumerExecutor).shutdownNow();
+		}
+		if (!this.dispatcherExecutorExplicitlySet) {
 			((ExecutorService) this.dispatcherExecutor).shutdownNow();
 		}
 	}
@@ -251,7 +287,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			synchronized (this.shardOffsets) {
 				for (KinesisShardOffset shardOffset : this.shardOffsets) {
 					if (shardOffsetForSearch.equals(shardOffset)) {
-						populateConsumer(shardOffset, shardOffset.isReset());
+						populateConsumer(shardOffset);
 						break;
 					}
 				}
@@ -298,7 +334,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			if (oldShardConsumer != null) {
 				oldShardConsumer.close();
 			}
-			populateConsumer(shardOffset, true);
+			shardOffset.setReset(true);
+			populateConsumer(shardOffset);
 		}
 	}
 
@@ -326,7 +363,42 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		populateConsumers();
 
 		this.active = true;
+
+		this.concurrency = Math.min(this.maxConcurrency, this.shardOffsets.size());
+
+		for (int i = 0; i < this.concurrency; i++) {
+			Collection<ShardConsumer> shardConsumers = shardConsumerSubset(i);
+			this.consumerInvokerMaxCapacity = Math.max(this.consumerInvokerMaxCapacity, shardConsumers.size());
+			ConsumerInvoker consumerInvoker = new ConsumerInvoker(shardConsumers);
+			this.consumerInvokers.add(consumerInvoker);
+			this.consumerExecutor.execute(consumerInvoker);
+		}
+
 		this.dispatcherExecutor.execute(new ConsumerDispatcher());
+	}
+
+	private Collection<ShardConsumer> shardConsumerSubset(int i) {
+		List<ShardConsumer> shardConsumers = new ArrayList<>(this.shardConsumers.values());
+		if (this.concurrency == 1) {
+			return shardConsumers;
+		}
+		else {
+			int numConsumers = shardConsumers.size();
+			if (numConsumers == this.concurrency) {
+				return Collections.singleton(shardConsumers.get(i));
+			}
+			else {
+				int perInvoker = numConsumers / this.concurrency;
+				List<ShardConsumer> subset;
+				if (i == this.concurrency - 1) {
+					subset = shardConsumers.subList(i * perInvoker, numConsumers);
+				}
+				else {
+					subset = shardConsumers.subList(i * perInvoker, (i + 1) * perInvoker);
+				}
+				return subset;
+			}
+		}
 	}
 
 	private void populateShardsForStreams() {
@@ -348,7 +420,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 	private void populateShardsForStream(final String stream, final CountDownLatch shardsGatherLatch) {
-		this.consumerExecutor.execute(new Runnable() {
+		this.dispatcherExecutor.execute(new Runnable() {
 
 			@Override
 			public void run() {
@@ -435,7 +507,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						if (addedOffset
 								&& shardsGatherLatch == null
 								&& KinesisMessageDrivenChannelAdapter.this.active) {
-							populateConsumer(shardOffset, shardOffset.isReset());
+							populateConsumer(shardOffset);
 						}
 					}
 				}
@@ -453,7 +525,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private void populateConsumers() {
 		synchronized (this.shardOffsets) {
 			for (KinesisShardOffset shardOffset : this.shardOffsets) {
-				populateConsumer(shardOffset, this.resetCheckpoints);
+				shardOffset.setReset(this.resetCheckpoints);
+				populateConsumer(shardOffset);
 			}
 		}
 
@@ -461,10 +534,31 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 
-	private void populateConsumer(KinesisShardOffset shardOffset, boolean reset) {
-		shardOffset.setReset(reset);
+	private void populateConsumer(KinesisShardOffset shardOffset) {
 		ShardConsumer shardConsumer = new ShardConsumer(shardOffset);
 		this.shardConsumers.put(shardOffset, shardConsumer);
+
+		if (this.active) {
+			synchronized (this.consumerInvokers) {
+				if (this.consumerInvokers.size() < this.maxConcurrency) {
+					ConsumerInvoker consumerInvoker = new ConsumerInvoker(Collections.singleton(shardConsumer));
+					this.consumerInvokers.add(consumerInvoker);
+					this.consumerExecutor.execute(consumerInvoker);
+				}
+				else {
+					for (ConsumerInvoker consumerInvoker : this.consumerInvokers) {
+						if (consumerInvoker.consumers.size() < this.consumerInvokerMaxCapacity) {
+							consumerInvoker.addConsumer(shardConsumer);
+							return;
+						}
+					}
+
+					ConsumerInvoker firstConsumerInvoker = this.consumerInvokers.get(0);
+					firstConsumerInvoker.addConsumer(shardConsumer);
+					this.consumerInvokerMaxCapacity = firstConsumerInvoker.consumers.size();
+				}
+			}
+		}
 	}
 
 	@Override
@@ -479,6 +573,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			shardConsumer.stop();
 		}
 		this.shardConsumers.clear();
+		this.consumerInvokers.clear();
 	}
 
 	@Override
@@ -549,8 +644,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				}
 
 				for (Iterator<ShardConsumer> iterator =
-						KinesisMessageDrivenChannelAdapter.this.shardConsumers.values().iterator();
-						iterator.hasNext(); ) {
+					 KinesisMessageDrivenChannelAdapter.this.shardConsumers.values().iterator();
+					 iterator.hasNext(); ) {
 					ShardConsumer shardConsumer = iterator.next();
 					shardConsumer.execute();
 					if (ConsumerState.STOP == shardConsumer.state) {
@@ -678,7 +773,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						break;
 				}
 
-				if (this.task != null) {
+				if (this.task != null && KinesisMessageDrivenChannelAdapter.this.concurrency == 0) {
 					KinesisMessageDrivenChannelAdapter.this.consumerExecutor.execute(this.task);
 				}
 			}
@@ -704,6 +799,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					ShardConsumer.this.shardIterator = result.getNextShardIterator();
 
 					if (ShardConsumer.this.shardIterator == null) {
+						// Shard is closed: nothing to consume any more.
+						// Resharding is possible.
 						ShardConsumer.this.state = ConsumerState.STOP;
 					}
 
@@ -788,6 +885,49 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private enum ConsumerState {
 
 		NEW, CONSUME, SLEEP, STOP
+
+	}
+
+	private final class ConsumerInvoker implements SchedulingAwareRunnable {
+
+		private final List<ShardConsumer> consumers = new ArrayList<>();
+
+		ConsumerInvoker(Collection<ShardConsumer> shardConsumers) {
+			this.consumers.addAll(shardConsumers);
+		}
+
+		void addConsumer(ShardConsumer shardConsumer) {
+			this.consumers.add(shardConsumer);
+		}
+
+		@Override
+		public void run() {
+			while (KinesisMessageDrivenChannelAdapter.this.active && !this.consumers.isEmpty()) {
+				for (Iterator<ShardConsumer> iterator = this.consumers.iterator(); iterator.hasNext(); ) {
+					ShardConsumer shardConsumer = iterator.next();
+					if (ConsumerState.STOP == shardConsumer.state) {
+						iterator.remove();
+					}
+					else {
+						if (shardConsumer.task != null) {
+							shardConsumer.task.run();
+						}
+					}
+				}
+				synchronized (KinesisMessageDrivenChannelAdapter.this.consumerInvokers) {
+					// The attempt to survive if ShardConsumer has been added during synchronization
+					if (this.consumers.isEmpty()) {
+						KinesisMessageDrivenChannelAdapter.this.consumerInvokers.remove(this);
+						break;
+					}
+				}
+			}
+		}
+
+		@Override
+		public boolean isLongLived() {
+			return true;
+		}
 
 	}
 
