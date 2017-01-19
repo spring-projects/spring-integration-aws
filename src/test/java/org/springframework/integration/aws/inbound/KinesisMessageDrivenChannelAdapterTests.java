@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.serializer.support.SerializingConverter;
+import org.springframework.integration.aws.inbound.kinesis.CheckpointMode;
 import org.springframework.integration.aws.inbound.kinesis.Checkpointer;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisShardOffset;
+import org.springframework.integration.aws.inbound.kinesis.ListenerMode;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
@@ -126,9 +128,9 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
-		this.kinesisMessageDrivenChannelAdapter.setListenerMode(KinesisMessageDrivenChannelAdapter.ListenerMode.batch);
+		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter
-				.setCheckpointMode(KinesisMessageDrivenChannelAdapter.CheckpointMode.record);
+				.setCheckpointMode(CheckpointMode.record);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
 		this.kinesisMessageDrivenChannelAdapter.start();
 
@@ -257,7 +259,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 					new KinesisMessageDrivenChannelAdapter(amazonKinesis(), STREAM1);
 			adapter.setOutputChannel(kinesisChannel());
 			adapter.setCheckpointStore(checkpointStore());
-			adapter.setCheckpointMode(KinesisMessageDrivenChannelAdapter.CheckpointMode.manual);
+			adapter.setCheckpointMode(CheckpointMode.manual);
 			adapter.setStartTimeout(10000);
 			adapter.setDescribeStreamRetries(1);
 			adapter.setConcurrency(10);

@@ -17,15 +17,28 @@
 package org.springframework.integration.aws.inbound.kinesis;
 
 /**
- * A callback for target record process to perform checkpoint on the related shard.
+ * The listener mode, record or batch.
  *
  * @author Artem Bilan
+ *
  * @since 1.1
  */
-public interface Checkpointer {
+public enum CheckpointMode {
 
-	void checkpoint();
+	/**
+	 * Checkpoint after each processed record.
+	 * Makes sense only if {@link ListenerMode#record} is used.
+	 */
+	record,
 
-	void checkpoint(String sequenceNumber);
+	/**
+	 * Checkpoint after each processed batch of records.
+	 */
+	batch,
+
+	/**
+	 * Checkpoint on demand via provided to the message {@link Checkpointer} callback.
+	 */
+	manual
 
 }

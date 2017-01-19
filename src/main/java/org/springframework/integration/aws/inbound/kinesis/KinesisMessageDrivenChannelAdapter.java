@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,9 +34,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.convert.converter.Converter;
@@ -50,7 +46,6 @@ import org.springframework.integration.support.AbstractIntegrationMessageBuilder
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
-import org.springframework.messaging.Message;
 import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -73,6 +68,7 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon Kinesis stream(s).
  *
  * @author Artem Bilan
+ *
  * @since 1.1
  */
 @ManagedResource
@@ -584,46 +580,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				'}';
 	}
 
-	/**
-	 * The listener mode, record or batch.
-	 */
-	public enum ListenerMode {
-
-		/**
-		 * Each {@link Message} will be converted from a single {@code Record}.
-		 */
-		record,
-
-		/**
-		 * Each {@link Message} will contains {@code List<Record>} if not empty.
-		 */
-		batch
-
-	}
-
-	/**
-	 * The listener mode, record or batch.
-	 */
-	public enum CheckpointMode {
-
-		/**
-		 * Checkpoint after each processed record.
-		 * Makes sense only if {@link ListenerMode#record} is used.
-		 */
-		record,
-
-		/**
-		 * Checkpoint after each processed batch of records.
-		 */
-		batch,
-
-		/**
-		 * Checkpoint on demand via provided to the message {@link Checkpointer} callback.
-		 */
-		manual
-
-	}
-
 	private final class ConsumerDispatcher implements SchedulingAwareRunnable {
 
 		private final Set<String> inReshardingProcess = new HashSet<>();
@@ -644,8 +600,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				}
 
 				for (Iterator<ShardConsumer> iterator =
-					 KinesisMessageDrivenChannelAdapter.this.shardConsumers.values().iterator();
-					 iterator.hasNext(); ) {
+						KinesisMessageDrivenChannelAdapter.this.shardConsumers
+								.values()
+								.iterator();
+						iterator.hasNext(); ) {
 					ShardConsumer shardConsumer = iterator.next();
 					shardConsumer.execute();
 					if (ConsumerState.STOP == shardConsumer.state) {
@@ -806,10 +764,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 					if (ConsumerState.STOP != ShardConsumer.this.state && records.isEmpty()) {
 						if (logger.isDebugEnabled()) {
-							logger.debug("No records for [" + ShardConsumer.this
-									+ "] on sequenceNumber [" + ShardConsumer.this.checkpointer.lastCheckpointValue
-									+ "]. Suspend consuming for ["
-									+ KinesisMessageDrivenChannelAdapter.this.consumerBackoff + "] milliseconds.");
+							logger.debug("No records for [" + ShardConsumer.this +
+									"] on sequenceNumber [" +
+									ShardConsumer.this.checkpointer.getLastCheckpointValue() +
+									"]. Suspend consuming for [" +
+									KinesisMessageDrivenChannelAdapter.this.consumerBackoff + "] milliseconds.");
 						}
 						ShardConsumer.this.sleepUntil = System.currentTimeMillis() +
 								KinesisMessageDrivenChannelAdapter.this.consumerBackoff;
@@ -927,92 +886,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		@Override
 		public boolean isLongLived() {
 			return true;
-		}
-
-	}
-
-	private static class ShardCheckpointer implements Checkpointer {
-
-		private static final Log logger = LogFactory.getLog(ShardCheckpointer.class);
-
-		private final MetadataStore checkpointStore;
-
-		private final String key;
-
-		private volatile String lastCheckpointValue;
-
-		private volatile boolean active = true;
-
-		ShardCheckpointer(MetadataStore checkpointStore, String key) {
-			this.checkpointStore = checkpointStore;
-			this.key = key;
-		}
-
-		List<Record> filterRecords(List<Record> records) {
-			List<Record> recordsToProcess = new LinkedList<>(records);
-			this.lastCheckpointValue = this.checkpointStore.get(this.key);
-			if (this.lastCheckpointValue != null) {
-				for (Iterator<Record> iterator = recordsToProcess.iterator(); iterator.hasNext(); ) {
-					Record record = iterator.next();
-					String sequenceNumber = record.getSequenceNumber();
-					if (new BigInteger(sequenceNumber).compareTo(new BigInteger(this.lastCheckpointValue)) <= 0) {
-						if (logger.isDebugEnabled()) {
-							logger.debug("Removing record with sequenceNumber " + sequenceNumber +
-									" because the sequenceNumber is <= checkpoint(" + this.lastCheckpointValue + ")");
-						}
-						iterator.remove();
-					}
-					else {
-						this.lastCheckpointValue = sequenceNumber;
-					}
-				}
-
-			}
-			else {
-				this.lastCheckpointValue = recordsToProcess.get(recordsToProcess.size() - 1).getSequenceNumber();
-			}
-			return recordsToProcess;
-		}
-
-		@Override
-		public void checkpoint() {
-			checkpoint(this.lastCheckpointValue);
-		}
-
-		@Override
-		public void checkpoint(String sequenceNumber) {
-			if (this.active) {
-				String existingSequence = this.checkpointStore.get(this.key);
-				if (existingSequence == null ||
-						new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) <= 0) {
-					this.checkpointStore.put(this.key, sequenceNumber);
-				}
-			}
-			else {
-				if (logger.isInfoEnabled()) {
-					logger.info("The [" + this + "] has been closed. Checkpoints aren't accepted anymore.");
-				}
-			}
-		}
-
-		private String getCheckpoint() {
-			return this.checkpointStore.get(this.key);
-		}
-
-		private void remove() {
-			this.checkpointStore.remove(this.key);
-		}
-
-		private void close() {
-			this.active = false;
-		}
-
-		@Override
-		public String toString() {
-			return "ShardCheckpointer{" +
-					"key='" + this.key + '\'' +
-					", lastCheckpointValue='" + this.lastCheckpointValue + '\'' +
-					'}';
 		}
 
 	}
