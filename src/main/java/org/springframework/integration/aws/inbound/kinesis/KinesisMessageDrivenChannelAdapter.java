@@ -47,11 +47,11 @@ import org.springframework.integration.support.management.IntegrationManagedReso
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.scheduling.SchedulingAwareRunnable;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.clientlibrary.utils.NamedThreadFactory;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
@@ -231,7 +231,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		if (this.consumerExecutor == null) {
 			this.consumerExecutor = Executors.newCachedThreadPool(
-					new NamedThreadFactory((getComponentName() == null
+					new CustomizableThreadFactory((getComponentName() == null
 							? ""
 							: getComponentName())
 							+ "-kinesis-consumer-"));
@@ -239,7 +239,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		if (this.dispatcherExecutor == null) {
 			this.dispatcherExecutor =
 					Executors.newCachedThreadPool(
-							new NamedThreadFactory((getComponentName() == null
+							new CustomizableThreadFactory((getComponentName() == null
 									? ""
 									: getComponentName())
 									+ "-kinesis-dispatcher-"));

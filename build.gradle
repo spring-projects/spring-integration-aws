@@ -91,8 +91,6 @@ dependencies {
 
 	compile("com.amazonaws:aws-java-sdk-kinesis:$awsSdkVersion", optional)
 
-	compile("com.amazonaws:amazon-kinesis-client:1.7.0", optional)
-
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
 	testCompile "org.springframework.integration:spring-integration-test:$springIntegrationVersion"
