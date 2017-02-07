@@ -3,7 +3,8 @@ buildscript {
 		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 	dependencies {
-		classpath 'io.spring.gradle:spring-io-plugin:0.0.5.RELEASE'
+		classpath 'io.spring.gradle:dependency-management-plugin:0.6.1.RELEASE'
+		classpath 'io.spring.gradle:spring-io-plugin:0.0.6.RELEASE'
 	}
 }
 
@@ -38,6 +39,14 @@ compileTestJava {
 	targetCompatibility = 1.8
 }
 
+sourceSets {
+	test {
+		resources {
+			srcDirs = ['src/test/resources', 'src/test/java']
+		}
+	}
+}
+
 if (project.hasProperty('platformVersion')) {
 	apply plugin: 'spring-io'
 
@@ -48,15 +57,20 @@ if (project.hasProperty('platformVersion')) {
 			}
 		}
 	}
+
+	springIoDependencyVersionMappingCheck {
+		configuration = configurations.testRuntime
+		failOnUnmappedDirectDependency = false
+	}
 }
 
 ext {
-	assertjVersion = '3.5.2'
+	assertjVersion = '3.6.2'
 	awsSdkVersion = '1.11.42'
 	servletApiVersion = '3.1.0'
-	slf4jVersion = '1.7.21'
+	slf4jVersion = '1.7.22'
 	springCloudAwsVersion = '1.1.3.RELEASE'
-	springIntegrationVersion = '4.3.4.RELEASE'
+	springIntegrationVersion = '4.3.7.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -73,7 +87,7 @@ ext.javadocLinks = [
 ] as String[]
 
 jacoco {
-	toolVersion = "0.7.7.201606060606"
+	toolVersion = "0.7.8"
 }
 
 checkstyle {
@@ -122,14 +136,6 @@ javadoc {
 	// note that global 'api' task does display all warnings.
 	logging.captureStandardError LogLevel.INFO
 	logging.captureStandardOutput LogLevel.INFO // suppress "## warnings" message
-}
-
-sourceSets {
-	test {
-		resources {
-			srcDirs = ['src/test/resources', 'src/test/java']
-		}
-	}
 }
 
 // enable all compiler warnings; individual projects may customize further
