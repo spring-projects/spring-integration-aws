@@ -7,8 +7,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
 
 /**
- * @author blake
- * @since 2/22/17
+ * @author Blake Jackson
  */
 public class RegionsTests {
 
