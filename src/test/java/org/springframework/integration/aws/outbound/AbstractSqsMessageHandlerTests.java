@@ -31,6 +31,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.test.annotation.DirtiesContext;
 
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
@@ -43,6 +44,7 @@ import com.amazonaws.services.sqs.model.SendMessageRequest;
  * @author Rahul Pilani
  * @author Artem Bilan
  */
+@DirtiesContext
 public abstract class AbstractSqsMessageHandlerTests {
 
 	@Autowired

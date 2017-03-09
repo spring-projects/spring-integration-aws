@@ -33,6 +33,7 @@ import org.springframework.integration.handler.advice.RequestHandlerRetryAdvice;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -43,6 +44,7 @@ import com.amazonaws.services.sns.AmazonSNS;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
+@DirtiesContext
 public class SnsOutboundChannelAdapterParserTests {
 
 	@Autowired

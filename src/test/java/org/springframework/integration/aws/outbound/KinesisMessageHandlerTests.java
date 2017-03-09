@@ -44,6 +44,7 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import com.amazonaws.handlers.AsyncHandler;
@@ -59,6 +60,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
  * @since 1.1
  */
 @RunWith(SpringRunner.class)
+@DirtiesContext
 public class KinesisMessageHandlerTests {
 
 	@Autowired
