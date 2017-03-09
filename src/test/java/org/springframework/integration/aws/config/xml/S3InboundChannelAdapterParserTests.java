@@ -65,7 +65,7 @@ public class S3InboundChannelAdapterParserTests {
 	private SessionFactory<?> s3SessionFactory;
 
 	@Test
-	public void testFtpInboundChannelAdapterComplete() throws Exception {
+	public void testS3InboundChannelAdapterComplete() throws Exception {
 		assertThat(TestUtils.getPropertyValue(this.s3Inbound, "autoStartup", Boolean.class)).isFalse();
 		PriorityBlockingQueue<?> blockingQueue = TestUtils.getPropertyValue(this.s3Inbound,
 				"source.fileSource.toBeReceived", PriorityBlockingQueue.class);
