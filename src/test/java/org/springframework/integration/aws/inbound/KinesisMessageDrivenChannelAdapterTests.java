@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -70,7 +69,6 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  */
 @RunWith(SpringRunner.class)
 @DirtiesContext
-@Ignore
 public class KinesisMessageDrivenChannelAdapterTests {
 
 	private static final String STREAM1 = "stream1";
