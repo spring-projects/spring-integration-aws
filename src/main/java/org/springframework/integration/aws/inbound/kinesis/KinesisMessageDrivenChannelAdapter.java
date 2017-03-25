@@ -26,8 +26,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -68,6 +70,7 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon Kinesis stream(s).
  *
  * @author Artem Bilan
+ * @author Krzysztof Witkowski
  *
  * @since 1.1
  */
@@ -849,7 +852,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private final class ConsumerInvoker implements SchedulingAwareRunnable {
 
-		private final List<ShardConsumer> consumers = new ArrayList<>();
+		private final Queue<ShardConsumer> consumers = new ConcurrentLinkedQueue<>();
 
 		ConsumerInvoker(Collection<ShardConsumer> shardConsumers) {
 			this.consumers.addAll(shardConsumers);
