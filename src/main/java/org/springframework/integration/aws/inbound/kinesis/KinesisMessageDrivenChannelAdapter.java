@@ -56,10 +56,12 @@ import org.springframework.util.StringUtils;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.model.Shard;
@@ -673,11 +675,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				switch (this.state) {
 
 					case NEW:
+					case EXPIRED:
 						this.task = new Runnable() {
 
 							@Override
 							public void run() {
-								if (logger.isInfoEnabled()) {
+								if (logger.isInfoEnabled() && ShardConsumer.this.state == ConsumerState.NEW) {
 									logger.info("The [" + this + "] has been started.");
 								}
 								if (ShardConsumer.this.shardOffset.isReset()) {
@@ -748,8 +751,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					GetRecordsRequest getRecordsRequest = new GetRecordsRequest();
 					getRecordsRequest.setShardIterator(ShardConsumer.this.shardIterator);
 					getRecordsRequest.setLimit(KinesisMessageDrivenChannelAdapter.this.recordsLimit);
-					GetRecordsResult result = KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-							.getRecords(getRecordsRequest);
+					GetRecordsResult result = getRecords(getRecordsRequest);
+					if (result == null) {
+						ShardConsumer.this.task = null;
+						return;
+					}
 
 					List<Record> records = result.getRecords();
 
@@ -773,15 +779,44 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 									"]. Suspend consuming for [" +
 									KinesisMessageDrivenChannelAdapter.this.consumerBackoff + "] milliseconds.");
 						}
-						ShardConsumer.this.sleepUntil = System.currentTimeMillis() +
-								KinesisMessageDrivenChannelAdapter.this.consumerBackoff;
-						ShardConsumer.this.state = ConsumerState.SLEEP;
+						prepareSleepState();
 					}
 
 					ShardConsumer.this.task = null;
 				}
 
 			};
+		}
+
+		private GetRecordsResult getRecords(GetRecordsRequest getRecordsRequest) {
+			try {
+				GetRecordsResult result = KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+					.getRecords(getRecordsRequest);
+				return result;
+			}
+			catch (ExpiredIteratorException e) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Shard iterator " + getRecordsRequest.getShardIterator() + " expired");
+				}
+				// Iterator expired, but this does not mean that shard no longer contains records.
+				// Lets acquire iterator again (using checkpointer for iterator start sequence number).
+				this.state = ConsumerState.EXPIRED;
+			}
+			catch (ProvisionedThroughputExceededException e) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("GetRecords request throttled for iterator " + getRecordsRequest.getShardIterator());
+				}
+				// We are throttled, so let's sleep
+				prepareSleepState();
+			}
+
+			return null;
+		}
+
+		private void prepareSleepState() {
+			ShardConsumer.this.sleepUntil = System.currentTimeMillis() +
+				KinesisMessageDrivenChannelAdapter.this.consumerBackoff;
+			ShardConsumer.this.state = ConsumerState.SLEEP;
 		}
 
 		private void processRecords(List<Record> records) {
@@ -846,7 +881,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private enum ConsumerState {
 
-		NEW, CONSUME, SLEEP, STOP
+		NEW, EXPIRED, CONSUME, SLEEP, STOP
 
 	}
 
