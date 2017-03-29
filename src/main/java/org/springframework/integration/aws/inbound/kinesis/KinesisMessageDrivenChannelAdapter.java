@@ -252,10 +252,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	@Override
 	public void destroy() throws Exception {
 		if (!this.consumerExecutorExplicitlySet) {
-			((ExecutorService) this.consumerExecutor).shutdownNow();
+			((ExecutorService) this.consumerExecutor).shutdown();
 		}
 		if (!this.dispatcherExecutorExplicitlySet) {
-			((ExecutorService) this.dispatcherExecutor).shutdownNow();
+			((ExecutorService) this.dispatcherExecutor).shutdown();
 		}
 	}
 
