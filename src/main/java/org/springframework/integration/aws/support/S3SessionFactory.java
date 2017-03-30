@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import org.springframework.integration.file.remote.session.SharedSessionCapable;
 import org.springframework.util.Assert;
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
@@ -37,7 +37,7 @@ public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, Shared
 	private final S3Session s3Session;
 
 	public S3SessionFactory() {
-		this(new AmazonS3Client());
+		this(AmazonS3ClientBuilder.defaultClient());
 	}
 
 	public S3SessionFactory(AmazonS3 amazonS3) {

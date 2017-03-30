@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import com.amazonaws.services.s3.transfer.ObjectMetadataProvider;
 import com.amazonaws.services.s3.transfer.PersistableTransfer;
 import com.amazonaws.services.s3.transfer.Transfer;
 import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 import com.amazonaws.services.s3.transfer.internal.S3ProgressListener;
 import com.amazonaws.services.s3.transfer.internal.S3ProgressListenerChain;
 import com.amazonaws.util.Md5Utils;
@@ -130,12 +131,20 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	}
 
 	public S3MessageHandler(AmazonS3 amazonS3, String bucket, boolean produceReply) {
-		this(new TransferManager(amazonS3), bucket, produceReply);
+		this(TransferManagerBuilder.standard()
+						.withS3Client(amazonS3)
+						.build(),
+				bucket,
+				produceReply);
 		Assert.notNull(amazonS3, "'amazonS3' must not be null");
 	}
 
 	public S3MessageHandler(AmazonS3 amazonS3, Expression bucketExpression, boolean produceReply) {
-		this(new TransferManager(amazonS3), bucketExpression, produceReply);
+		this(TransferManagerBuilder.standard()
+						.withS3Client(amazonS3)
+						.build(),
+				bucketExpression,
+				produceReply);
 		Assert.notNull(amazonS3, "'amazonS3' must not be null");
 	}
 
@@ -319,7 +328,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					if (metadata.getContentMD5() == null) {
 						Assert.state(inputStream.markSupported(),
 								"For an upload InputStream with no MD5 digest metadata, the " +
-								"markSupported() method must evaluate to true. ");
+										"markSupported() method must evaluate to true. ");
 						String contentMd5 = Md5Utils.md5AsBase64(inputStream);
 						metadata.setContentMD5(contentMd5);
 						inputStream.reset();
