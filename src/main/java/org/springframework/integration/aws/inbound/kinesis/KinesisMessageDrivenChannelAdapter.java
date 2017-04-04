@@ -16,7 +16,6 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -427,7 +426,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			public void run() {
 				try {
 					int describeStreamRetries = 0;
-					List<Shard> shards = new ArrayList<>();
+					List<Shard> shardsToConsume = new ArrayList<>();
 
 					String exclusiveStartShardId = null;
 					while (true) {
@@ -447,8 +446,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 									KinesisMessageDrivenChannelAdapter.this.describeStreamBackoff + "] millis.");
 						}
 
-						if (describeStreamResult == null || !StreamStatus.ACTIVE.toString()
-								.equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
+						if (describeStreamResult == null ||
+								!StreamStatus.ACTIVE.toString()
+										.equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
 							if (describeStreamRetries++ >
 									KinesisMessageDrivenChannelAdapter.this.describeStreamRetries) {
 								ResourceNotFoundException resourceNotFoundException =
@@ -468,24 +468,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							}
 						}
 
-						for (Shard shard : describeStreamResult.getStreamDescription().getShards()) {
-							String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
-							if (endingSequenceNumber != null) {
-								String key = KinesisMessageDrivenChannelAdapter.this.consumerGroup +
-										":" + stream +
-										":" + shard.getShardId();
-								String checkpoint =
-										KinesisMessageDrivenChannelAdapter.this.checkpointStore.get(key);
-
-								if (checkpoint != null &&
-										new BigInteger(endingSequenceNumber)
-												.compareTo(new BigInteger(checkpoint)) <= 0) {
-									// Skip CLOSED shard which has been read before according a checkpoint
-									continue;
-								}
+						List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
+						for (Shard shard : shards) {
+							// Check if the shard is still open. Open shards do not have an ending sequence number.
+							if (shard.getSequenceNumberRange().getEndingSequenceNumber() == null) {
+								shardsToConsume.add(shard);
 							}
-
-							shards.add(shard);
 						}
 
 						if (describeStreamResult.getStreamDescription().getHasMoreShards()) {
@@ -496,7 +484,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						}
 					}
 
-					for (Shard shard : shards) {
+					for (Shard shard : shardsToConsume) {
 						KinesisShardOffset shardOffset =
 								new KinesisShardOffset(KinesisMessageDrivenChannelAdapter.this.streamInitialSequence);
 						shardOffset.setShard(shard.getShardId());
