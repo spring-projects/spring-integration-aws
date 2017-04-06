@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -317,7 +318,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private void restartShardConsumerForOffset(KinesisShardOffset shardOffset) {
 		Assert.isTrue(this.shardOffsets.contains(shardOffset),
-				"The [" + this +
+				"The [" + KinesisMessageDrivenChannelAdapter.this +
 						"] doesn't operate shard [" + shardOffset.getShard() +
 						"] for stream [" + shardOffset.getStream() + "]");
 
@@ -410,12 +411,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		try {
 			if (!shardsGatherLatch.await(this.startTimeout, TimeUnit.MILLISECONDS)) {
 				throw new IllegalStateException("The [ "
-						+ this +
+						+ KinesisMessageDrivenChannelAdapter.this +
 						"] could not start during timeout: " + this.startTimeout);
 			}
 		}
 		catch (InterruptedException e) {
-			throw new IllegalStateException("The [ " + this + "] has been interrupted from start.");
+			throw new IllegalStateException("The [ " + KinesisMessageDrivenChannelAdapter.this +
+					"] has been interrupted from start.");
 		}
 	}
 
@@ -470,10 +472,29 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 						List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
 						for (Shard shard : shards) {
-							// Check if the shard is still open. Open shards do not have an ending sequence number.
-							if (shard.getSequenceNumberRange().getEndingSequenceNumber() == null) {
-								shardsToConsume.add(shard);
+							String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
+							if (endingSequenceNumber != null) {
+								String key = buildCheckpointKeyForShard(stream, shard.getShardId());
+								String checkpoint = KinesisMessageDrivenChannelAdapter.this.checkpointStore.get(key);
+
+								boolean skipClosedShard = checkpoint != null &&
+										new BigInteger(endingSequenceNumber)
+												.compareTo(new BigInteger(checkpoint)) <= 0;
+
+								if (logger.isTraceEnabled()) {
+									logger.trace("The shard [" + shard + "] in stream [" + stream +
+											"] is closed CLOSED with endingSequenceNumber [" + endingSequenceNumber +
+											"].\nThe last processed checkpoint is [" + checkpoint + "]." +
+											(skipClosedShard ? "\nThe shard will be skipped." : ""));
+								}
+
+								if (skipClosedShard) {
+									// Skip CLOSED shard which has been read before according a checkpoint
+									continue;
+								}
 							}
+
+							shardsToConsume.add(shard);
 						}
 
 						if (describeStreamResult.getStreamDescription().getHasMoreShards()) {
@@ -522,7 +543,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.resetCheckpoints = false;
 	}
 
-
 	private void populateConsumer(KinesisShardOffset shardOffset) {
 		ShardConsumer shardConsumer = new ShardConsumer(shardOffset);
 		this.shardConsumers.put(shardOffset, shardConsumer);
@@ -550,6 +570,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				}
 			}
 		}
+	}
+
+	private String buildCheckpointKeyForShard(String stream, String shardId) {
+		return KinesisMessageDrivenChannelAdapter.this.consumerGroup + ":" + stream + ":" + shardId;
 	}
 
 	@Override
@@ -645,9 +669,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		ShardConsumer(KinesisShardOffset shardOffset) {
 			this.shardOffset = new KinesisShardOffset(shardOffset);
-			String key = KinesisMessageDrivenChannelAdapter.this.consumerGroup +
-					":" + shardOffset.getStream() +
-					":" + shardOffset.getShard();
+			String key = buildCheckpointKeyForShard(shardOffset.getStream(), shardOffset.getShard());
 			this.checkpointer = new ShardCheckpointer(KinesisMessageDrivenChannelAdapter.this.checkpointStore, key);
 		}
 
@@ -671,7 +693,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							@Override
 							public void run() {
 								if (logger.isInfoEnabled() && ShardConsumer.this.state == ConsumerState.NEW) {
-									logger.info("The [" + this + "] has been started.");
+									logger.info("The [" + ShardConsumer.this + "] has been started.");
 								}
 								if (ShardConsumer.this.shardOffset.isReset()) {
 									ShardConsumer.this.checkpointer.remove();
@@ -714,13 +736,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					case STOP:
 						if (this.shardIterator == null) {
 							if (logger.isInfoEnabled()) {
-								logger.info("Stopping the [" + this +
+								logger.info("Stopping the [" + ShardConsumer.this +
+										"] on the checkpoint [" + this.checkpointer.getCheckpoint() +
 										"] because the shard has been CLOSED and exhausted.");
 							}
 						}
 						else {
 							if (logger.isInfoEnabled()) {
-								logger.info("Stopping the [" + this + "].");
+								logger.info("Stopping the [" + ShardConsumer.this + "].");
 							}
 						}
 						this.task = null;
@@ -785,15 +808,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				// Iterator expired, but this does not mean that shard no longer contains records.
 				// Lets acquire iterator again (using checkpointer for iterator start sequence number).
 				if (logger.isInfoEnabled()) {
-					logger.info("Shard iterator " + getRecordsRequest.getShardIterator() + " expired.\n" +
+					logger.info("Shard iterator for [" + ShardConsumer.this + "] expired.\n" +
 							"A new one will be started from the check pointed sequence number.");
 				}
 				this.state = ConsumerState.EXPIRED;
 			}
 			catch (ProvisionedThroughputExceededException e) {
 				if (logger.isWarnEnabled()) {
-					logger.warn("GetRecords request throttled for iterator " + getRecordsRequest.getShardIterator()
-							+ " with the reason: " + e.getErrorMessage());
+					logger.warn("GetRecords request throttled for [" + ShardConsumer.this +
+							"] with the reason: " + e.getErrorMessage());
 				}
 				// We are throttled, so let's sleep
 				prepareSleepState();
@@ -811,8 +834,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		private void processRecords(List<Record> records) {
 			records = this.checkpointer.filterRecords(records);
 			if (!records.isEmpty()) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("Processing records: " + records + " for [" + this + "]");
+				if (logger.isTraceEnabled()) {
+					logger.trace("Processing records: " + records + " for [" + ShardConsumer.this + "]");
 				}
 				switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
 					case record:

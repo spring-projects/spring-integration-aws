@@ -79,7 +79,7 @@ class ShardCheckpointer implements Checkpointer {
 
 	List<Record> filterRecords(List<Record> records) {
 		List<Record> recordsToProcess = new LinkedList<>(records);
-		this.lastCheckpointValue = this.checkpointStore.get(this.key);
+		this.lastCheckpointValue = getCheckpoint();
 		if (this.lastCheckpointValue != null) {
 			for (Iterator<Record> iterator = recordsToProcess.iterator(); iterator.hasNext(); ) {
 				Record record = iterator.next();

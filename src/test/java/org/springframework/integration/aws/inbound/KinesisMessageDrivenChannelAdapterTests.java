@@ -18,13 +18,17 @@ package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -75,8 +79,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	private static final String STREAM1 = "stream1";
 
+	private static final String STREAM_FOR_RESHARDING = "streamForResharding";
+
 	@Autowired
-	private PollableChannel kinesisChannel;
+	private QueueChannel kinesisChannel;
 
 	@Autowired
 	private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter;
@@ -84,9 +90,21 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	@Autowired
 	private MetadataStore checkpointStore;
 
+	@Autowired
+	private KinesisMessageDrivenChannelAdapter reshardingChannelAdapter;
+
+	@Autowired
+	private AmazonKinesis amazonKinesisForResharding;
+
+	@Before
+	public void setup() {
+		this.kinesisChannel.purge(null);
+	}
+
 	@Test
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void testKinesisMessageDrivenChannelAdapter() throws InterruptedException {
+		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "shardOffsets", Set.class);
 
@@ -165,8 +183,29 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		List consumerInvoker =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
 		assertThat(consumerInvoker.size()).isEqualTo(2);
+
+		this.kinesisMessageDrivenChannelAdapter.stop();
 	}
 
+
+	@Test
+	@SuppressWarnings("rawtypes")
+	public void testReshadring() throws InterruptedException {
+		this.reshardingChannelAdapter.start();
+
+		assertThat(this.kinesisChannel.receive(10000)).isNotNull();
+
+		Map shardConsumers = TestUtils.getPropertyValue(this.reshardingChannelAdapter, "shardConsumers", Map.class);
+
+		int n = 0;
+		while (!shardConsumers.isEmpty() && n++ < 100) {
+			Thread.sleep(100);
+		}
+		assertThat(n).isLessThan(100);
+
+		// When resharding happens the describeStream() is performed again
+		verify(this.amazonKinesisForResharding, times(2)).describeStream(any(DescribeStreamRequest.class));
+	}
 
 	@Configuration
 	@EnableIntegration
@@ -202,8 +241,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			given(amazonKinesis.getShardIterator(KinesisShardOffset.latest(STREAM1, "1").toShardIteratorRequest()))
 					.willReturn(
-						new GetShardIteratorResult().withShardIterator(shard1Iterator1),
-						new GetShardIteratorResult().withShardIterator(shard1Iterator2));
+							new GetShardIteratorResult().withShardIterator(shard1Iterator1),
+							new GetShardIteratorResult().withShardIterator(shard1Iterator2));
 
 			String shard2Iterator1 = "shard2Iterator1";
 
@@ -212,10 +251,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 							.withShardIterator(shard2Iterator1));
 
 			given(amazonKinesis.getRecords(new GetRecordsRequest()
-				.withShardIterator(shard1Iterator1)
-				.withLimit(25)))
-				.willThrow(new ProvisionedThroughputExceededException("Iterator throttled"))
-				.willThrow(new ExpiredIteratorException("Iterator expired"));
+					.withShardIterator(shard1Iterator1)
+					.withLimit(25)))
+					.willThrow(new ProvisionedThroughputExceededException("Iterator throttled"))
+					.willThrow(new ExpiredIteratorException("Iterator expired"));
 
 			SerializingConverter serializingConverter = new SerializingConverter();
 
@@ -267,6 +306,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		public KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter =
 					new KinesisMessageDrivenChannelAdapter(amazonKinesis(), STREAM1);
+			adapter.setAutoStartup(false);
 			adapter.setOutputChannel(kinesisChannel());
 			adapter.setCheckpointStore(checkpointStore());
 			adapter.setCheckpointMode(CheckpointMode.manual);
@@ -276,6 +316,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
 			dfa.setPropertyValue("describeStreamBackoff", 10);
+			dfa.setPropertyValue("consumerBackoff", 10);
 
 			return adapter;
 		}
@@ -285,6 +326,61 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			return new QueueChannel();
 		}
 
+		@Bean
+		public AmazonKinesis amazonKinesisForResharding() {
+			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
+
+			given(amazonKinesis.describeStream(new DescribeStreamRequest().withStreamName(STREAM_FOR_RESHARDING)))
+					.willReturn(
+							new DescribeStreamResult()
+									.withStreamDescription(new StreamDescription()
+											.withStreamName(STREAM_FOR_RESHARDING)
+											.withStreamStatus(StreamStatus.ACTIVE)
+											.withHasMoreShards(false)
+											.withShards(new Shard()
+													.withShardId("closedShard")
+													.withSequenceNumberRange(new SequenceNumberRange()
+															.withEndingSequenceNumber("1")))));
+
+			String shard1Iterator1 = "shard1Iterator1";
+
+			given(amazonKinesis.getShardIterator(KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "closedShard")
+					.toShardIteratorRequest()))
+					.willReturn(
+							new GetShardIteratorResult()
+									.withShardIterator(shard1Iterator1));
+
+
+			given(amazonKinesis.getRecords(new GetRecordsRequest()
+					.withShardIterator(shard1Iterator1)
+					.withLimit(25)))
+					.willReturn(new GetRecordsResult()
+							.withNextShardIterator(null)
+							.withRecords(new Record()
+									.withPartitionKey("partition1")
+									.withSequenceNumber("1")
+									.withData(ByteBuffer.wrap("foo".getBytes()))));
+
+			return amazonKinesis;
+		}
+
+		@Bean
+		public KinesisMessageDrivenChannelAdapter reshardingChannelAdapter() {
+			KinesisMessageDrivenChannelAdapter adapter =
+					new KinesisMessageDrivenChannelAdapter(amazonKinesisForResharding(), STREAM_FOR_RESHARDING);
+			adapter.setAutoStartup(false);
+			adapter.setOutputChannel(kinesisChannel());
+			adapter.setStartTimeout(10000);
+			adapter.setDescribeStreamRetries(1);
+
+			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
+			dfa.setPropertyValue("describeStreamBackoff", 10);
+			dfa.setPropertyValue("consumerBackoff", 10);
+
+			adapter.setConverter(String::new);
+
+			return adapter;
+		}
 
 	}
 
