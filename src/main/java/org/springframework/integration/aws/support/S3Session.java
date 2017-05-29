@@ -44,6 +44,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  *
  * @author Artem Bilan
  * @author Jim Krygowski
+ * @author Anwar Chirakkattil
  */
 public class S3Session implements Session<S3ObjectSummary> {
 
@@ -228,6 +229,9 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private String[] splitPathToBucketAndKey(String path, boolean requireKey) {
 		Assert.hasText(path, "'path' must not be empty String.");
+		if (path.startsWith("/")) {
+			path = path.substring(1, path.length());
+		}
 		String[] bucketKey = path.split("/", 2);
 
 		if (requireKey) {
@@ -236,7 +240,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 		}
 		else {
 			Assert.state(bucketKey.length > 0 && bucketKey[0].length() >= 3,
-				"S3 bucket name must be at least 3 characters long.");
+					"S3 bucket name must be at least 3 characters long.");
 		}
 
 		bucketKey[0] = resolveBucket(bucketKey[0]);
