@@ -141,7 +141,6 @@ public class S3StreamingChannelAdapterTests {
 					S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
 					s3ObjectSummary.setBucketName(S3_BUCKET);
 					s3ObjectSummary.setKey(s3Object.getKey());
-
 					s3ObjectSummary.setLastModified(new Date(new File(s3Object.getKey()).lastModified()));
 					objectSummaries.add(s3ObjectSummary);
 				}
@@ -163,7 +162,7 @@ public class S3StreamingChannelAdapterTests {
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
 			S3StreamingMessageSource s3MessageSource = new S3StreamingMessageSource(s3FileTemplate,
 					Comparator.comparing(FileInfo::getFilename));
-			s3MessageSource.setRemoteDirectory(S3_BUCKET);
+			s3MessageSource.setRemoteDirectory("/" + S3_BUCKET);
 			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));
 
 			return s3MessageSource;

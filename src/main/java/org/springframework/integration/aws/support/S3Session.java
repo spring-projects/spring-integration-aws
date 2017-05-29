@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -44,6 +45,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  *
  * @author Artem Bilan
  * @author Jim Krygowski
+ * @author Anwar Chirakkattil
  */
 public class S3Session implements Session<S3ObjectSummary> {
 
@@ -228,6 +230,9 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private String[] splitPathToBucketAndKey(String path, boolean requireKey) {
 		Assert.hasText(path, "'path' must not be empty String.");
+
+		path = StringUtils.trimLeadingCharacter(path, '/');
+
 		String[] bucketKey = path.split("/", 2);
 
 		if (requireKey) {
@@ -236,7 +241,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 		}
 		else {
 			Assert.state(bucketKey.length > 0 && bucketKey[0].length() >= 3,
-				"S3 bucket name must be at least 3 characters long.");
+					"S3 bucket name must be at least 3 characters long.");
 		}
 
 		bucketKey[0] = resolveBucket(bucketKey[0]);
