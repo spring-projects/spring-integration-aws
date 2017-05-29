@@ -141,9 +141,8 @@ public class S3StreamingChannelAdapterTests {
 					List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
 					for (S3Object s3Object : S3_OBJECTS) {
 						S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
-						s3ObjectSummary.setBucketName(S3_BUCKET);
+						s3ObjectSummary.setBucketName("/" + S3_BUCKET);
 						s3ObjectSummary.setKey(s3Object.getKey());
-
 						s3ObjectSummary.setLastModified(new Date(new File(s3Object.getKey()).lastModified()));
 						objectSummaries.add(s3ObjectSummary);
 					}
