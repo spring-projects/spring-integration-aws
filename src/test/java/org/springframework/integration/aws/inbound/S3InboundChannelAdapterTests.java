@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -151,35 +149,23 @@ public class S3InboundChannelAdapterTests {
 		public AmazonS3 amazonS3() {
 			AmazonS3 amazonS3 = Mockito.mock(AmazonS3.class);
 
-			willAnswer(new Answer<ObjectListing>() {
-
-				@Override
-				public ObjectListing answer(InvocationOnMock invocation) throws Throwable {
-					ObjectListing objectListing = new ObjectListing();
-					List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
-					for (S3Object s3Object : S3_OBJECTS) {
-						S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
-						s3ObjectSummary.setBucketName(S3_BUCKET);
-						s3ObjectSummary.setKey(s3Object.getKey());
-						Calendar calendar = Calendar.getInstance();
-						calendar.add(Calendar.DATE, 1);
-						s3ObjectSummary.setLastModified(calendar.getTime());
-						objectSummaries.add(s3ObjectSummary);
-					}
-					return objectListing;
+			willAnswer(invocation -> {
+				ObjectListing objectListing = new ObjectListing();
+				List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
+				for (S3Object s3Object : S3_OBJECTS) {
+					S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
+					s3ObjectSummary.setBucketName(S3_BUCKET);
+					s3ObjectSummary.setKey(s3Object.getKey());
+					Calendar calendar = Calendar.getInstance();
+					calendar.add(Calendar.DATE, 1);
+					s3ObjectSummary.setLastModified(calendar.getTime());
+					objectSummaries.add(s3ObjectSummary);
 				}
-
+				return objectListing;
 			}).given(amazonS3).listObjects(any(ListObjectsRequest.class));
 
 			for (final S3Object s3Object : S3_OBJECTS) {
-				willAnswer(new Answer<S3Object>() {
-
-					@Override
-					public S3Object answer(InvocationOnMock invocation) throws Throwable {
-						return s3Object;
-					}
-
-				}).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
+				willAnswer(invocation -> s3Object).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
 			}
 
 			return amazonS3;

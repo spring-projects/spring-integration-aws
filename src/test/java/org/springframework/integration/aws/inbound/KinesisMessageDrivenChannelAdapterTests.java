@@ -19,8 +19,8 @@ package org.springframework.integration.aws.inbound;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.nio.ByteBuffer;
@@ -71,6 +71,7 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
 
 /**
  * @author Artem Bilan
+ *
  * @since 1.1
  */
 @RunWith(SpringRunner.class)
@@ -204,7 +205,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(n).isLessThan(100);
 
 		// When resharding happens the describeStream() is performed again
-		verify(this.amazonKinesisForResharding, times(2)).describeStream(any(DescribeStreamRequest.class));
+		verify(this.amazonKinesisForResharding, atLeast(2)).describeStream(any(DescribeStreamRequest.class));
 	}
 
 	@Configuration

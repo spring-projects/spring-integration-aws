@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -35,8 +36,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -49,6 +48,7 @@ import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnc
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.file.FileHeaders;
+import org.springframework.integration.file.remote.FileInfo;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
@@ -66,6 +66,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 /**
  * @author Christian Tzolov
  * @author Artem Bilan
+ *
  * @since 1.1
  */
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -133,34 +134,22 @@ public class S3StreamingChannelAdapterTests {
 		public AmazonS3 amazonS3() {
 			AmazonS3 amazonS3 = Mockito.mock(AmazonS3.class);
 
-			willAnswer(new Answer<ObjectListing>() {
+			willAnswer(invocation -> {
+				ObjectListing objectListing = new ObjectListing();
+				List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
+				for (S3Object s3Object : S3_OBJECTS) {
+					S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
+					s3ObjectSummary.setBucketName(S3_BUCKET);
+					s3ObjectSummary.setKey(s3Object.getKey());
 
-				@Override
-				public ObjectListing answer(InvocationOnMock invocation) throws Throwable {
-					ObjectListing objectListing = new ObjectListing();
-					List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
-					for (S3Object s3Object : S3_OBJECTS) {
-						S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
-						s3ObjectSummary.setBucketName(S3_BUCKET);
-						s3ObjectSummary.setKey(s3Object.getKey());
-
-						s3ObjectSummary.setLastModified(new Date(new File(s3Object.getKey()).lastModified()));
-						objectSummaries.add(s3ObjectSummary);
-					}
-					return objectListing;
+					s3ObjectSummary.setLastModified(new Date(new File(s3Object.getKey()).lastModified()));
+					objectSummaries.add(s3ObjectSummary);
 				}
-
+				return objectListing;
 			}).given(amazonS3).listObjects(any(ListObjectsRequest.class));
 
 			for (final S3Object s3Object : S3_OBJECTS) {
-				willAnswer(new Answer<S3Object>() {
-
-					@Override
-					public S3Object answer(InvocationOnMock invocation) throws Throwable {
-						return s3Object;
-					}
-
-				}).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
+				willAnswer(invocation -> s3Object).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
 			}
 
 			return amazonS3;
@@ -173,7 +162,7 @@ public class S3StreamingChannelAdapterTests {
 			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
 			S3StreamingMessageSource s3MessageSource = new S3StreamingMessageSource(s3FileTemplate,
-							(o1, o2) -> o1.getFilename().compareTo(o2.getFilename()));
+					Comparator.comparing(FileInfo::getFilename));
 			s3MessageSource.setRemoteDirectory(S3_BUCKET);
 			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));
 
