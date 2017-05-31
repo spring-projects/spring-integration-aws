@@ -36,6 +36,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.convert.converter.Converter;
@@ -549,7 +552,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private void populateConsumer(KinesisShardOffset shardOffset) {
 		ShardConsumer shardConsumer = new ShardConsumer(shardOffset);
-		this.shardConsumers.put(shardOffset, shardConsumer);
 
 		if (this.active) {
 			synchronized (this.consumerInvokers) {
@@ -574,6 +576,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				}
 			}
 		}
+
+		this.shardConsumers.put(shardOffset, shardConsumer);
 	}
 
 	private String buildCheckpointKeyForShard(String stream, String shardId) {
@@ -583,6 +587,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	@Override
 	protected void doStop() {
 		this.active = false;
+		for (ConsumerInvoker consumerInvoker : this.consumerInvokers) {
+			consumerInvoker.notifyBarrier();
+		}
 		super.doStop();
 		stopConsumers();
 	}
@@ -642,6 +649,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 									KinesisMessageDrivenChannelAdapter.this.shardOffsets.remove(shardOffset);
 								}
 							}
+							else {
+								try {
+									Thread.sleep(1);
+								}
+								catch (InterruptedException e) {
+									Thread.currentThread().interrupt();
+									throw new IllegalStateException("ConsumerDispatcher Thread [" + this +
+											"] has been interrupted", e);
+								}
+							}
 						}
 					}
 				}
@@ -663,6 +680,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private final Runnable processTask = processTask();
 
+		private Runnable notifier;
+
 		private volatile ConsumerState state = ConsumerState.NEW;
 
 		private volatile Runnable task;
@@ -679,6 +698,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		void stop() {
 			this.state = ConsumerState.STOP;
+			if (this.notifier != null) {
+				this.notifier.run();
+			}
 		}
 
 		void close() {
@@ -754,8 +776,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						break;
 				}
 
-				if (this.task != null && KinesisMessageDrivenChannelAdapter.this.concurrency == 0) {
-					KinesisMessageDrivenChannelAdapter.this.consumerExecutor.execute(this.task);
+				if (this.task != null) {
+					if (this.notifier != null) {
+						this.notifier.run();
+					}
+					if (KinesisMessageDrivenChannelAdapter.this.concurrency == 0) {
+						KinesisMessageDrivenChannelAdapter.this.consumerExecutor.execute(this.task);
+					}
 				}
 			}
 		}
@@ -783,7 +810,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						if (ShardConsumer.this.shardIterator == null) {
 							// Shard is closed: nothing to consume any more.
 							// Resharding is possible.
-							ShardConsumer.this.state = ConsumerState.STOP;
+							stop();
 						}
 
 						if (ConsumerState.STOP != ShardConsumer.this.state && records.isEmpty()) {
@@ -896,6 +923,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					'}';
 		}
 
+		public void setNotifier(Runnable notifier) {
+			this.notifier = notifier;
+		}
 	}
 
 	private enum ConsumerState {
@@ -908,35 +938,75 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private final Queue<ShardConsumer> consumers = new ConcurrentLinkedQueue<>();
 
+		private final Lock lock = new ReentrantLock();
+
+		private final Condition condition = this.lock.newCondition();
+
+		private final Runnable notifier = new Runnable() {
+
+			@Override
+			public void run() {
+				notifyBarrier();
+			}
+
+		};
+
 		ConsumerInvoker(Collection<ShardConsumer> shardConsumers) {
-			this.consumers.addAll(shardConsumers);
+			for (ShardConsumer shardConsumer : shardConsumers) {
+				addConsumer(shardConsumer);
+			}
 		}
 
 		void addConsumer(ShardConsumer shardConsumer) {
 			this.consumers.add(shardConsumer);
+			shardConsumer.setNotifier(this.notifier);
+		}
+
+		void notifyBarrier() {
+			this.lock.lock();
+			try {
+				this.condition.signalAll();
+			}
+			finally {
+				this.lock.unlock();
+			}
 		}
 
 		@Override
 		public void run() {
-			while (KinesisMessageDrivenChannelAdapter.this.active && !this.consumers.isEmpty()) {
-				for (Iterator<ShardConsumer> iterator = this.consumers.iterator(); iterator.hasNext(); ) {
-					ShardConsumer shardConsumer = iterator.next();
-					if (ConsumerState.STOP == shardConsumer.state) {
-						iterator.remove();
+			this.lock.lock();
+			try {
+				while (KinesisMessageDrivenChannelAdapter.this.active) {
+					try {
+						this.condition.await();
 					}
-					else {
-						if (shardConsumer.task != null) {
-							shardConsumer.task.run();
+					catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+
+						throw new IllegalStateException("ConsumerInvoker thread [" + this + "] has been interrupted", e);
+					}
+					for (Iterator<ShardConsumer> iterator = this.consumers.iterator(); iterator.hasNext(); ) {
+						ShardConsumer shardConsumer = iterator.next();
+						if (ConsumerState.STOP == shardConsumer.state) {
+							iterator.remove();
+						}
+						else {
+							if (shardConsumer.task != null) {
+								shardConsumer.task.run();
+							}
+						}
+					}
+					synchronized (KinesisMessageDrivenChannelAdapter.this.consumerInvokers) {
+						// The attempt to survive if ShardConsumer has been added during synchronization
+						if (this.consumers.isEmpty()) {
+							KinesisMessageDrivenChannelAdapter.this.consumerInvokers.remove(this);
+							break;
 						}
 					}
 				}
-				synchronized (KinesisMessageDrivenChannelAdapter.this.consumerInvokers) {
-					// The attempt to survive if ShardConsumer has been added during synchronization
-					if (this.consumers.isEmpty()) {
-						KinesisMessageDrivenChannelAdapter.this.consumerInvokers.remove(this);
-						break;
-					}
-				}
+			}
+			finally {
+				this.lock.unlock();
 			}
 		}
 
