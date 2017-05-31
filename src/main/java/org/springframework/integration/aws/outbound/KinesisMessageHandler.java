@@ -85,6 +85,11 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 		this.asyncHandler = asyncHandler;
 	}
 
+	/**
+	 * Specify a {@link Converter} to serialize {@code payload} to the {@code byte[]}
+	 * if that isn't {@code byte[]} already.
+	 * @param converter the {@link Converter} to use; cannot be null.
+	 */
 	public void setConverter(Converter<Object, byte[]> converter) {
 		Assert.notNull(converter, "'converter' must not be null.");
 		this.converter = converter;
@@ -209,12 +214,29 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 			partitionKey = this.sequenceNumberExpression.getValue(this.evaluationContext, message, String.class);
 		}
 
+		Object payload = message.getPayload();
+
+		ByteBuffer data;
+
+		if (payload instanceof ByteBuffer) {
+			data = (ByteBuffer) payload;
+		}
+		else {
+			byte[] bytes =
+					payload instanceof byte[]
+							? (byte[]) payload
+							: this.converter.convert(payload);
+
+			data = ByteBuffer.wrap(
+					bytes);
+		}
+
 		return new PutRecordRequest()
 				.withStreamName(stream)
 				.withPartitionKey(partitionKey)
 				.withExplicitHashKey(explicitHashKey)
 				.withSequenceNumberForOrdering(sequenceNumber)
-				.withData(ByteBuffer.wrap(this.converter.convert(message.getPayload())));
+				.withData(data);
 	}
 
 }

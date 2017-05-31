@@ -179,8 +179,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.streamInitialSequence = streamInitialSequence;
 	}
 
+	/**
+	 * Specify a {@link Converter} to deserialize the {@code byte[]} from record's body.
+	 * Can be {@code null} meaning no deserialization.
+	 * @param converter the {@link Converter} to use or null
+	 */
 	public void setConverter(Converter<byte[], Object> converter) {
-		Assert.notNull(converter, "'converter' must not be null");
 		this.converter = converter;
 	}
 
@@ -840,8 +844,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
 					case record:
 						for (Record record : records) {
-							Object payload =
-									KinesisMessageDrivenChannelAdapter.this.converter.convert(record.getData().array());
+							Object payload = record.getData().array();
+
+							if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
+								payload = KinesisMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
+							}
 							AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory()
 									.withPayload(payload)
 									.setHeader(AwsHeaders.STREAM, this.shardOffset.getStream())
