@@ -150,8 +150,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
-		this.kinesisMessageDrivenChannelAdapter
-				.setCheckpointMode(CheckpointMode.record);
+		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
 		this.kinesisMessageDrivenChannelAdapter.start();
 
@@ -314,10 +313,12 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			adapter.setStartTimeout(10000);
 			adapter.setDescribeStreamRetries(1);
 			adapter.setConcurrency(10);
+			adapter.setRecordsLimit(25);
 
 			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
 			dfa.setPropertyValue("describeStreamBackoff", 10);
 			dfa.setPropertyValue("consumerBackoff", 10);
+			dfa.setPropertyValue("idleBetweenPolls", 1);
 
 			return adapter;
 		}
@@ -373,10 +374,12 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			adapter.setOutputChannel(kinesisChannel());
 			adapter.setStartTimeout(10000);
 			adapter.setDescribeStreamRetries(1);
+			adapter.setRecordsLimit(25);
 
 			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
 			dfa.setPropertyValue("describeStreamBackoff", 10);
 			dfa.setPropertyValue("consumerBackoff", 10);
+			dfa.setPropertyValue("idleBetweenPolls", 1);
 
 			adapter.setConverter(String::new);
 
