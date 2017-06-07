@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2015-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,12 @@ public class SqsMessageDrivenChannelAdapterTests {
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");
 		assertThat(receive.getHeaders().get(AwsHeaders.QUEUE)).isEqualTo("testQueue");
 
-		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.stop('testQueue')"));
+		try {
+			this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.stop('testQueue')"));
+		}
+		catch (Exception e) {
+			// May fail with NPE. See https://github.com/spring-cloud/spring-cloud-aws/issues/232
+		}
 		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.isRunning('testQueue')"));
 
 		receive = this.controlBusOutput.receive(1000);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ package org.springframework.integration.aws.config.xml;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Matchers.anyString;
-
-import java.util.Map;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -100,11 +98,6 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "waitTimeOut")).isEqualTo(40);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "queueStopTimeout")).isEqualTo(11000L);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "autoStartup")).isEqualTo(false);
-
-		@SuppressWarnings("rawtypes")
-		Map queues = TestUtils.getPropertyValue(listenerContainer, "registeredQueues", Map.class);
-		assertThat(queues.keySet().contains("foo")).isTrue();
-		assertThat(queues.keySet().contains("bar")).isTrue();
 
 		assertThat(this.sqsMessageDrivenChannelAdapter.getPhase()).isEqualTo(100);
 		assertThat(this.sqsMessageDrivenChannelAdapter.isAutoStartup()).isFalse();

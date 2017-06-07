@@ -27,6 +27,7 @@ apply from: "${rootProject.projectDir}/publish-maven.gradle"
 group = 'org.springframework.integration'
 
 repositories {
+//	maven { url 'http://repo.spring.io/libs-staging-local' }
 	if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
 		maven { url 'https://repo.spring.io/libs-snapshot' }
 	}
@@ -37,8 +38,8 @@ ext {
 	assertjVersion = '3.6.2'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.22'
-	springCloudAwsVersion = '1.2.0.RC1'
-	springIntegrationVersion = '4.3.8.RELEASE'
+	springCloudAwsVersion = '1.2.1.RELEASE'
+	springIntegrationVersion = '4.3.10.RELEASE'
 
 	idPrefix = 'aws'
 
