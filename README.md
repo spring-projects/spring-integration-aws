@@ -35,16 +35,16 @@ where the topic is an *SQS* Queue.
 
 [Pull requests][] are welcome. Please see the [contributor guidelines][] for details. Additionally, if you are contributing, we recommend following the process for Spring Integration as outlined in the [administrator guidelines][].
 
-#Adapters
+# Adapters
 
-##Amazon Simple Storage Service (Amazon S3)
+## Amazon Simple Storage Service (Amazon S3)
 
-###Introduction
+### Introduction
 
 The S3 Channel Adapters are based on the `AmazonS3` template and `TransferManager`.
 See their specification and JavaDocs for more information.
 
-###Inbound Channel Adapter
+### Inbound Channel Adapter
 
 The S3 Inbound Channel Adapter is represented by the `S3InboundFileSynchronizingMessageSource`
  (`<int-aws:s3-inbound-channel-adapter>`) and allows to pull S3 objects as files from the S3 bucket
@@ -115,7 +115,7 @@ An XML variant may look like:
 </int-aws:s3-inbound-channel-adapter>
 ````
 
-###Streaming Inbound Channel Adapter
+### Streaming Inbound Channel Adapter
 
 This adapter produces message with payloads of type `InputStream`, allowing S3 objects to be fetched without writing to the local file system. 
 Since the session remains open, the consuming application is responsible for closing the session when the file has been consumed. 
@@ -191,7 +191,7 @@ Only one of `filename-pattern`, `filename-regex` or `filter` is allowed.
 > If you don’t actually want to persist the state, an in-memory `SimpleMetadataStore` can be used with the filter. 
 > If you wish to use a filename pattern (or regex) as well, use a `CompositeFileListFilter`.
 
-###Outbound Channel Adapter
+### Outbound Channel Adapter
 
 The S3 Outbound Channel Adapter is represented by the `S3MessageHandler` (`<int-aws:s3-outbound-channel-adapter>`
 and `<int-aws:s3-outbound-gateway>`) and allows to perform `upload`, `download` and `copy`
@@ -224,16 +224,16 @@ An XML variant may look like:
 <bean id="transferManager" class="com.amazonaws.services.s3.transfer.TransferManager"/>
 
 <int-aws:s3-outbound-channel-adapter transfer-manager="transferManager"
-									  channel="s3SendChannel"
-									  bucket="foo"
-									  command="DOWNLOAD"
-									  key="myDirectory"/>
+                   channel="s3SendChannel"
+                   bucket="foo"
+                   command="DOWNLOAD"
+                   key="myDirectory"/>
 ````
 
 See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
 `<int-aws:s3-outbound-gateway>` descriptions.
 
-###Outbound Gateway
+### Outbound Gateway
 
 The S3 Outbound Gateway is represented by the same `S3MessageHandler` with the `produceReply = true` constructor
  argument for Java Configuration and `<int-aws:s3-outbound-gateway>` for xml definitions.
@@ -247,18 +247,18 @@ Also the listener can be populated into the returned `Transfer` afterwards in th
 See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
 `<int-aws:s3-outbound-gateway>` descriptions.
 
-##Simple Email Service (SES)
+## Simple Email Service (SES)
 
 There is no adapter for SES, since [Spring Cloud AWS][] provides implementations for
 `org.springframework.mail.MailSender` - `SimpleEmailServiceMailSender` and `SimpleEmailServiceJavaMailSender`, which
 can be injected to the `<int-mail:outbound-channel-adapter>`.
 
-##Amazon Simple Queue Service (SQS)
+## Amazon Simple Queue Service (SQS)
 
 The `SQS` adapters are fully based on the [Spring Cloud AWS][] foundation, so for more information about the
 background components and core configuration, please, refer to the documentation of that project.
 
-###Outbound Channel Adapter
+### Outbound Channel Adapter
 
 The SQS Outbound Channel Adapter is presented by the `SqsMessageHandler` implementation
 (`<int-aws:sqs-outbound-channel-adapter>`) and allows to send message to the SQS `queue` with provided `AmazonSQS`
@@ -296,11 +296,11 @@ An XML variant may look like:
 <aws-messaging:sqs-async-client id="sqs"/>
 
 <int-aws:sqs-outbound-channel-adapter sqs="sqs"
-									  channel="sqsSendChannel"
-									  queue="foo"/>
+                   channel="sqsSendChannel"
+                   queue="foo"/>
 ````
 
-###Inbound Channel Adapter
+### Inbound Channel Adapter
 
 The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with
 `SqsMessageDrivenChannelAdapter`. This channel adapter is based on the
@@ -337,14 +337,14 @@ An XML variant may look like:
 <aws-messaging:sqs-async-client id="sqs"/>
 
 <int-aws:sqs-message-driven-channel-adapter id="sqsInboundChannel"
-                                          sqs="sqs"
-										  error-channel="myErrorChannel"
-										  queues="foo, bar"
-										  delete-message-on-exception="false"
-										  max-number-of-messages="5"
-										  visibility-timeout="200"
-										  wait-time-out="40"
-										  send-timeout="2000"/>
+                   sqs="sqs"
+                   error-channel="myErrorChannel"
+                   queues="foo, bar"
+                   delete-message-on-exception="false"
+                   max-number-of-messages="5"
+                   visibility-timeout="200"
+                   wait-time-out="40"
+                   send-timeout="2000"/>
 ````
 
 The `SqsMessageDrivenChannelAdapter` exposes all `SimpleMessageListenerContainer` attributes to configure and one an
@@ -359,7 +359,7 @@ this.amazonSqs.deleteMessageAsync(
           new DeleteMessageRequest(headers.get(AwsHeaders.QUEUE), headers.get(AwsHeaders.RECEIPT_HANDLE)));
 ````
 
-##Amazon Simple Notification Service (SNS)
+## Amazon Simple Notification Service (SNS)
 
 Amazon SNS is a publish-subscribe messaging system that allows clients to publish notification to a particular topic.
 Other interested clients may subscribe using different protocols like HTTP/HTTPS, e-mail or an Amazon SQS queue to
@@ -374,7 +374,7 @@ application scope and can be done only from the AWS Management Console, we provi
 face of `SnsInboundChannelAdapter`. The SQS-to-SNS subscription can be done with the simple usage of
 `com.amazonaws.services.sns.util.Topics#subscribeQueue()`, which confirms subscription automatically.
 
-###Inbound Channel Adapter
+### Inbound Channel Adapter
 
 The `SnsInboundChannelAdapter` (`<int-aws:sns-inbound-channel-adapter>`) is an extension of
 `HttpRequestHandlingMessagingGateway` and must be as a part of Spring MVC application. Its URL must be used from the
@@ -419,18 +419,18 @@ An XML variant may look like:
 
 ````xml
 <int-aws:sns-inbound-channel-adapter sns="amazonSns"
-										 path="/foo"
-										 channel="snsChannel"
-										 error-channel="errorChannel"
-										 handle-notification-status="true"
-										 payload-expression="payload.Message"/>
-```
+                   path="/foo"
+                   channel="snsChannel"
+                   error-channel="errorChannel"
+                   handle-notification-status="true"
+                   payload-expression="payload.Message"/>
+````
 
 Note: by default the message `payload` is a `Map` converted from the received Topic JSON message. For the convenient
 the `payload-expression` is provided with the `Message` as a root object of the evaluation context. Hence even some
 HTTP headers, populated by the `DefaultHttpHeaderMapper`, are available for the evaluation context.
 
-###Outbound Channel Adapter
+### Outbound Channel Adapter
 
 The `SnsMessageHandler` (`<int-aws:sns-outbound-channel-adapter>`) is a simple one-way Outbound Channel Adapter
 to send Topic Notification using `AmazonSNS` service.
@@ -477,7 +477,7 @@ The XML variant may look like:
 			body-expression="payload.toUpperCase()"/>
 ````
 
-###Outbound Gateway
+### Outbound Gateway
 
 The `<int-aws:sns-outbound-gateway>` is fully similar to the one-way channel adapter.
 The only difference that in gateway mode the `SnsMessageHandler` produces the reply `Message` as:
