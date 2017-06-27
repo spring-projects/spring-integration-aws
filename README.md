@@ -424,7 +424,7 @@ An XML variant may look like:
 										 error-channel="errorChannel"
 										 handle-notification-status="true"
 										 payload-expression="payload.Message"/>
-```
+````
 
 Note: by default the message `payload` is a `Map` converted from the received Topic JSON message. For the convenient
 the `payload-expression` is provided with the `Message` as a root object of the evaluation context. Hence even some
