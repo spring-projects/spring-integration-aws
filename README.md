@@ -224,10 +224,10 @@ An XML variant may look like:
 <bean id="transferManager" class="com.amazonaws.services.s3.transfer.TransferManager"/>
 
 <int-aws:s3-outbound-channel-adapter transfer-manager="transferManager"
-									  channel="s3SendChannel"
-									  bucket="foo"
-									  command="DOWNLOAD"
-									  key="myDirectory"/>
+                   channel="s3SendChannel"
+                   bucket="foo"
+                   command="DOWNLOAD"
+                   key="myDirectory"/>
 ````
 
 See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
@@ -296,8 +296,8 @@ An XML variant may look like:
 <aws-messaging:sqs-async-client id="sqs"/>
 
 <int-aws:sqs-outbound-channel-adapter sqs="sqs"
-									  channel="sqsSendChannel"
-									  queue="foo"/>
+                   channel="sqsSendChannel"
+                   queue="foo"/>
 ````
 
 ### Inbound Channel Adapter
@@ -337,14 +337,14 @@ An XML variant may look like:
 <aws-messaging:sqs-async-client id="sqs"/>
 
 <int-aws:sqs-message-driven-channel-adapter id="sqsInboundChannel"
-                                          sqs="sqs"
-										  error-channel="myErrorChannel"
-										  queues="foo, bar"
-										  delete-message-on-exception="false"
-										  max-number-of-messages="5"
-										  visibility-timeout="200"
-										  wait-time-out="40"
-										  send-timeout="2000"/>
+                   sqs="sqs"
+                   error-channel="myErrorChannel"
+                   queues="foo, bar"
+                   delete-message-on-exception="false"
+                   max-number-of-messages="5"
+                   visibility-timeout="200"
+                   wait-time-out="40"
+                   send-timeout="2000"/>
 ````
 
 The `SqsMessageDrivenChannelAdapter` exposes all `SimpleMessageListenerContainer` attributes to configure and one an
@@ -419,11 +419,11 @@ An XML variant may look like:
 
 ````xml
 <int-aws:sns-inbound-channel-adapter sns="amazonSns"
-										 path="/foo"
-										 channel="snsChannel"
-										 error-channel="errorChannel"
-										 handle-notification-status="true"
-										 payload-expression="payload.Message"/>
+                   path="/foo"
+                   channel="snsChannel"
+                   error-channel="errorChannel"
+                   handle-notification-status="true"
+                   payload-expression="payload.Message"/>
 ````
 
 Note: by default the message `payload` is a `Map` converted from the received Topic JSON message. For the convenient
