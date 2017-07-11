@@ -228,6 +228,10 @@ public class S3Session implements Session<S3ObjectSummary> {
 		return this.amazonS3;
 	}
 
+	public String normalizeBucketName(String path) {
+		return splitPathToBucketAndKey(path, false)[0];
+	}
+
 	private String[] splitPathToBucketAndKey(String path, boolean requireKey) {
 		Assert.hasText(path, "'path' must not be empty String.");
 

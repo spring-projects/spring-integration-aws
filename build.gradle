@@ -3,12 +3,8 @@ buildscript {
 		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 	dependencies {
-		classpath 'io.spring.gradle:spring-io-plugin:0.0.6.RELEASE'
-	}
-	configurations.classpath.resolutionStrategy.eachDependency {
-		if (it.requested.name == 'dependency-management-plugin') {
-			it.useVersion '1.0.0.RELEASE'
-		}
+		classpath 'io.spring.gradle:dependency-management-plugin:1.0.2.RELEASE'
+		classpath 'io.spring.gradle:spring-io-plugin:0.0.8.RELEASE'
 	}
 }
 
@@ -17,7 +13,7 @@ plugins {
 	id 'eclipse'
 	id 'idea'
 	id 'jacoco'
-	id 'org.sonarqube' version '2.2.1'
+	id 'org.sonarqube' version '2.5'
 	id 'checkstyle'
 }
 description = 'Spring Integration AWS Support'
@@ -37,7 +33,7 @@ repositories {
 ext {
 	assertjVersion = '3.6.2'
 	servletApiVersion = '3.1.0'
-	slf4jVersion = '1.7.22'
+	slf4jVersion = '1.7.25'
 	springCloudAwsVersion = '1.2.1.RELEASE'
 	springIntegrationVersion = '4.3.10.RELEASE'
 
@@ -95,12 +91,12 @@ dependencyManagement {
 }
 
 jacoco {
-	toolVersion = "0.7.8"
+	toolVersion = "0.7.9"
 }
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "6.16.1"
+	toolVersion = "8.0"
 }
 
 dependencies {
@@ -167,7 +163,7 @@ jacocoTestReport {
 	reports {
 		xml.enabled false
 		csv.enabled false
-		html.destination "${buildDir}/reports/jacoco/html"
+		html.destination file("${buildDir}/reports/jacoco/html")
 	}
 }
 

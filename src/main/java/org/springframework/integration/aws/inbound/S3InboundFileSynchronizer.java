@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,12 @@
 
 package org.springframework.integration.aws.inbound;
 
+import java.io.File;
+import java.io.IOException;
+
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
+import org.springframework.integration.aws.support.S3Session;
 import org.springframework.integration.aws.support.S3SessionFactory;
 import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter;
 import org.springframework.integration.file.filters.FileListFilter;
@@ -77,6 +81,13 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	@Override
 	protected long getModified(S3ObjectSummary file) {
 		return file.getLastModified().getTime();
+	}
+
+	@Override
+	protected void copyFileToLocalDirectory(String remoteDirectoryPath, S3ObjectSummary remoteFile,
+			File localDirectory, Session<S3ObjectSummary> session) throws IOException {
+		super.copyFileToLocalDirectory(((S3Session) session).normalizeBucketName(remoteDirectoryPath),
+				remoteFile, localDirectory, session);
 	}
 
 }
