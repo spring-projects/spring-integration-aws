@@ -497,6 +497,13 @@ flag to `true` ot switch it to the gateway mode.
 By default the `SnsMessageHandler` is one-way `MessageHandler`.
 
 
+## Metadata Store for Amazon DynamoDB
+
+The `DynamoDbMetaDataStore`, a `ConcurrentMetadataStore` implementation, is provided to keep the metadata for Spring Integration components in the distributed Amazon DynamoDB store. 
+The implementation is based on a simple table with `KEY` and `VALUE` attributes, both are string types and the `KEY` is primary key of the table.
+By default the `SpringIntegrationMetadataStore` table is used and it is created during `DynamoDbMetaDataStore` initialization if that doesn't exist yet.
+The `DynamoDbMetaDataStore` can be used for the `KinesisMessageDrivenChannelAdapter` as a cloud-based `cehckpointStore`.
+
 [Spring Cloud AWS]: https://github.com/spring-cloud/spring-cloud-aws
 [AWS SDK for Java]: http://aws.amazon.com/sdkforjava/
 [Amazon Web Services]: http://aws.amazon.com/

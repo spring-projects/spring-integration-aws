@@ -84,9 +84,9 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	}
 
 	@Override
-	protected void copyFileToLocalDirectory(String remoteDirectoryPath, S3ObjectSummary remoteFile,
+	protected boolean copyFileToLocalDirectory(String remoteDirectoryPath, S3ObjectSummary remoteFile,
 			File localDirectory, Session<S3ObjectSummary> session) throws IOException {
-		super.copyFileToLocalDirectory(((S3Session) session).normalizeBucketName(remoteDirectoryPath),
+		return super.copyFileToLocalDirectory(((S3Session) session).normalizeBucketName(remoteDirectoryPath),
 				remoteFile, localDirectory, session);
 	}
 

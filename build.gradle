@@ -35,7 +35,7 @@ ext {
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.25'
 	springCloudAwsVersion = '1.2.1.RELEASE'
-	springIntegrationVersion = '4.3.10.RELEASE'
+	springIntegrationVersion = '4.3.11.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -108,6 +108,7 @@ dependencies {
 	compile('org.springframework.integration:spring-integration-http', optional)
 
 	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
+	compile('com.amazonaws:aws-java-sdk-dynamodb', optional)
 
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
