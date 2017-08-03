@@ -29,46 +29,53 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.SDKGlobalConfiguration;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsyncClientBuilder;
+import com.amazonaws.services.kinesis.AmazonKinesisAsync;
+import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
 
 /**
+ * The {@link TestWatcher} implementation for local Amazon Kinesis service.
+ * See https://github.com/mhart/kinesalite.
+ *
  * @author Artem Bilan
  *
  * @since 1.1
  */
-public final class DynamoDbRunning extends TestWatcher {
+public final class KinesisLocalRunning extends TestWatcher {
 
-	private static Log logger = LogFactory.getLog(DynamoDbRunning.class);
+	private static Log logger = LogFactory.getLog(KinesisLocalRunning.class);
 
 	// Static so that we only test once on failure: speeds up test suite
-	private static Map<Integer, Boolean> dynamoDbOnline = new HashMap<>();
+	private static Map<Integer, Boolean> kinesisOnline = new HashMap<>();
 
 	private final int port;
 
-	private AmazonDynamoDBAsync amazonDynamoDB;
+	private AmazonKinesisAsync amazonKinesis;
 
-	private DynamoDbRunning(int port) {
+	private KinesisLocalRunning(int port) {
 		this.port = port;
-		dynamoDbOnline.put(port, true);
+		kinesisOnline.put(port, true);
 	}
 
-	public AmazonDynamoDBAsync getDynamoDB() {
-		return this.amazonDynamoDB;
+	public AmazonKinesisAsync getKinesis() {
+		return this.amazonKinesis;
 	}
 
 	@Override
 	public Statement apply(Statement base, Description description) {
-		assumeTrue(dynamoDbOnline.get(this.port));
+		assumeTrue(kinesisOnline.get(this.port));
 
 		String url = "http://localhost:" + this.port;
 
-		this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
+		// See https://github.com/mhart/kinesalite#cbor-protocol-issues-with-the-java-sdk
+		System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
+
+		this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
 				.withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("", "")))
 				.withClientConfiguration(
 						new ClientConfiguration()
@@ -79,18 +86,28 @@ public final class DynamoDbRunning extends TestWatcher {
 				.build();
 
 		try {
-			this.amazonDynamoDB.listTables();
+			this.amazonKinesis.listStreams();
 		}
 		catch (SdkClientException e) {
-			logger.warn("Tests not running because no DynamoDb on " + url, e);
+			logger.warn("Tests not running because no Kinesis on " + url, e);
 			assumeNoException(e);
 		}
-		return super.apply(base, description);
+
+
+		return new Statement() {
+			public void evaluate() throws Throwable {
+				try {
+					base.evaluate();
+				} finally {
+					System.clearProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY);
+				}
+
+			}
+		};
 	}
 
-
-	public static DynamoDbRunning isRunning(int port) {
-		return new DynamoDbRunning(port);
+	public static KinesisLocalRunning isRunning(int port) {
+		return new KinesisLocalRunning(port);
 	}
 
 }

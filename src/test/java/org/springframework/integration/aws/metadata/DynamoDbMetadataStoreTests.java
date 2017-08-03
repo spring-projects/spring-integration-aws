@@ -26,7 +26,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import org.springframework.integration.aws.DynamoDbRunning;
+import org.springframework.integration.aws.DynamoDbLocalRunning;
 import org.springframework.integration.test.util.TestUtils;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
@@ -47,7 +47,7 @@ import com.amazonaws.waiters.WaiterParameters;
 public class DynamoDbMetadataStoreTests {
 
 	@ClassRule
-	public static final DynamoDbRunning DYNAMO_DB_RUNNING = DynamoDbRunning.isRunning(4567);
+	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning(4567);
 
 	private static final String TEST_TABLE = "testMetadataStore";
 

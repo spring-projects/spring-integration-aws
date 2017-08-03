@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 		this.explicitHashKeyExpression = explicitHashKeyExpression;
 	}
 
-	public void setSequenceNumberString(String sequenceNumberExpression) {
+	public void setSequenceNumberExpressionString(String sequenceNumberExpression) {
 		setSequenceNumberExpression(EXPRESSION_PARSER.parseExpression(sequenceNumberExpression));
 	}
 
@@ -141,6 +141,14 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 
 	public void setSync(boolean sync) {
 		this.sync = sync;
+	}
+
+	public void setSendTimeout(long sendTimeout) {
+		setSendTimeoutExpression(new ValueExpression<>(sendTimeout));
+	}
+
+	public void setSendTimeoutExpressionString(String sendTimeoutExpression) {
+		setSendTimeoutExpression(EXPRESSION_PARSER.parseExpression(sendTimeoutExpression));
 	}
 
 	public void setSendTimeoutExpression(Expression sendTimeoutExpression) {
@@ -162,7 +170,6 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 					(AsyncHandler<PutRecordsRequest, PutRecordsResult>) this.asyncHandler);
 		}
 		else {
-
 			PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
 					? (PutRecordRequest) message.getPayload()
 					: buildPutRecordRequest(message);
@@ -227,8 +234,7 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 							? (byte[]) payload
 							: this.converter.convert(payload);
 
-			data = ByteBuffer.wrap(
-					bytes);
+			data = ByteBuffer.wrap(bytes);
 		}
 
 		return new PutRecordRequest()

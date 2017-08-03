@@ -504,6 +504,114 @@ The implementation is based on a simple table with `KEY` and `VALUE` attributes,
 By default the `SpringIntegrationMetadataStore` table is used and it is created during `DynamoDbMetaDataStore` initialization if that doesn't exist yet.
 The `DynamoDbMetaDataStore` can be used for the `KinesisMessageDrivenChannelAdapter` as a cloud-based `cehckpointStore`.
 
+For testing application with the `DynamoDbMetaDataStore` you can use [Dynalite][] NPM module.
+What you need in your application is to configure DynamoDB client properly:
+
+````java
+String url = "http://localhost:" + this.port;
+
+this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
+        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("", "")))
+        .withClientConfiguration(
+                new ClientConfiguration()
+                        .withMaxErrorRetry(0)
+                        .withConnectionTimeout(1000))
+        .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration(url, Regions.DEFAULT_REGION.getName()))
+        .build();
+````
+
+Where you should specify the port on which you have ran the Dynalite service.
+Also you can use for you testing purpose a copy of `org.springframework.integration.aws.DynamoDbLocalRunning` in the `/test` directory of this project.    
+
+## Amazon Kinesis
+
+Amazon Kinesis is a platform for streaming data on AWS, making it easy to load and analyze streaming data, and also providing the ability for you to build custom streaming data applications for specialized needs.
+The Spring Integration solution is fully based on the Standard `aws-java-sdk-kinesis` and doesn't use [Kinesis Client Library][] and isn't compatible with it.  
+
+### Inbound Channel Adapter
+
+The `KinesisMessageDrivenChannelAdapter` is an extension of the `MessageProducerSupport` - event-driver channel adapter.
+
+See `KinesisMessageDrivenChannelAdapter` JavaDocs and its setters for more information how to use and how to configure it in the application for Kinesis streams ingestion.
+
+The Java Configuration is pretty simple:
+
+````java
+@SpringBootApplication
+public static class MyConfiguration {
+
+    @Bean
+    public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel(AmazonKinesis amazonKinesis) {
+        KinesisMessageDrivenChannelAdapter adapter =
+            new KinesisMessageDrivenChannelAdapter(amazonKinesis, "MY_STREAM");
+        adapter.setOutputChannel(kinesisReceiveChannel());
+        return adapter;
+    }
+}
+````
+
+This channel adapter can be configured with the `DynamoDbMetaDataStore` mentioned above to track sequence checkpoints for shards in the cloud environment when we have several instances of our Kinesis application. 
+By default this adapter uses `DeserializingConverter` to convert `byte[]` from the `Record` data.
+Can be specified as `null` with meaning no conversion and the target `Message` is sent with the `byte[]` payload.
+
+The consumer group is included to the metadata store `key`.
+When records are consumed, they are filtered by the last stored `lastCheckpoint` under the key as `[CONSUMER_GROUP]:[STREAM]:[SHARD_ID]`.
+
+### Outbound Channel Adapter
+
+The `KinesisMessageHandler` is a `AbstractMessageHandler` to perform put record to the Kinesis stream.
+The stream, partition key (or explicit hash key) and sequence number can be determined against request message via evaluation provided expressions or can be specified statically.
+They also can specified as `AwsHeaders.STREAM`, `AwsHeaders.PARTITION_KEY` and `AwsHeaders.SEQUENCE_NUMBER` respectively.
+
+The `payload` of request message can be:
+ 
+- `PutRecordsRequest` to perform `AmazonKinesisAsync.putRecordsAsync`
+- `PutRecordRequest` to perform `AmazonKinesisAsync.putRecordAsync`
+- `ByteBuffer` to represent a data of the `PutRecordRequest`
+- `byte[]` which is wrapped to the `ByteBuffer`
+- any other type which is converted to the `byte[]` by the provided `Converter`; the `SerializingConverter` is used by default.  
+
+The Java Configuration for the message handler:
+
+````java
+@SpringBootApplication
+public static class MyConfiguration {
+
+    @Bean
+    @ServiceActivator(inputChannel = "kinesisSendChannel")
+    public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis) {
+        KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis);
+        kinesisMessageHandler.setPartitionKey("1");
+        return kinesisMessageHandler;
+    }
+    
+}
+````
+
+For testing application with the Kinesis Channel Adapters you can use [Kinesalite][] NPM module.
+What you need in your application is to configure Kinesis client properly:
+
+````java
+String url = "http://localhost:" + this.port;
+
+// See https://github.com/mhart/kinesalite#cbor-protocol-issues-with-the-java-sdk
+System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
+
+this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
+        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("", "")))
+        .withClientConfiguration(
+                new ClientConfiguration()
+                        .withMaxErrorRetry(0)
+                        .withConnectionTimeout(1000))
+        .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration(url, Regions.DEFAULT_REGION.getName()))
+        .build();
+````
+
+Where you should specify the port on which you have ran the Kinesalite service.
+Also you can use for you testing purpose a copy of `org.springframework.integration.aws.KinesisLocalRunning` in the `/test` directory of this project.    
+
 [Spring Cloud AWS]: https://github.com/spring-cloud/spring-cloud-aws
 [AWS SDK for Java]: http://aws.amazon.com/sdkforjava/
 [Amazon Web Services]: http://aws.amazon.com/
@@ -513,3 +621,6 @@ The `DynamoDbMetaDataStore` can be used for the `KinesisMessageDrivenChannelAdap
 [Reference Manual]: http://docs.spring.io/spring-integration/reference/html/ftp.html
 [Pull requests]: http://help.github.com/send-pull-requests
 [contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc
+[Dynalite]: [https://github.com/mhart/dynalite]
+[Kinesis Client Library]: [https://github.com/awslabs/amazon-kinesis-client]
+[Kinesalite]: [https://github.com/mhart/kinesalite]
