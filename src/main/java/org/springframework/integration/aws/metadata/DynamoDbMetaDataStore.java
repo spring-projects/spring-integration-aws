@@ -110,7 +110,7 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 	public void afterPropertiesSet() throws Exception {
 		try {
 			this.table.describe();
-			createTableLatch.countDown();
+			this.createTableLatch.countDown();
 			return;
 		}
 		catch (ResourceNotFoundException e) {
@@ -196,7 +196,6 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 	@Override
 	public String get(String key) {
 		Assert.hasText(key, "'key' must not be empty.");
-
 
 		awaitForActive();
 

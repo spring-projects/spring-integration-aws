@@ -107,13 +107,13 @@ public class DynamoDbMetadataStoreTests {
 
 	@Test
 	public void testPutIfAbsent() throws Exception {
-		String fileID = store.get(file1);
+		String fileID = store.get(this.file1);
 		assertThat(fileID).describedAs("Get First time, Value must not exist").isNull();
 
-		fileID = store.putIfAbsent(file1, file1Id);
+		fileID = store.putIfAbsent(this.file1, this.file1Id);
 		assertThat(fileID).describedAs("Insert First time, Value must return null").isNull();
 
-		fileID = store.putIfAbsent(file1, "56789");
+		fileID = store.putIfAbsent(this.file1, "56789");
 		assertThat(fileID).describedAs("Key Already Exists - Insertion Failed, ol value must be returned").isNotNull();
 		assertThat(fileID).describedAs("The Old Value must be equal to returned").isEqualTo(this.file1Id);
 
@@ -138,16 +138,16 @@ public class DynamoDbMetadataStoreTests {
 
 	@Test
 	public void testReplace() throws Exception {
-		boolean removedValue = store.replace(file1, file1Id, "4567");
+		boolean removedValue = store.replace(this.file1, this.file1Id, "4567");
 		assertThat(removedValue).isFalse();
 
 		String fileID = store.get(this.file1);
 		assertThat(fileID).isNull();
 
-		fileID = store.putIfAbsent(this.file1, file1Id);
+		fileID = store.putIfAbsent(this.file1, this.file1Id);
 		assertThat(fileID).isNull();
 
-		removedValue = store.replace(this.file1, file1Id, "4567");
+		removedValue = store.replace(this.file1, this.file1Id, "4567");
 		assertThat(removedValue).isTrue();
 
 		fileID = store.get(this.file1);

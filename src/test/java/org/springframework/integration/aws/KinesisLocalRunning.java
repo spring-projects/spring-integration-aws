@@ -95,10 +95,13 @@ public final class KinesisLocalRunning extends TestWatcher {
 
 
 		return new Statement() {
+
+			@Override
 			public void evaluate() throws Throwable {
 				try {
 					base.evaluate();
-				} finally {
+				}
+				finally {
 					System.clearProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY);
 				}
 
