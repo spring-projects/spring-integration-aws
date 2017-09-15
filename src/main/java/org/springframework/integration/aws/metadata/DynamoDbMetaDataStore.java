@@ -80,9 +80,13 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	private final CountDownLatch createTableLatch = new CountDownLatch(1);
 
-	private Long readCapacity = 10000L;
+	private int createTableRetries = 25;
 
-	private Long writeCapacity = 10000L;
+	private int createTableDelay = 1;
+
+	private long readCapacity = 1L;
+
+	private long writeCapacity = 1L;
 
 	public DynamoDbMetaDataStore(AmazonDynamoDBAsync dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
@@ -98,12 +102,20 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	}
 
-	public void setReadCapacity(Long readCapacity) {
+	public void setReadCapacity(long readCapacity) {
 		this.readCapacity = readCapacity;
 	}
 
-	public void setWriteCapacity(Long writeCapacity) {
+	public void setWriteCapacity(long writeCapacity) {
 		this.writeCapacity = writeCapacity;
+	}
+
+	public void setCreateTableRetries(int createTableRetries) {
+		this.createTableRetries = createTableRetries;
+	}
+
+	public void setCreateTableDelay(int createTableDelay) {
+		this.createTableDelay = createTableDelay;
 	}
 
 	@Override
@@ -147,8 +159,9 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 								new WaiterParameters<>(
 										new DescribeTableRequest(DynamoDbMetaDataStore.this.table.getTableName()))
 										.withPollingStrategy(
-												new PollingStrategy(new MaxAttemptsRetryStrategy(25),
-														new FixedDelayStrategy(1)));
+												new PollingStrategy(
+														new MaxAttemptsRetryStrategy(DynamoDbMetaDataStore.this.createTableRetries),
+														new FixedDelayStrategy(DynamoDbMetaDataStore.this.createTableDelay)));
 
 						waiter.runAsync(waiterParameters, new WaiterHandler<DescribeTableRequest>() {
 
@@ -173,10 +186,12 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	private void awaitForActive() {
 		try {
-			this.createTableLatch.await(10, TimeUnit.SECONDS);
+			this.createTableLatch.await(this.createTableRetries * this.createTableDelay, TimeUnit.SECONDS);
 		}
 		catch (InterruptedException e) {
-
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("The DynamoDb table " + this.table.getTableName() +
+					" has not been created during " + this.createTableRetries * this.createTableDelay + " seconds");
 		}
 	}
 
