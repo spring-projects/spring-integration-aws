@@ -885,6 +885,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				if (logger.isTraceEnabled()) {
 					logger.trace("Processing records: " + records + " for [" + ShardConsumer.this + "]");
 				}
+
+				// TODO Reconsider this logic after rebalance and shard leader election implementation
+				if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+					this.checkpointer.checkpoint();
+				}
+
 				switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
 					case record:
 						for (Record record : records) {
@@ -909,6 +915,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								this.checkpointer.checkpoint(record.getSequenceNumber());
 							}
 						}
+
 						break;
 
 					case batch:
@@ -924,10 +931,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 						break;
 
-				}
-
-				if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-					this.checkpointer.checkpoint();
 				}
 			}
 		}

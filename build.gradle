@@ -3,7 +3,7 @@ buildscript {
 		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 	dependencies {
-		classpath 'io.spring.gradle:dependency-management-plugin:1.0.2.RELEASE'
+		classpath 'io.spring.gradle:dependency-management-plugin:1.0.3.RELEASE'
 		classpath 'io.spring.gradle:spring-io-plugin:0.0.8.RELEASE'
 	}
 }
@@ -31,11 +31,11 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.6.2'
+	assertjVersion = '3.8.0'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.25'
 	springCloudAwsVersion = '1.2.1.RELEASE'
-	springIntegrationVersion = '4.3.11.RELEASE'
+	springIntegrationVersion = '4.3.12.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -96,7 +96,7 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "8.1"
+	toolVersion = "8.3"
 }
 
 dependencies {
