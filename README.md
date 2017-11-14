@@ -618,7 +618,7 @@ Also you can use for you testing purpose a copy of `org.springframework.integrat
 [http://aws.amazon.com/products/]: http://aws.amazon.com/products/
 [http://aws.amazon.com/ses/]: http://aws.amazon.com/ses/
 [http://aws.amazon.com/documentation/ses/]: http://aws.amazon.com/documentation/ses/
-[Reference Manual]: http://docs.spring.io/spring-integration/reference/html/ftp.html
+[FTP/FTPS Adapters Chapter]: https://docs.spring.io/spring-integration/reference/html/ftp.html
 [Pull requests]: http://help.github.com/send-pull-requests
 [contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc
 [Dynalite]: https://github.com/mhart/dynalite
