@@ -304,41 +304,36 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 			return this.asyncHandler;
 		}
 		else {
-			if (getSendFailureChannel() != null || getOutputChannel() != null) {
-				return new AsyncHandler<AmazonWebServiceRequest, AmazonWebServiceResult>() {
+			return new AsyncHandler<AmazonWebServiceRequest, AmazonWebServiceResult>() {
 
-					@Override
-					public void onError(Exception ex) {
-						if (getSendFailureChannel() != null) {
-							KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
-									KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
-											new AwsRequestFailureException(message, request, ex), null));
-						}
+				@Override
+				public void onError(Exception ex) {
+					if (getSendFailureChannel() != null) {
+						KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
+								KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
+										new AwsRequestFailureException(message, request, ex), null));
+					}
+				}
+
+				@Override
+				public void onSuccess(AmazonWebServiceRequest request, AmazonWebServiceResult result) {
+					Message<?> resultMessage;
+
+					if (result instanceof PutRecordResult) {
+						resultMessage = getMessageBuilderFactory().fromMessage(message)
+								.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
+								.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber())
+								.build();
+					}
+					else {
+						resultMessage = getMessageBuilderFactory().fromMessage(message).build();
 					}
 
-					@Override
-					public void onSuccess(AmazonWebServiceRequest request, AmazonWebServiceResult result) {
-						Message<?> resultMessage;
-
-						if (result instanceof PutRecordResult) {
-							resultMessage = getMessageBuilderFactory().fromMessage(message)
-									.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
-									.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber())
-									.build();
-						}
-						else {
-							resultMessage = getMessageBuilderFactory().fromMessage(message).build();
-						}
-
-						if (getOutputChannel() != null) {
-							KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(), resultMessage);
-						}
+					if (getOutputChannel() != null) {
+						KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(), resultMessage);
 					}
-				};
-			}
-			else {
-				return null;
-			}
+				}
+			};
 		}
 	}
 
