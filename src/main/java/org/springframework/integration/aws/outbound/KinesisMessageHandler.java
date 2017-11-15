@@ -28,7 +28,7 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.MessageTimeoutException;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.aws.support.AwsSendFailureException;
+import org.springframework.integration.aws.support.AwsRequestFailureException;
 import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
@@ -170,7 +170,7 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 
 	/**
 	 * Set the failure channel. After a send failure, an {@link ErrorMessage} will be sent
-	 * to this channel with a payload of a {@link AwsSendFailureException} with the
+	 * to this channel with a payload of a {@link AwsRequestFailureException} with the
 	 * failed message and cause.
 	 * @param sendFailureChannel the failure channel.
 	 * @since 1.1.0
@@ -194,7 +194,7 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 
 	/**
 	 * Set the failure channel name. After a send failure, an {@link ErrorMessage} will be
-	 * sent to this channel name with a payload of a {@link AwsSendFailureException}
+	 * sent to this channel name with a payload of a {@link AwsRequestFailureException}
 	 * with the failed message and cause.
 	 * @param sendFailureChannelName the failure channel name.
 	 * @since 1.1.0
@@ -310,7 +310,7 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 						if (getSendFailureChannel() != null) {
 							KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
 									KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
-											new AwsSendFailureException(message,
+											new AwsRequestFailureException(message,
 													(PutRecordsRequest) message.getPayload(), ex), null));
 						}
 					}
@@ -346,7 +346,7 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 						if (getSendFailureChannel() != null) {
 							KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
 									KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
-											new AwsSendFailureException(message, request, ex), null));
+											new AwsRequestFailureException(message, request, ex), null));
 						}
 					}
 

@@ -36,7 +36,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.aws.support.AwsSendFailureException;
+import org.springframework.integration.aws.support.AwsRequestFailureException;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.messaging.Message;
@@ -126,13 +126,13 @@ public class KinesisProducingMessageHandlerTests {
 		this.kinesisSendChannel.send(message);
 
 		Message<?> failed = this.errorChannel.receive(10000);
-		AwsSendFailureException putRecordFailure = (AwsSendFailureException) failed.getPayload();
+		AwsRequestFailureException putRecordFailure = (AwsRequestFailureException) failed.getPayload();
 		assertThat(putRecordFailure.getCause().getMessage()).isEqualTo("putRecordRequestEx");
-		assertThat(((PutRecordRequest) putRecordFailure.getRecord()).getStreamName()).isEqualTo("foo");
-		assertThat(((PutRecordRequest) putRecordFailure.getRecord()).getPartitionKey()).isEqualTo("fooKey");
-		assertThat(((PutRecordRequest) putRecordFailure.getRecord()).getSequenceNumberForOrdering()).isEqualTo("10");
-		assertThat(((PutRecordRequest) putRecordFailure.getRecord()).getExplicitHashKey()).isNull();
-		assertThat(((PutRecordRequest) putRecordFailure.getRecord())
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getStreamName()).isEqualTo("foo");
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getPartitionKey()).isEqualTo("fooKey");
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getSequenceNumberForOrdering()).isEqualTo("10");
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getExplicitHashKey()).isNull();
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest())
 				.getData()).isEqualTo(ByteBuffer.wrap("message".getBytes()));
 
 		message = new GenericMessage<>(new PutRecordsRequest()
@@ -165,10 +165,10 @@ public class KinesisProducingMessageHandlerTests {
 		this.kinesisSendChannel.send(message);
 
 		failed = this.errorChannel.receive(10000);
-		AwsSendFailureException putRecordsFailure = (AwsSendFailureException) failed.getPayload();
+		AwsRequestFailureException putRecordsFailure = (AwsRequestFailureException) failed.getPayload();
 		assertThat(putRecordsFailure.getCause().getMessage()).isEqualTo("putRecordsRequestEx");
-		assertThat(((PutRecordsRequest) putRecordsFailure.getRecord()).getStreamName()).isEqualTo("myStream");
-		assertThat(((PutRecordsRequest) putRecordsFailure.getRecord()).getRecords())
+		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getStreamName()).isEqualTo("myStream");
+		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getRecords())
 				.containsExactlyInAnyOrder(new PutRecordsRequestEntry()
 						.withData(ByteBuffer.wrap("test".getBytes()))
 						.withPartitionKey("testKey"));

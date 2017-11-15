@@ -27,24 +27,24 @@ import com.amazonaws.AmazonWebServiceRequest;
  * @author Jacob Severson
  * @since 1.1.0
  */
-public class AwsSendFailureException extends MessagingException {
+public class AwsRequestFailureException extends MessagingException {
 
 	private static final long serialVersionUID = 1L;
 
-	private final AmazonWebServiceRequest record;
+	private final AmazonWebServiceRequest request;
 
-	public AwsSendFailureException(Message<?> message, AmazonWebServiceRequest record, Throwable cause) {
+	public AwsRequestFailureException(Message<?> message, AmazonWebServiceRequest record, Throwable cause) {
 		super(message, cause);
-		this.record = record;
+		this.request = record;
 	}
 
-	public AmazonWebServiceRequest getRecord() {
-		return this.record;
+	public AmazonWebServiceRequest getRequest() {
+		return this.request;
 	}
 
 	@Override
 	public String toString() {
-		return super.toString() + " [record=" + this.record + "]";
+		return super.toString() + " [record=" + this.request + "]";
 	}
 
 }
