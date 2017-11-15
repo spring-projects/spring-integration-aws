@@ -33,9 +33,9 @@ public class AwsRequestFailureException extends MessagingException {
 
 	private final AmazonWebServiceRequest request;
 
-	public AwsRequestFailureException(Message<?> message, AmazonWebServiceRequest record, Throwable cause) {
+	public AwsRequestFailureException(Message<?> message, AmazonWebServiceRequest request, Throwable cause) {
 		super(message, cause);
-		this.request = record;
+		this.request = request;
 	}
 
 	public AmazonWebServiceRequest getRequest() {

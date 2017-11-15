@@ -42,6 +42,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.AmazonWebServiceResult;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
@@ -212,12 +213,13 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 	@Override
 	@SuppressWarnings("unchecked")
 	protected void handleMessageInternal(final Message<?> message) throws Exception {
-		Future<?> resultFuture = null;
+		Future<?> resultFuture;
 
 		if (message.getPayload() instanceof PutRecordsRequest) {
 
 			resultFuture = this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(),
-					getPutRecordsAsyncHandler(message));
+					(AsyncHandler<PutRecordsRequest, PutRecordsResult>) getAsyncHandler(message,
+							(PutRecordsRequest) message.getPayload()));
 		}
 		else {
 			final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
@@ -225,7 +227,7 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 					: buildPutRecordRequest(message);
 
 			resultFuture = this.amazonKinesis.putRecordAsync(putRecordRequest,
-					getPutRecordAsyncHandler(message, putRecordRequest));
+					(AsyncHandler<PutRecordRequest, PutRecordResult>) getAsyncHandler(message, putRecordRequest));
 		}
 
 		if (this.sync) {
@@ -295,51 +297,15 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 				.withData(data);
 	}
 
-	@SuppressWarnings("unchecked")
-	private AsyncHandler<PutRecordsRequest, PutRecordsResult> getPutRecordsAsyncHandler(final Message<?> message) {
-		// allowing explicit setting of the AsyncHandler for backward compatibility
+	@SuppressWarnings("rawtypes")
+	private AsyncHandler<? extends AmazonWebServiceRequest, ?> getAsyncHandler(final Message<?> message,
+																			final AmazonWebServiceRequest request) {
 		if (this.asyncHandler != null) {
-			return (AsyncHandler<PutRecordsRequest, PutRecordsResult>) this.asyncHandler;
+			return this.asyncHandler;
 		}
 		else {
 			if (getSendFailureChannel() != null || getOutputChannel() != null) {
-				return new AsyncHandler<PutRecordsRequest, PutRecordsResult>() {
-
-					@Override
-					public void onError(Exception ex) {
-						if (getSendFailureChannel() != null) {
-							KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
-									KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
-											new AwsRequestFailureException(message,
-													(PutRecordsRequest) message.getPayload(), ex), null));
-						}
-					}
-
-					@Override
-					public void onSuccess(PutRecordsRequest request, PutRecordsResult putRecordsResult) {
-						if (getOutputChannel() != null) {
-							KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(),
-									getMessageBuilderFactory().fromMessage(message).build());
-						}
-					}
-				};
-			}
-			else {
-				return null;
-			}
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	private AsyncHandler<PutRecordRequest, PutRecordResult> getPutRecordAsyncHandler(final Message<?> message,
-																					final PutRecordRequest request) {
-		// allowing explicit setting of the AsyncHandler for backward compatibility
-		if (this.asyncHandler != null) {
-			return (AsyncHandler<PutRecordRequest, PutRecordResult>) this.asyncHandler;
-		}
-		else {
-			if (getSendFailureChannel() != null || getOutputChannel() != null) {
-				return new AsyncHandler<PutRecordRequest, PutRecordResult>() {
+				return new AsyncHandler<AmazonWebServiceRequest, AmazonWebServiceResult>() {
 
 					@Override
 					public void onError(Exception ex) {
@@ -351,10 +317,21 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 					}
 
 					@Override
-					public void onSuccess(PutRecordRequest request, PutRecordResult putRecordsResult) {
+					public void onSuccess(AmazonWebServiceRequest request, AmazonWebServiceResult result) {
+						Message<?> resultMessage;
+
+						if (result instanceof PutRecordResult) {
+							resultMessage = getMessageBuilderFactory().fromMessage(message)
+									.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
+									.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber())
+									.build();
+						}
+						else {
+							resultMessage = getMessageBuilderFactory().fromMessage(message).build();
+						}
+
 						if (getOutputChannel() != null) {
-							KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(),
-									getMessageBuilderFactory().fromMessage(message).build());
+							KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(), resultMessage);
 						}
 					}
 				};
