@@ -20,14 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.Future;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -52,8 +50,10 @@ import org.springframework.test.context.junit4.SpringRunner;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
+import com.amazonaws.services.kinesis.model.PutRecordResult;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
+import com.amazonaws.services.kinesis.model.PutRecordsResult;
 
 /**
  * @author Jacob Severson
@@ -64,9 +64,6 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 public class KinesisProducingMessageHandlerTests {
 
 	@Autowired
-	protected AmazonKinesisAsync amazonKinesis;
-
-	@Autowired
 	protected MessageChannel kinesisSendChannel;
 
 	@Autowired
@@ -74,6 +71,9 @@ public class KinesisProducingMessageHandlerTests {
 
 	@Autowired
 	protected PollableChannel errorChannel;
+
+	@Autowired
+	protected PollableChannel successChannel;
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -105,18 +105,10 @@ public class KinesisProducingMessageHandlerTests {
 
 		this.kinesisSendChannel.send(message);
 
-		ArgumentCaptor<PutRecordRequest> putRecordRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutRecordRequest.class);
-		verify(this.amazonKinesis).putRecordAsync(putRecordRequestArgumentCaptor.capture(),
-				any(AsyncHandler.class));
-
-		PutRecordRequest putRecordRequest = putRecordRequestArgumentCaptor.getValue();
-
-		assertThat(putRecordRequest.getStreamName()).isEqualTo("foo");
-		assertThat(putRecordRequest.getPartitionKey()).isEqualTo("fooKey");
-		assertThat(putRecordRequest.getSequenceNumberForOrdering()).isEqualTo("10");
-		assertThat(putRecordRequest.getExplicitHashKey()).isNull();
-		assertThat(putRecordRequest.getData()).isEqualTo(ByteBuffer.wrap("message".getBytes()));
+		Message<?> success = this.successChannel.receive(10000);
+		assertThat(success.getHeaders().get(AwsHeaders.PARTITION_KEY)).isEqualTo("fooKey");
+		assertThat(success.getHeaders().get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("10");
+		assertThat(success.getPayload()).isEqualTo("message");
 
 		message = MessageBuilder.fromMessage(message)
 				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
@@ -143,15 +135,8 @@ public class KinesisProducingMessageHandlerTests {
 
 		this.kinesisSendChannel.send(message);
 
-		ArgumentCaptor<PutRecordsRequest> putRecordsRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutRecordsRequest.class);
-		verify(this.amazonKinesis).putRecordsAsync(putRecordsRequestArgumentCaptor.capture(),
-				any(AsyncHandler.class));
-
-		PutRecordsRequest putRecordsRequest = putRecordsRequestArgumentCaptor.getValue();
-
-		assertThat(putRecordsRequest.getStreamName()).isEqualTo("myStream");
-		assertThat(putRecordsRequest.getRecords())
+		success = this.successChannel.receive(10000);
+		assertThat(((PutRecordsRequest) success.getPayload()).getRecords())
 				.containsExactlyInAnyOrder(new PutRecordsRequestEntry()
 						.withData(ByteBuffer.wrap("test".getBytes()))
 						.withPartitionKey("testKey"));
@@ -184,7 +169,16 @@ public class KinesisProducingMessageHandlerTests {
 			AmazonKinesisAsync mock = mock(AmazonKinesisAsync.class);
 
 			given(mock.putRecordAsync(any(PutRecordRequest.class), any(AsyncHandler.class)))
-					.willReturn(mock(Future.class))
+					.willAnswer(invocation -> {
+						PutRecordRequest request = invocation.getArgumentAt(0, PutRecordRequest.class);
+						AsyncHandler<PutRecordRequest, PutRecordResult> handler =
+								invocation.getArgumentAt(1, AsyncHandler.class);
+						PutRecordResult result = new PutRecordResult()
+								.withSequenceNumber(request.getSequenceNumberForOrdering())
+								.withShardId("shardId-1");
+						handler.onSuccess(new PutRecordRequest(), result);
+						return mock(Future.class);
+					})
 					.willAnswer(invocation -> {
 						AsyncHandler<?, ?> handler = invocation.getArgumentAt(1, AsyncHandler.class);
 						handler.onError(new RuntimeException("putRecordRequestEx"));
@@ -193,7 +187,12 @@ public class KinesisProducingMessageHandlerTests {
 
 
 			given(mock.putRecordsAsync(any(PutRecordsRequest.class), any(AsyncHandler.class)))
-					.willReturn(mock(Future.class))
+					.willAnswer(invocation -> {
+						AsyncHandler<PutRecordsRequest, PutRecordsResult> handler =
+								invocation.getArgumentAt(1, AsyncHandler.class);
+						handler.onSuccess(new PutRecordsRequest(), new PutRecordsResult());
+						return mock(Future.class);
+					})
 					.willAnswer(invocation -> {
 						AsyncHandler<?, ?> handler = invocation.getArgumentAt(1, AsyncHandler.class);
 						handler.onError(new RuntimeException("putRecordsRequestEx"));
@@ -209,10 +208,16 @@ public class KinesisProducingMessageHandlerTests {
 		}
 
 		@Bean
+		public PollableChannel successChannel() {
+			return new QueueChannel();
+		}
+
+		@Bean
 		@ServiceActivator(inputChannel = "kinesisSendChannel")
 		public MessageHandler kinesisMessageHandler() {
 			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis());
 			kinesisMessageHandler.setSync(true);
+			kinesisMessageHandler.setOutputChannel(successChannel());
 			kinesisMessageHandler.setSendFailureChannel(errorChannel());
 			kinesisMessageHandler.setConverter(new Converter<Object, byte[]>() {
 
