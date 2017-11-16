@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,10 +53,10 @@ import com.amazonaws.services.kinesis.model.PutRecordRequest;
 import com.amazonaws.services.kinesis.model.PutRecordResult;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
-import com.amazonaws.services.kinesis.model.PutRecordsResult;
 
 /**
  * @author Artem Bilan
+ *
  * @since 1.1
  */
 @RunWith(SpringRunner.class)
@@ -107,8 +107,11 @@ public class KinesisMessageHandlerTests {
 
 		ArgumentCaptor<PutRecordRequest> putRecordRequestArgumentCaptor =
 				ArgumentCaptor.forClass(PutRecordRequest.class);
+		ArgumentCaptor<AsyncHandler<PutRecordRequest, PutRecordResult>> asyncHandlerArgumentCaptor =
+				ArgumentCaptor.forClass((Class<AsyncHandler<PutRecordRequest, PutRecordResult>>) (Class<?>) AsyncHandler.class);
+
 		verify(this.amazonKinesis).putRecordAsync(putRecordRequestArgumentCaptor.capture(),
-				eq((AsyncHandler<PutRecordRequest, PutRecordResult>) this.asyncHandler));
+				asyncHandlerArgumentCaptor.capture());
 
 		PutRecordRequest putRecordRequest = putRecordRequestArgumentCaptor.getValue();
 
@@ -117,6 +120,13 @@ public class KinesisMessageHandlerTests {
 		assertThat(putRecordRequest.getSequenceNumberForOrdering()).isEqualTo("10");
 		assertThat(putRecordRequest.getExplicitHashKey()).isNull();
 		assertThat(putRecordRequest.getData()).isEqualTo(ByteBuffer.wrap("message".getBytes()));
+
+		AsyncHandler<?, ?> asyncHandler = asyncHandlerArgumentCaptor.getValue();
+
+		RuntimeException testingException = new RuntimeException("testingException");
+		asyncHandler.onError(testingException);
+
+		verify(this.asyncHandler).onError(eq(testingException));
 
 		message = new GenericMessage<>(new PutRecordsRequest()
 				.withStreamName("myStream")
@@ -128,8 +138,7 @@ public class KinesisMessageHandlerTests {
 
 		ArgumentCaptor<PutRecordsRequest> putRecordsRequestArgumentCaptor =
 				ArgumentCaptor.forClass(PutRecordsRequest.class);
-		verify(this.amazonKinesis).putRecordsAsync(putRecordsRequestArgumentCaptor.capture(),
-				eq((AsyncHandler<PutRecordsRequest, PutRecordsResult>) this.asyncHandler));
+		verify(this.amazonKinesis).putRecordsAsync(putRecordsRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 
 		PutRecordsRequest putRecordsRequest = putRecordsRequestArgumentCaptor.getValue();
 

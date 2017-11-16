@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,5 +89,10 @@ public abstract class AwsHeaders {
 	 * The {@value CHECKPOINTER} header for checkpoint the shard sequenceNumber.
 	 */
 	public static final String CHECKPOINTER = PREFIX + "checkpointer";
+
+	/**
+	 * The {@value SERVICE_RESULT} header represents a {@link com.amazonaws.AmazonWebServiceResult}.
+	 */
+	public static final String SERVICE_RESULT = PREFIX + "serviceResult";
 
 }

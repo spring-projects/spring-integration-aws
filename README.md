@@ -564,11 +564,15 @@ The `KinesisMessageHandler` is an `AbstractMessageHandler` to perform put record
 The stream, partition key (or explicit hash key) and sequence number can be determined against request message via evaluation provided expressions or can be specified statically.
 They also can specified as `AwsHeaders.STREAM`, `AwsHeaders.PARTITION_KEY` and `AwsHeaders.SEQUENCE_NUMBER` respectively.
 
-The `KinesisMessageHandler` can be configured with channels for sending a `Message` on send success (in which the payload is either 
-the `data` from the `PutRecordRequest` or the full `PutRecordsRequest`), or an `ErrorMessage` on send failure 
-(in which the payload is `AwsRequestFailureException`). A `com.amazonaws.handlers.AsyncHandler` can also be 
-provided to the `KinesisMessageHandler` for custom handling after sending record(s) to the stream, but doing so 
-precludes the usage of such channels. 
+The `KinesisMessageHandler` can be configured with the `outputChannel` for sending a `Message` on successful put operation.
+The payload is the original request and additional `AwsHeaders.SHARD` and `AwsHeaders.SEQUENCE_NUMBER` headers are populated from the `PutRecordResult`. 
+If the request payload is a `PutRecordsRequest`, the full `PutRecordsResult` is populated in the `AwsHeaders.SERVICE_RESULT` header instead. 
+
+When an async failure is happened on the put operation, the `ErrorMessage` is send to the `failureChannel`.
+The payload is an `AwsRequestFailureException`.
+ 
+An `com.amazonaws.handlers.AsyncHandler` can also be provided to the `KinesisMessageHandler` for custom handling after putting record(s) to the stream.
+This is called independently if `outputChannel` and/or `failureChannel` are provided.
 
 The `payload` of request message can be:
  
@@ -581,21 +585,16 @@ The `payload` of request message can be:
 The Java Configuration for the message handler:
 
 ````java
-@SpringBootApplication
-public static class MyConfiguration {
-
-    @Bean
-    @ServiceActivator(inputChannel = "kinesisSendChannel")
-    public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis,
-                                                MessageChannel channel,
-                                                MessageChannel errorChannel) {
-        KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis);
-        kinesisMessageHandler.setPartitionKey("1");
-        kinesisMessageHandler.setOutputChannel(channel);
-        kinesisMessageHandler.setSendFailureChannel(errorChannel);
-        return kinesisMessageHandler;
-    }
-    
+@Bean
+@ServiceActivator(inputChannel = "kinesisSendChannel")
+public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis,
+                                            MessageChannel channel,
+                                            MessageChannel errorChannel) {
+    KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis);
+    kinesisMessageHandler.setPartitionKey("1");
+    kinesisMessageHandler.setOutputChannel(channel);
+    kinesisMessageHandler.setFailureChannel(errorChannel);
+    return kinesisMessageHandler;
 }
 ````
 

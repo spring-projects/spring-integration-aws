@@ -57,7 +57,8 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
 
 /**
  * @author Jacob Severson
- * @since 1.1.0
+ *
+ * @since 1.1
  */
 @RunWith(SpringRunner.class)
 @DirtiesContext
@@ -218,7 +219,7 @@ public class KinesisProducingMessageHandlerTests {
 			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis());
 			kinesisMessageHandler.setSync(true);
 			kinesisMessageHandler.setOutputChannel(successChannel());
-			kinesisMessageHandler.setSendFailureChannel(errorChannel());
+			kinesisMessageHandler.setFailureChannel(errorChannel());
 			kinesisMessageHandler.setConverter(new Converter<Object, byte[]>() {
 
 				private SerializingConverter serializingConverter = new SerializingConverter();

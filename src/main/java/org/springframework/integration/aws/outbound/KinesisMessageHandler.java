@@ -33,6 +33,7 @@ import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.handler.AbstractMessageProducingHandler;
+import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.integration.support.DefaultErrorMessageStrategy;
 import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.messaging.Message;
@@ -43,6 +44,7 @@ import org.springframework.util.StringUtils;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResult;
+import com.amazonaws.ResponseMetadata;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
@@ -55,9 +57,11 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
  *
  * @author Artem Bilan
  * @author Jacob Severson
+ *
  * @since 1.1
  *
  * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
+ * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
  */
 public class KinesisMessageHandler extends AbstractMessageProducingHandler {
@@ -84,9 +88,9 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 
 	private Expression sendTimeoutExpression = new ValueExpression<>(DEFAULT_SEND_TIMEOUT);
 
-	private MessageChannel sendFailureChannel;
+	private MessageChannel failureChannel;
 
-	private String sendFailureChannelName;
+	private String failureChannelName;
 
 	private ErrorMessageStrategy errorMessageStrategy = new DefaultErrorMessageStrategy();
 
@@ -170,38 +174,38 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 	}
 
 	/**
-	 * Set the failure channel. After a send failure, an {@link ErrorMessage} will be sent
+	 * Set the failure channel. After a failure on put, an {@link ErrorMessage} will be sent
 	 * to this channel with a payload of a {@link AwsRequestFailureException} with the
 	 * failed message and cause.
-	 * @param sendFailureChannel the failure channel.
+	 * @param failureChannel the failure channel.
 	 * @since 1.1.0
 	 */
-	public void setSendFailureChannel(MessageChannel sendFailureChannel) {
-		this.sendFailureChannel = sendFailureChannel;
+	public void setFailureChannel(MessageChannel failureChannel) {
+		this.failureChannel = failureChannel;
 	}
 
-	protected MessageChannel getSendFailureChannel() {
-		if (this.sendFailureChannel != null) {
-			return this.sendFailureChannel;
+	protected MessageChannel getFailureChannel() {
+		if (this.failureChannel != null) {
+			return this.failureChannel;
 
 		}
-		else if (this.sendFailureChannelName != null) {
-			this.sendFailureChannel = getChannelResolver().resolveDestination(this.sendFailureChannelName);
-			return this.sendFailureChannel;
+		else if (this.failureChannelName != null) {
+			this.failureChannel = getChannelResolver().resolveDestination(this.failureChannelName);
+			return this.failureChannel;
 		}
 
 		return null;
 	}
 
 	/**
-	 * Set the failure channel name. After a send failure, an {@link ErrorMessage} will be
+	 * Set the failure channel name. After a failure on put, an {@link ErrorMessage} will be
 	 * sent to this channel name with a payload of a {@link AwsRequestFailureException}
 	 * with the failed message and cause.
-	 * @param sendFailureChannelName the failure channel name.
+	 * @param failureChannelName the failure channel name.
 	 * @since 1.1.0
 	 */
-	public void setSendFailureChannelName(String sendFailureChannelName) {
-		this.sendFailureChannelName = sendFailureChannelName;
+	public void setFailureChannelName(String failureChannelName) {
+		this.failureChannelName = failureChannelName;
 	}
 
 	@Override
@@ -217,17 +221,20 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 
 		if (message.getPayload() instanceof PutRecordsRequest) {
 
-			resultFuture = this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(),
-					(AsyncHandler<PutRecordsRequest, PutRecordsResult>) getAsyncHandler(message,
-							(PutRecordsRequest) message.getPayload()));
+			AsyncHandler<PutRecordsRequest, PutRecordsResult> asyncHandler =
+					obtainAsyncHandler(message, (PutRecordsRequest) message.getPayload());
+
+			resultFuture = this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(), asyncHandler);
 		}
 		else {
 			final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
 					? (PutRecordRequest) message.getPayload()
 					: buildPutRecordRequest(message);
 
-			resultFuture = this.amazonKinesis.putRecordAsync(putRecordRequest,
-					(AsyncHandler<PutRecordRequest, PutRecordResult>) getAsyncHandler(message, putRecordRequest));
+			AsyncHandler<PutRecordRequest, PutRecordResult> asyncHandler =
+					obtainAsyncHandler(message, putRecordRequest);
+
+			resultFuture = this.amazonKinesis.putRecordAsync(putRecordRequest, asyncHandler);
 		}
 
 		if (this.sync) {
@@ -298,43 +305,53 @@ public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private AsyncHandler<? extends AmazonWebServiceRequest, ?> getAsyncHandler(final Message<?> message,
-																			final AmazonWebServiceRequest request) {
-		if (this.asyncHandler != null) {
-			return this.asyncHandler;
-		}
-		else {
-			return new AsyncHandler<AmazonWebServiceRequest, AmazonWebServiceResult>() {
+	private <REQUEST extends AmazonWebServiceRequest, RESULT extends AmazonWebServiceResult<?extends ResponseMetadata>> AsyncHandler<REQUEST, RESULT> obtainAsyncHandler(
+			final Message<?> message, final REQUEST request) {
 
-				@Override
-				public void onError(Exception ex) {
-					if (getSendFailureChannel() != null) {
-						KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
-								KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
-										new AwsRequestFailureException(message, request, ex), null));
-					}
+		return new AsyncHandler<REQUEST, RESULT>() {
+
+			@Override
+			public void onError(Exception ex) {
+				if (KinesisMessageHandler.this.asyncHandler != null) {
+					KinesisMessageHandler.this.asyncHandler.onError(ex);
 				}
 
-				@Override
-				public void onSuccess(AmazonWebServiceRequest request, AmazonWebServiceResult result) {
-					Message<?> resultMessage;
+				if (getFailureChannel() != null) {
+					KinesisMessageHandler.this.messagingTemplate.send(getFailureChannel(),
+							KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
+									new AwsRequestFailureException(message, request, ex), null));
+				}
+			}
+
+			@Override
+			@SuppressWarnings("unchecked")
+			public void onSuccess(REQUEST request, RESULT result) {
+				if (KinesisMessageHandler.this.asyncHandler != null) {
+					((AsyncHandler<REQUEST, RESULT>) KinesisMessageHandler.this.asyncHandler)
+							.onSuccess(request, result);
+				}
+
+				if (getOutputChannel() != null) {
+					AbstractIntegrationMessageBuilder<?> messageBuilder =
+							getMessageBuilderFactory()
+									.fromMessage(message);
 
 					if (result instanceof PutRecordResult) {
-						resultMessage = getMessageBuilderFactory().fromMessage(message)
+						messageBuilder
 								.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
-								.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber())
-								.build();
+								.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber());
 					}
 					else {
-						resultMessage = getMessageBuilderFactory().fromMessage(message).build();
+						messageBuilder.setHeader(AwsHeaders.SERVICE_RESULT, result);
 					}
 
-					if (getOutputChannel() != null) {
-						KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(), resultMessage);
-					}
+
+					KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(), messageBuilder.build());
 				}
-			};
-		}
+			}
+
+		};
 	}
 
 }
+

@@ -25,7 +25,8 @@ import com.amazonaws.AmazonWebServiceRequest;
  * An exception that is the payload of an {@code ErrorMessage} when a send fails.
  *
  * @author Jacob Severson
- * @since 1.1.0
+ *
+ * @since 1.1
  */
 public class AwsRequestFailureException extends MessagingException {
 
@@ -44,7 +45,7 @@ public class AwsRequestFailureException extends MessagingException {
 
 	@Override
 	public String toString() {
-		return super.toString() + " [record=" + this.request + "]";
+		return super.toString() + " [request=" + this.request + "]";
 	}
 
 }
