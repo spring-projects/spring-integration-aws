@@ -28,14 +28,21 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.MessageTimeoutException;
 import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.AwsRequestFailureException;
 import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.handler.AbstractMessageProducingHandler;
+import org.springframework.integration.support.DefaultErrorMessageStrategy;
+import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.AmazonWebServiceResult;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
@@ -47,12 +54,13 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis {@code putRecord(s)}.
  *
  * @author Artem Bilan
+ * @author Jacob Severson
  * @since 1.1
  *
  * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
  * @see com.amazonaws.handlers.AsyncHandler
  */
-public class KinesisMessageHandler extends AbstractMessageHandler {
+public class KinesisMessageHandler extends AbstractMessageProducingHandler {
 
 	private static final long DEFAULT_SEND_TIMEOUT = 10000;
 
@@ -75,6 +83,12 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 	private boolean sync;
 
 	private Expression sendTimeoutExpression = new ValueExpression<>(DEFAULT_SEND_TIMEOUT);
+
+	private MessageChannel sendFailureChannel;
+
+	private String sendFailureChannelName;
+
+	private ErrorMessageStrategy errorMessageStrategy = new DefaultErrorMessageStrategy();
 
 	public KinesisMessageHandler(AmazonKinesisAsync amazonKinesis) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -155,6 +169,41 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 		this.sendTimeoutExpression = sendTimeoutExpression;
 	}
 
+	/**
+	 * Set the failure channel. After a send failure, an {@link ErrorMessage} will be sent
+	 * to this channel with a payload of a {@link AwsRequestFailureException} with the
+	 * failed message and cause.
+	 * @param sendFailureChannel the failure channel.
+	 * @since 1.1.0
+	 */
+	public void setSendFailureChannel(MessageChannel sendFailureChannel) {
+		this.sendFailureChannel = sendFailureChannel;
+	}
+
+	protected MessageChannel getSendFailureChannel() {
+		if (this.sendFailureChannel != null) {
+			return this.sendFailureChannel;
+
+		}
+		else if (this.sendFailureChannelName != null) {
+			this.sendFailureChannel = getChannelResolver().resolveDestination(this.sendFailureChannelName);
+			return this.sendFailureChannel;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Set the failure channel name. After a send failure, an {@link ErrorMessage} will be
+	 * sent to this channel name with a payload of a {@link AwsRequestFailureException}
+	 * with the failed message and cause.
+	 * @param sendFailureChannelName the failure channel name.
+	 * @since 1.1.0
+	 */
+	public void setSendFailureChannelName(String sendFailureChannelName) {
+		this.sendFailureChannelName = sendFailureChannelName;
+	}
+
 	@Override
 	protected void onInit() throws Exception {
 		super.onInit();
@@ -163,19 +212,22 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected void handleMessageInternal(Message<?> message) throws Exception {
-		Future<?> resultFuture = null;
+	protected void handleMessageInternal(final Message<?> message) throws Exception {
+		Future<?> resultFuture;
+
 		if (message.getPayload() instanceof PutRecordsRequest) {
+
 			resultFuture = this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(),
-					(AsyncHandler<PutRecordsRequest, PutRecordsResult>) this.asyncHandler);
+					(AsyncHandler<PutRecordsRequest, PutRecordsResult>) getAsyncHandler(message,
+							(PutRecordsRequest) message.getPayload()));
 		}
 		else {
-			PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
+			final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
 					? (PutRecordRequest) message.getPayload()
 					: buildPutRecordRequest(message);
 
 			resultFuture = this.amazonKinesis.putRecordAsync(putRecordRequest,
-					(AsyncHandler<PutRecordRequest, PutRecordResult>) this.asyncHandler);
+					(AsyncHandler<PutRecordRequest, PutRecordResult>) getAsyncHandler(message, putRecordRequest));
 		}
 
 		if (this.sync) {
@@ -243,6 +295,46 @@ public class KinesisMessageHandler extends AbstractMessageHandler {
 				.withExplicitHashKey(explicitHashKey)
 				.withSequenceNumberForOrdering(sequenceNumber)
 				.withData(data);
+	}
+
+	@SuppressWarnings("rawtypes")
+	private AsyncHandler<? extends AmazonWebServiceRequest, ?> getAsyncHandler(final Message<?> message,
+																			final AmazonWebServiceRequest request) {
+		if (this.asyncHandler != null) {
+			return this.asyncHandler;
+		}
+		else {
+			return new AsyncHandler<AmazonWebServiceRequest, AmazonWebServiceResult>() {
+
+				@Override
+				public void onError(Exception ex) {
+					if (getSendFailureChannel() != null) {
+						KinesisMessageHandler.this.messagingTemplate.send(getSendFailureChannel(),
+								KinesisMessageHandler.this.errorMessageStrategy.buildErrorMessage(
+										new AwsRequestFailureException(message, request, ex), null));
+					}
+				}
+
+				@Override
+				public void onSuccess(AmazonWebServiceRequest request, AmazonWebServiceResult result) {
+					Message<?> resultMessage;
+
+					if (result instanceof PutRecordResult) {
+						resultMessage = getMessageBuilderFactory().fromMessage(message)
+								.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
+								.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber())
+								.build();
+					}
+					else {
+						resultMessage = getMessageBuilderFactory().fromMessage(message).build();
+					}
+
+					if (getOutputChannel() != null) {
+						KinesisMessageHandler.this.messagingTemplate.send(getOutputChannel(), resultMessage);
+					}
+				}
+			};
+		}
 	}
 
 }

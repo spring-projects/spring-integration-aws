@@ -560,9 +560,15 @@ When records are consumed, they are filtered by the last stored `lastCheckpoint`
 
 ### Outbound Channel Adapter
 
-The `KinesisMessageHandler` is a `AbstractMessageHandler` to perform put record to the Kinesis stream.
+The `KinesisMessageHandler` is an `AbstractMessageHandler` to perform put record to the Kinesis stream.
 The stream, partition key (or explicit hash key) and sequence number can be determined against request message via evaluation provided expressions or can be specified statically.
 They also can specified as `AwsHeaders.STREAM`, `AwsHeaders.PARTITION_KEY` and `AwsHeaders.SEQUENCE_NUMBER` respectively.
+
+The `KinesisMessageHandler` can be configured with channels for sending a `Message` on send success (in which the payload is either 
+the `data` from the `PutRecordRequest` or the full `PutRecordsRequest`), or an `ErrorMessage` on send failure 
+(in which the payload is `AwsRequestFailureException`). A `com.amazonaws.handlers.AsyncHandler` can also be 
+provided to the `KinesisMessageHandler` for custom handling after sending record(s) to the stream, but doing so 
+precludes the usage of such channels. 
 
 The `payload` of request message can be:
  
@@ -580,9 +586,13 @@ public static class MyConfiguration {
 
     @Bean
     @ServiceActivator(inputChannel = "kinesisSendChannel")
-    public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis) {
+    public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis,
+                                                MessageChannel channel,
+                                                MessageChannel errorChannel) {
         KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis);
         kinesisMessageHandler.setPartitionKey("1");
+        kinesisMessageHandler.setOutputChannel(channel);
+        kinesisMessageHandler.setSendFailureChannel(errorChannel);
         return kinesisMessageHandler;
     }
     
