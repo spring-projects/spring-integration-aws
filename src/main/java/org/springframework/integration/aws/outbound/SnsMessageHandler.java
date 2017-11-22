@@ -74,7 +74,7 @@ import com.amazonaws.services.sns.model.PublishResult;
  * {@code true}, the reply message is composed to be sent to the {@code outputChannel} or
  * {@code replyChannel}. The reply message's {@code payload} is exactly the {@link PublishRequest}
  * object, which has been just published to SNS. Also this message has {@link AwsHeaders#TOPIC}
- * and {@link AwsHeaders#SNS_PUBLISHED_MESSAGE_ID} headers to track published SNS message in the
+ * and {@link AwsHeaders#MESSAGE_ID} headers to track published SNS message in the
  * downstream.
  *
  * @author Artem Bilan
@@ -208,7 +208,7 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 			return getMessageBuilderFactory()
 					.withPayload(publishRequest)
 					.setHeader(AwsHeaders.TOPIC, publishRequest.getTopicArn())
-					.setHeader(AwsHeaders.SNS_PUBLISHED_MESSAGE_ID, publishResult.getMessageId());
+					.setHeader(AwsHeaders.MESSAGE_ID, publishResult.getMessageId());
 		}
 		else {
 			return null;

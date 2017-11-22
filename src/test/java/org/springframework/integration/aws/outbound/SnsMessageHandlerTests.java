@@ -92,7 +92,7 @@ public class SnsMessageHandlerTests {
 		assertThat(publishRequest.getMessage())
 				.isEqualTo("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}");
 
-		assertThat(reply.getHeaders().get(AwsHeaders.SNS_PUBLISHED_MESSAGE_ID)).isEqualTo("111");
+		assertThat(reply.getHeaders().get(AwsHeaders.MESSAGE_ID)).isEqualTo("111");
 		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("topic");
 		assertThat(reply.getPayload()).isSameAs(publishRequest);
 	}

@@ -16,19 +16,30 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.concurrent.Future;
+
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
-import org.springframework.cloud.aws.messaging.core.QueueMessagingTemplate;
-import org.springframework.expression.EvaluationContext;
+import org.springframework.cloud.aws.messaging.support.destination.DynamicQueueUrlDestinationResolver;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.expression.ExpressionUtils;
+import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.converter.GenericMessageConverter;
+import org.springframework.messaging.converter.MessageConverter;
+import org.springframework.messaging.core.DestinationResolver;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
+import com.amazonaws.services.sqs.model.SendMessageBatchResult;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
+import com.amazonaws.services.sqs.model.SendMessageResult;
 
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon SQS {@code sendMessage}.
@@ -37,33 +48,43 @@ import com.amazonaws.services.sqs.AmazonSQSAsync;
  * @author Rahul Pilani
  * @author Taylor Wicksell
  *
- * @see QueueMessagingTemplate
- * @see org.springframework.cloud.aws.messaging.core.QueueMessageChannel
- */
-public class SqsMessageHandler extends AbstractMessageHandler {
+ * @see AmazonSQSAsync#sendMessageAsync(SendMessageRequest, AsyncHandler)
+ * @see com.amazonaws.handlers.AsyncHandler
 
-	private final QueueMessagingTemplate template;
+ */
+public class SqsMessageHandler extends AbstractAwsMessageHandler {
+
+	private final AmazonSQSAsync amazonSqs;
+
+	private final DestinationResolver<?> destinationResolver;
+
+	private MessageConverter messageConverter;
 
 	private Expression queueExpression;
 
-	private EvaluationContext evaluationContext;
+	private Expression delayExpression;
+
+	private Expression messageGroupIdExpression;
+
+	private Expression messageDeduplicationIdExpression;
+
 
 	public SqsMessageHandler(AmazonSQSAsync amazonSqs) {
 		this(amazonSqs, null);
 	}
 
 	public SqsMessageHandler(AmazonSQSAsync amazonSqs, ResourceIdResolver resourceIdResolver) {
-		this(new QueueMessagingTemplate(amazonSqs, resourceIdResolver));
-	}
-
-	public SqsMessageHandler(QueueMessagingTemplate template) {
-		Assert.notNull(template, "template must not be null.");
-		this.template = template;
+		this.amazonSqs = amazonSqs;
+		this.destinationResolver = new DynamicQueueUrlDestinationResolver(amazonSqs, resourceIdResolver);
 	}
 
 	public void setQueue(String queue) {
 		Assert.hasText(queue, "'queue' must not be empty");
-		this.queueExpression = new LiteralExpression(queue);
+		setQueueExpression(new LiteralExpression(queue));
+	}
+
+	public void setQueueExpressionString(String queueExpression) {
+		setQueueExpression(EXPRESSION_PARSER.parseExpression(queueExpression));
 	}
 
 	public void setQueueExpression(Expression queueExpression) {
@@ -71,22 +92,116 @@ public class SqsMessageHandler extends AbstractMessageHandler {
 		this.queueExpression = queueExpression;
 	}
 
-	@Override
-	protected void onInit() throws Exception {
-		super.onInit();
-		this.evaluationContext = ExpressionUtils.createStandardEvaluationContext(getBeanFactory());
+	public void setDelay(int delaySeconds) {
+		setDelayExpression(new ValueExpression<>(delaySeconds));
+	}
+
+	public void setDelayExpressionString(String delayExpression) {
+		setDelayExpression(EXPRESSION_PARSER.parseExpression(delayExpression));
+	}
+
+	public void setDelayExpression(Expression delayExpression) {
+		Assert.notNull(delayExpression, "'delayExpression' must not be null");
+		this.delayExpression = delayExpression;
+	}
+
+	public void setMessageGroupId(String messageGroupId) {
+		setMessageGroupIdExpression(new LiteralExpression(messageGroupId));
+	}
+
+	public void setMessageGroupIdExpressionString(String groupIdExpression) {
+		setMessageGroupIdExpression(EXPRESSION_PARSER.parseExpression(groupIdExpression));
+	}
+
+	public void setMessageGroupIdExpression(Expression messageGroupIdExpression) {
+		Assert.notNull(messageGroupIdExpression, "'messageGroupIdExpression' must not be null");
+		this.messageGroupIdExpression = messageGroupIdExpression;
+	}
+
+	public void setMessageDeduplicationId(String messageDeduplicationId) {
+		setMessageDeduplicationIdExpression(new LiteralExpression(messageDeduplicationId));
+	}
+
+	public void setMessageDeduplicationIdExpressionString(String messageDeduplicationIdExpression) {
+		setMessageDeduplicationIdExpression(EXPRESSION_PARSER.parseExpression(messageDeduplicationIdExpression));
+	}
+
+	public void setMessageDeduplicationIdExpression(Expression messageDeduplicationIdExpression) {
+		Assert.notNull(messageDeduplicationIdExpression, "'messageDeduplicationIdExpression' must not be null");
+		this.messageDeduplicationIdExpression = messageDeduplicationIdExpression;
+	}
+
+	public void setMessageConverter(MessageConverter messageConverter) {
+		this.messageConverter = messageConverter;
 	}
 
 	@Override
-	protected void handleMessageInternal(Message<?> message) throws Exception {
-		String queue = message.getHeaders().get(AwsHeaders.QUEUE, String.class);
-		if (!StringUtils.hasText(queue) && this.queueExpression != null) {
-			queue = this.queueExpression.getValue(this.evaluationContext, message, String.class);
+	protected void onInit() throws Exception {
+		super.onInit();
+
+		if (this.messageConverter == null) {
+			this.messageConverter = new GenericMessageConverter(getConversionService());
 		}
-		Assert.state(queue != null, "'queue' must not be null for sending an SQS message. " +
-				"Consider configuring this handler with a 'queue'( or 'queueExpression') or supply an " +
-				"'aws_queue' message header");
-		this.template.send(queue, message);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	protected Future<?> handleMessageToAws(Message<?> message) {
+		Object payload = message.getPayload();
+		if (payload instanceof SendMessageBatchRequest) {
+			AsyncHandler<SendMessageBatchRequest, SendMessageBatchResult> asyncHandler =
+					obtainAsyncHandler(message, (SendMessageBatchRequest) payload);
+			return this.amazonSqs.sendMessageBatchAsync((SendMessageBatchRequest) payload, asyncHandler);
+		}
+
+		SendMessageRequest sendMessageRequest;
+		if (payload instanceof SendMessageRequest) {
+			sendMessageRequest = (SendMessageRequest) payload;
+		}
+		else {
+			String queue = message.getHeaders().get(AwsHeaders.QUEUE, String.class);
+			if (!StringUtils.hasText(queue) && this.queueExpression != null) {
+				queue = this.queueExpression.getValue(getEvaluationContext(), message, String.class);
+			}
+			Assert.state(queue != null, "'queue' must not be null for sending an SQS message. " +
+					"Consider configuring this handler with a 'queue'( or 'queueExpression') or supply an " +
+					"'aws_queue' message header");
+
+			String queueUrl = (String) this.destinationResolver.resolveDestination(queue);
+			String messageBody = (String) this.messageConverter.fromMessage(message, String.class);
+			sendMessageRequest = new SendMessageRequest(queueUrl, messageBody);
+
+			if (this.delayExpression != null) {
+				Integer delay = this.delayExpression.getValue(getEvaluationContext(), message, Integer.class);
+				sendMessageRequest.setDelaySeconds(delay);
+			}
+
+			if (this.messageGroupIdExpression != null) {
+				String messageGroupId =
+						this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
+				sendMessageRequest.setMessageGroupId(messageGroupId);
+			}
+
+			if (this.messageDeduplicationIdExpression != null) {
+				String messageDeduplicationId =
+						this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
+				sendMessageRequest.setMessageDeduplicationId(messageDeduplicationId);
+			}
+		}
+		AsyncHandler<SendMessageRequest, SendMessageResult> asyncHandler =
+				obtainAsyncHandler(message, sendMessageRequest);
+		return this.amazonSqs.sendMessageAsync(sendMessageRequest, asyncHandler);
+	}
+
+	@Override
+	protected void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
+			AmazonWebServiceRequest request, Object result) {
+
+		if (result instanceof SendMessageResult) {
+			SendMessageResult sendMessageResult = (SendMessageResult) result;
+			messageBuilder.setHeaderIfAbsent(AwsHeaders.MESSAGE_ID, sendMessageResult.getMessageId());
+			messageBuilder.setHeaderIfAbsent(AwsHeaders.SEQUENCE_NUMBER, sendMessageResult.getSequenceNumber());
+		}
 	}
 
 }
