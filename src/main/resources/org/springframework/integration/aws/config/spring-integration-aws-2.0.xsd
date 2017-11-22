@@ -248,9 +248,9 @@
 
 	<xsd:simpleType name="s3CommandType">
 		<xsd:restriction base="xsd:token">
-			<xsd:enumeration value="UPLOAD" />
-			<xsd:enumeration value="DOWNLOAD" />
-			<xsd:enumeration value="COPY" />
+			<xsd:enumeration value="UPLOAD"/>
+			<xsd:enumeration value="DOWNLOAD"/>
+			<xsd:enumeration value="COPY"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 
@@ -303,7 +303,7 @@
 							<xsd:appinfo>
 								<tool:annotation kind="ref">
 									<tool:expected-type
-											type="org.springframework.integration.file.filters.FileListFilter" />
+											type="org.springframework.integration.file.filters.FileListFilter"/>
 								</tool:annotation>
 							</xsd:appinfo>
 							<xsd:documentation>
@@ -357,22 +357,22 @@
 		</xsd:annotation>
 		<xsd:complexType>
 			<xsd:complexContent>
-				<xsd:extension base="base-s3-inbound-adapter-type" />
+				<xsd:extension base="base-s3-inbound-adapter-type"/>
 			</xsd:complexContent>
 		</xsd:complexType>
 	</xsd:element>
 
 	<xsd:complexType name="base-s3-inbound-adapter-type">
 		<xsd:sequence>
-			<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1" />
+			<xsd:element ref="integration:poller" minOccurs="0" maxOccurs="1"/>
 		</xsd:sequence>
-		<xsd:attributeGroup ref="integration:channelAdapterAttributes" />
+		<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
 		<xsd:attribute name="session-factory" type="xsd:string" use="required">
 			<xsd:annotation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
 						<tool:expected-type
-								type="org.springframework.integration.file.remote.session.SessionFactory" />
+								type="org.springframework.integration.file.remote.session.SessionFactory"/>
 					</tool:annotation>
 				</xsd:appinfo>
 				<xsd:documentation>
@@ -383,10 +383,10 @@
 		</xsd:attribute>
 		<xsd:attribute name="remote-file-separator" type="xsd:string" default="/">
 			<xsd:annotation>
-						<xsd:documentation>
-							Allows you to provide remote file/directory
-							separator character. DEFAULT: '/'
-						</xsd:documentation>
+				<xsd:documentation>
+					Allows you to provide remote file/directory
+					separator character. DEFAULT: '/'
+				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
 		<xsd:attribute name="remote-directory" type="xsd:string" use="optional">
@@ -428,7 +428,7 @@
 			<xsd:annotation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.integration.file.filters.FileListFilter" />
+						<tool:expected-type type="org.springframework.integration.file.filters.FileListFilter"/>
 					</tool:annotation>
 				</xsd:appinfo>
 				<xsd:documentation>
@@ -449,6 +449,92 @@
 			</xsd:annotation>
 		</xsd:attribute>
 	</xsd:complexType>
+
+
+	<xsd:attributeGroup name="awsAsyncOutboundAttributes">
+		<xsd:attribute name="sync">
+			<xsd:annotation>
+				<xsd:documentation>
+					Boolean value to indicate whether the target AWS operation should be performed async (default)
+					or sync manner.
+				</xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:union memberTypes="xsd:boolean xsd:string" />
+			</xsd:simpleType>
+		</xsd:attribute>
+		<xsd:attribute name="send-timeout">
+			<xsd:annotation>
+				<xsd:documentation>
+					The timeout in milliseconds to wait for AWS response in sync mode.
+					Defaults to 10 seconds.
+					Mutually exclusive with 'send-timeout-expression'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="send-timeout-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					A SpEL expression that resolves a timeout in milliseconds at runtime
+					to wait for AWS response in sync mode.
+					Mutually exclusive with 'send-timeout'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="error-message-strategy" type="xsd:string">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.integration.support.ErrorMessageStrategy" />
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation>
+					The reference to the 'org.springframework.integration.support.ErrorMessageStrategy' bean.
+					Defaults to 'DefaultErrorMessageStrategy'.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="failure-channel" type="xsd:string">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation>
+					The message channel to send error messages in the async mode.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="success-channel" type="xsd:string">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation>
+					The message channel to send confirmation messages from the callback in the async mode.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="async-handler" type="xsd:string">
+			<xsd:annotation>
+				<xsd:appinfo>
+					<tool:annotation kind="ref">
+						<tool:expected-type type="com.amazonaws.handlers.AsyncHandler" />
+					</tool:annotation>
+				</xsd:appinfo>
+				<xsd:documentation>
+					Asynchronous callback handler for events in the lifecycle of the request. Users can provide an
+					implementation of the callback methods in this interface to receive notification of successful or
+					unsuccessful completion of the operation.
+					By default successful reply is sent to the 'success-channel' and error message to the
+					'failure-channel' if they are provided.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:attributeGroup>
 
 	<xsd:element name="sqs-outbound-channel-adapter">
 		<xsd:complexType>
@@ -471,6 +557,7 @@
 								Mutually exclusive with 'queue-expression'.
 								This attribute isn't mandatory and the queue can be specified in message headers
 								with the 'AwsHeaders.QUEUE' header name.
+								Mutually exclusive with 'queue-expression'.
 							</xsd:documentation>
 						</xsd:annotation>
 					</xsd:attribute>
@@ -482,24 +569,86 @@
 								Mutually exclusive with 'queue'.
 								This attribute isn't mandatory and the queue can be specified in message headers with
 								the 'AwsHeaders.QUEUE' header name.
+								Mutually exclusive with 'queue'.
 							</xsd:documentation>
 						</xsd:annotation>
 					</xsd:attribute>
-					<xsd:attribute name="queue-messaging-template">
+					<xsd:attribute name="delay">
 						<xsd:annotation>
 							<xsd:documentation>
-								A bean reference to the QueueMessagingTemplate that this class is supposed to use.
-								This attribute is mutually exclusive with the 'sqs' and 'resource-id-resolver'
-								attributes.
+								The length of time, in seconds, for which to delay a specific message.
+								Valid values: 0 to 900. Maximum: 15 minutes.
+								Messages with a positive delay value become available for processing after the delay
+								period is finished.
+								If not specified, the default value for the queue applies.
+								Mutually exclusive with 'delay-expression'.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="delay-expression">
+						<xsd:annotation>
+							<xsd:documentation>
+								A SpEL expression that resolves to the length of time, in seconds,
+								for which to delay a specific message.
+								Mutually exclusive with 'delay'.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="message-group-id">
+						<xsd:annotation>
+							<xsd:documentation>
+								The tag that specifies that a message belongs to a specific message group.
+								Messages that belong to the same message group are processed in a FIFO manner
+								(however, messages in different message groups might be processed out of order).
+								To interleave multiple ordered streams within a single queue, use 'MessageGroupId'
+								values (for example, session data for multiple users).
+								In this scenario, multiple readers can process the queue, but the session data
+								of each user is processed in a FIFO fashion.
+								Mutually exclusive with 'message-group-id-expression'.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="message-group-id-expression">
+						<xsd:annotation>
+							<xsd:documentation>
+								A SpEL expression that resolves a 'MessageGroupId' token at runtime.
+								Mutually exclusive with 'message-group-id'.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="message-deduplication-id">
+						<xsd:annotation>
+							<xsd:documentation>
+								The token used for deduplication of sent messages.
+								If a message with a particular 'MessageDeduplicationId' is sent successfully,
+								any messages sent with the same 'MessageDeduplicationId' are accepted successfully
+								but aren't delivered during the 5-minute deduplication interval.
+								Mutually exclusive with 'message-deduplication-id-expression'.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="message-deduplication-id-expression">
+						<xsd:annotation>
+							<xsd:documentation>
+								A SpEL expression that resolves a 'MessageDeduplicationId' token at runtime.
+								Mutually exclusive with 'message-deduplication-id'.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
+					<xsd:attribute name="message-converter">
+						<xsd:annotation>
+							<xsd:documentation>
+								A bean reference to the MessageConverter.
 							</xsd:documentation>
 							<xsd:appinfo>
 								<tool:annotation kind="ref">
 									<tool:expected-type
-											type="org.springframework.cloud.aws.messaging.core.QueueMessagingTemplate"/>
+											type="org.springframework.messaging.converter.MessageConverter"/>
 								</tool:annotation>
 							</xsd:appinfo>
 						</xsd:annotation>
 					</xsd:attribute>
+					<xsd:attributeGroup ref="awsAsyncOutboundAttributes"/>
 				</xsd:extension>
 			</xsd:complexContent>
 		</xsd:complexType>
@@ -725,70 +874,7 @@
 			<xsd:complexContent>
 				<xsd:extension base="baseSnsAdapterType">
 					<xsd:attributeGroup ref="integration:channelAdapterAttributes"/>
-				</xsd:extension>
-			</xsd:complexContent>
-		</xsd:complexType>
-	</xsd:element>
-
-	<xsd:element name="sns-outbound-gateway">
-		<xsd:complexType>
-			<xsd:annotation>
-				<xsd:documentation>
-					Defines an outbound SNS Channel Adapter for publishing messages to the topic.
-				</xsd:documentation>
-			</xsd:annotation>
-			<xsd:complexContent>
-				<xsd:extension base="baseSnsAdapterType">
-					<xsd:attribute name="request-channel" use="required" type="xsd:string">
-						<xsd:annotation>
-							<xsd:appinfo>
-								<tool:annotation kind="ref">
-									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
-								</tool:annotation>
-							</xsd:appinfo>
-							<xsd:documentation>
-								Identifies the request channel attached to this gateway.
-							</xsd:documentation>
-						</xsd:annotation>
-					</xsd:attribute>
-					<xsd:attribute name="reply-channel" type="xsd:string">
-						<xsd:annotation>
-							<xsd:appinfo>
-								<tool:annotation kind="ref">
-									<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
-								</tool:annotation>
-							</xsd:appinfo>
-							<xsd:documentation>
-								Identifies the reply channel attached to this
-								gateway.
-							</xsd:documentation>
-						</xsd:annotation>
-					</xsd:attribute>
-					<xsd:attribute name="reply-timeout" type="xsd:string">
-						<xsd:annotation>
-							<xsd:documentation><![CDATA[
-								Allows you to specify how long this gateway will wait for
-								the reply message to be sent successfully to the reply channel
-								before throwing an exception. This attribute only applies when the
-								channel might block, for example when using a bounded queue channel that
-								is currently full.
-
-								Also, keep in mind that when sending to a DirectChannel, the
-								invocation will occur in the sender's thread. Therefore,
-								the failing of the send operation may be caused by other
-								components further downstream.
-
-								The "reply-timeout" attribute maps to the "sendTimeout" property of the
-								underlying 'MessagingTemplate' instance (org.springframework.integration.core.MessagingTemplate).
-
-								The attribute will default, if not specified, to '-1', meaning that
-								by default, the Gateway will wait indefinitely. The value is
-								specified in milliseconds.
-							]]></xsd:documentation>
-						</xsd:annotation>
-					</xsd:attribute>
-					<xsd:attribute name="id" type="xsd:string"/>
-					<xsd:attributeGroup ref="integration:smartLifeCycleAttributeGroup"/>
+					<xsd:attributeGroup ref="awsAsyncOutboundAttributes"/>
 				</xsd:extension>
 			</xsd:complexContent>
 		</xsd:complexType>
@@ -801,7 +887,7 @@
 				Base type for the 'sqs-message-driven-channel-adapter' and 'sqs-outbound-channel-adapter' elements.
 			</xsd:documentation>
 		</xsd:annotation>
-		<xsd:attribute name="sqs">
+		<xsd:attribute name="sqs" use="required">
 			<xsd:annotation>
 				<xsd:documentation>
 					The 'com.amazonaws.services.sqs.AmazonSQS' bean reference.

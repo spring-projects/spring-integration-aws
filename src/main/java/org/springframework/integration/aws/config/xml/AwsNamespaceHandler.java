@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2016 the original author or authors.
+ * Copyright 2013-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.springframework.integration.config.xml.AbstractIntegrationNamespaceHa
  *
  * @author Amol Nayak
  * @author Artem Bilan
+ *
  * @since 0.5
  */
 public class AwsNamespaceHandler extends AbstractIntegrationNamespaceHandler {
@@ -37,7 +38,6 @@ public class AwsNamespaceHandler extends AbstractIntegrationNamespaceHandler {
 		registerBeanDefinitionParser("sqs-message-driven-channel-adapter", new SqsMessageDrivenChannelAdapterParser());
 		registerBeanDefinitionParser("sns-inbound-channel-adapter", new SnsInboundChannelAdapterParser());
 		registerBeanDefinitionParser("sns-outbound-channel-adapter", new SnsOutboundChannelAdapterParser());
-		registerBeanDefinitionParser("sns-outbound-gateway", new SnsOutboundGatewayParser());
 	}
 
 }

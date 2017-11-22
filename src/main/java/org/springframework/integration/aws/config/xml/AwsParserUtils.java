@@ -16,6 +16,14 @@
 
 package org.springframework.integration.aws.config.xml;
 
+import org.w3c.dom.Element;
+
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.beans.factory.xml.ParserContext;
+import org.springframework.core.Conventions;
+import org.springframework.integration.config.xml.IntegrationNamespaceUtils;
+
 /**
  * The utility class for the namespace parsers.
  *
@@ -46,13 +54,20 @@ public final class AwsParserUtils {
 	 */
 	public static final String RESOURCE_ID_RESOLVER_REF = "resource-id-resolver";
 
-	/**
-	 * The 'queue-messaging-template' reference attribute name.
-	 */
-	public static final String QUEUE_MESSAGING_TEMPLATE_REF = "queue-messaging-template";
-
 	private AwsParserUtils() {
 		super();
+	}
+
+	static void populateExpressionAttribute(String attributeName, BeanDefinitionBuilder builder,
+			Element element, ParserContext parserContext) {
+
+		BeanDefinition beanDefinition =
+				IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression(attributeName,
+						attributeName + "-expression", parserContext, element, false);
+		if (beanDefinition != null) {
+			builder.addPropertyValue(Conventions.attributeNameToPropertyName(attributeName) + "Expression",
+					beanDefinition);
+		}
 	}
 
 }

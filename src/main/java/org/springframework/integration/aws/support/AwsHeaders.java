@@ -66,11 +66,6 @@ public abstract class AwsHeaders {
 	public static final String SNS_MESSAGE_TYPE = PREFIX + "snsMessageType";
 
 	/**
-	 * The {@value SNS_PUBLISHED_MESSAGE_ID} header for message published over SNS.
-	 */
-	public static final String SNS_PUBLISHED_MESSAGE_ID = PREFIX + "snsPublishedMessageId";
-
-	/**
 	 * The {@value SHARD} header to represent Kinesis shardId.
 	 */
 	public static final String SHARD = PREFIX + "shard";
@@ -101,7 +96,7 @@ public abstract class AwsHeaders {
 	public static final String PARTITION_KEY = PREFIX + "partitionKey";
 
 	/**
-	 * The {@value SEQUENCE_NUMBER} header for sending data to Kinesis.
+	 * The {@value SEQUENCE_NUMBER} header for sending data to SQS/Kinesis.
 	 */
 	public static final String SEQUENCE_NUMBER = PREFIX + "sequenceNumber";
 

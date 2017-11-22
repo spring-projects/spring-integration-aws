@@ -260,12 +260,9 @@ background components and core configuration, please, refer to the documentation
 
 ### Outbound Channel Adapter
 
-The SQS Outbound Channel Adapter is presented by the `SqsMessageHandler` implementation
-(`<int-aws:sqs-outbound-channel-adapter>`) and allows to send message to the SQS `queue` with provided `AmazonSQS`
-client. An SQS queue can be configured explicitly on the adapter (using
-`org.springframework.integration.expression.ValueExpression`) or as a SpEL `Expression`, which is evaluated against
-request message as a root object of evaluation context. In addition the `queue` can be extracted from the message
-headers under `AwsHeaders.QUEUE`.
+The SQS Outbound Channel Adapter is presented by the `SqsMessageHandler` implementation (`<int-aws:sqs-outbound-channel-adapter>`) and allows to send message to the SQS `queue` with provided `AmazonSQS` client. 
+An SQS queue can be configured explicitly on the adapter (using `org.springframework.integration.expression.ValueExpression`) or as a SpEL `Expression`, which is evaluated against request message as a root object of evaluation context. 
+In addition the `queue` can be extracted from the message headers under `AwsHeaders.QUEUE`.
 
 The Java Configuration is pretty simple:
 
@@ -273,18 +270,10 @@ The Java Configuration is pretty simple:
 @SpringBootApplication
 public static class MyConfiguration {
 
-    @Autowired
-    private AmazonSQSAsync amazonSqs;
-
-    @Bean
-    public QueueMessagingTemplate queueMessagingTemplate() {
-    	return new QueueMessagingTemplate(this.amazonSqs);
-    }
-
     @Bean
     @ServiceActivator(inputChannel = "sqsSendChannel")
     public MessageHandler sqsMessageHandler() {
-    	return new SqsMessageHandler(queueMessagingTemplate());
+    	return new SqsMessageHandler(AmazonSQSAsync amazonSqs);
     }
 
 }
@@ -306,7 +295,7 @@ The SQS Inbound Channel Adapter is a `message-driven` implementation for the `Me
 `SqsMessageDrivenChannelAdapter`. This channel adapter is based on the
 `org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer` to receive messages from the
 provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
-The enhancements includes `AwsHeaders.MESSAGE_ID`, `AwsHeaders.RECEIPT_HANDLE` and `AwsHeaders.QUEUE` message headers.
+The enhancements includes `AwsHeaders.MESSAGE_ID`, `AwsHeaders.RECEIPT_HANDLE` and `AwsHeaders.RECEIVED_QUEUE` message headers.
 
 The Java Configuration is pretty simple:
 
@@ -477,26 +466,6 @@ The XML variant may look like:
 			body-expression="payload.toUpperCase()"/>
 ````
 
-### Outbound Gateway
-
-The `<int-aws:sns-outbound-gateway>` is fully similar to the one-way channel adapter.
-The only difference that in gateway mode the `SnsMessageHandler` produces the reply `Message` as:
-
-````java
-return getMessageBuilderFactory()
-           .withPayload(publishRequest)
-           .setHeader(AwsHeaders.TOPIC, publishRequest.getTopicArn())
-           .setHeader(AwsHeaders.SNS_PUBLISHED_MESSAGE_ID, publishResult.getMessageId());
-````
-
-The reply from the `<int-aws:sns-outbound-gateway>` may be useful to track and correlate the SNS message
-in the downstream flow.
-
-With Java configuration there is just enough to use constructor of `SnsMessageHandler` with `produceReply` boolean
-flag to `true` ot switch it to the gateway mode.
-By default the `SnsMessageHandler` is one-way `MessageHandler`.
-
-
 ## Metadata Store for Amazon DynamoDB
 
 The `DynamoDbMetaDataStore`, a `ConcurrentMetadataStore` implementation, is provided to keep the metadata for Spring Integration components in the distributed Amazon DynamoDB store. 
@@ -554,6 +523,9 @@ public static class MyConfiguration {
 This channel adapter can be configured with the `DynamoDbMetaDataStore` mentioned above to track sequence checkpoints for shards in the cloud environment when we have several instances of our Kinesis application. 
 By default this adapter uses `DeserializingConverter` to convert `byte[]` from the `Record` data.
 Can be specified as `null` with meaning no conversion and the target `Message` is sent with the `byte[]` payload.
+
+Additional headers like `AwsHeaders.RECEIVED_STREAM`, `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` are populated to the message for downstream logic.
+When `CheckpointMode.manual` is used the `Checkpointer` instance is populated to the `AwsHeaders.CHECKPOINTER` header for acknowledgment in the downstream logic manually. 
 
 The consumer group is included to the metadata store `key`.
 When records are consumed, they are filtered by the last stored `lastCheckpoint` under the key as `[CONSUMER_GROUP]:[STREAM]:[SHARD_ID]`.

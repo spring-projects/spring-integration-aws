@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2015-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.integration.endpoint.EventDrivenConsumer;
+import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQS;
 
 /**
@@ -49,7 +52,22 @@ public class SqsMessageHandlerParserTests {
 	private ResourceIdResolver resourceIdResolver;
 
 	@Autowired
+	private ErrorMessageStrategy errorMessageStrategy;
+
+	@Autowired
+	private MessageConverter messageConverter;
+
+	@Autowired
+	private AsyncHandler<?, ?> asyncHandler;
+
+	@Autowired
 	private MessageChannel errorChannel;
+
+	@Autowired
+	private MessageChannel failureChannel;
+
+	@Autowired
+	private MessageChannel successChannel;
 
 	@Autowired
 	private EventDrivenConsumer sqsOutboundChannelAdapter;
@@ -60,10 +78,10 @@ public class SqsMessageHandlerParserTests {
 
 	@Test
 	public void testSqsMessageHandlerParser() {
-		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "template.amazonSqs"))
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "amazonSqs"))
 				.isSameAs(this.amazonSqs);
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"template.destinationResolver.targetDestinationResolver.resourceIdResolver"))
+				"destinationResolver.resourceIdResolver"))
 				.isSameAs(this.resourceIdResolver);
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
 				"queueExpression.literalValue"))
@@ -75,6 +93,40 @@ public class SqsMessageHandlerParserTests {
 				.isSameAs(this.errorChannel);
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapter, "handler"))
 				.isSameAs(this.sqsOutboundChannelAdapterHandler);
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
+				"delayExpression.expression"))
+				.isEqualTo("'200'");
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
+				"messageDeduplicationIdExpression.literalValue"))
+				.isEqualTo("foo");
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
+				"messageGroupIdExpression.expression"))
+				.isEqualTo("'bar'");
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "failureChannel"))
+				.isSameAs(this.failureChannel);
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "outputChannel"))
+				.isSameAs(this.successChannel);
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "messageConverter"))
+				.isSameAs(this.messageConverter);
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "errorMessageStrategy"))
+				.isSameAs(this.errorMessageStrategy);
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "asyncHandler"))
+				.isSameAs(this.asyncHandler);
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "sync", Boolean.class))
+				.isFalse();
+
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
+				"sendTimeoutExpression.literalValue"))
+				.isEqualTo("202");
 	}
 
 }

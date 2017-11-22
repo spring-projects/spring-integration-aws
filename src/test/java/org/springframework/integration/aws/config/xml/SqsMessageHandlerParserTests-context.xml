@@ -2,9 +2,11 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
 	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
+	   xmlns:int="http://www.springframework.org/schema/integration"
 	   xmlns:aws-messaging="http://www.springframework.org/schema/cloud/aws/messaging"
 	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
 	   http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
+	   http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
 	   http://www.springframework.org/schema/cloud/aws/messaging http://www.springframework.org/schema/cloud/aws/messaging/spring-cloud-aws-messaging.xsd">
 
 	<aws-messaging:sqs-async-client id="sqs"/>
@@ -13,12 +15,38 @@
 		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
 	</bean>
 
+	<bean id="errorMessageStrategy" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.integration.support.ErrorMessageStrategy"/>
+	</bean>
+
+	<bean id="messageConverter" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.messaging.converter.MessageConverter"/>
+	</bean>
+
+	<bean id="asyncHandler" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="com.amazonaws.handlers.AsyncHandler"/>
+	</bean>
+
+	<int:channel id="failureChannel"/>
+
+	<int:channel id="successChannel"/>
+
 	<int-aws:sqs-outbound-channel-adapter sqs="sqs"
 										  auto-startup="false"
 										  channel="errorChannel"
 										  phase="100"
 										  id="sqsOutboundChannelAdapter"
 										  queue="foo"
+										  delay-expression="'200'"
+										  message-deduplication-id="foo"
+										  message-group-id-expression="'bar'"
+										  send-timeout="202"
+										  sync="false"
+										  error-message-strategy="errorMessageStrategy"
+										  failure-channel="failureChannel"
+										  success-channel="successChannel"
+										  message-converter="messageConverter"
+										  async-handler="asyncHandler"
 										  resource-id-resolver="resourceIdResolver"/>
 
 </beans>
