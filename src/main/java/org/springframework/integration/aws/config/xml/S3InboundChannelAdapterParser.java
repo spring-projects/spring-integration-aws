@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@ package org.springframework.integration.aws.config.xml;
 
 import org.springframework.integration.aws.inbound.S3InboundFileSynchronizer;
 import org.springframework.integration.aws.inbound.S3InboundFileSynchronizingMessageSource;
+import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter;
 import org.springframework.integration.aws.support.filters.S3RegexPatternFileListFilter;
 import org.springframework.integration.aws.support.filters.S3SimplePatternFileListFilter;
 import org.springframework.integration.file.config.AbstractRemoteFileInboundChannelAdapterParser;
+import org.springframework.integration.file.filters.AbstractPersistentAcceptOnceFileListFilter;
 import org.springframework.integration.file.filters.FileListFilter;
 import org.springframework.integration.file.remote.synchronizer.InboundFileSynchronizer;
 
@@ -49,6 +51,11 @@ public class S3InboundChannelAdapterParser extends AbstractRemoteFileInboundChan
 	@Override
 	protected Class<? extends InboundFileSynchronizer> getInboundFileSynchronizerClass() {
 		return S3InboundFileSynchronizer.class;
+	}
+
+	@Override
+	protected Class<? extends AbstractPersistentAcceptOnceFileListFilter<?>> getPersistentAcceptOnceFileListFilterClass() {
+		return S3PersistentAcceptOnceFileListFilter.class;
 	}
 
 }

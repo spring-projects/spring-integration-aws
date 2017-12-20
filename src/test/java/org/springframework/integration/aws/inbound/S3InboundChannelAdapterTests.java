@@ -17,8 +17,8 @@
 package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.Matchers.any;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -178,7 +178,8 @@ public class S3InboundChannelAdapterTests {
 			synchronizer.setPreserveTimestamp(true);
 			synchronizer.setRemoteDirectory(S3_BUCKET);
 			synchronizer.setFilter(new S3RegexPatternFileListFilter(".*\\.test$"));
-			Expression expression = PARSER.parseExpression("(#this.contains('/') ? #this.substring(#this.lastIndexOf('/') + 1) : #this).toUpperCase() + '.a'");
+			Expression expression =
+					PARSER.parseExpression("(#this.contains('/') ? #this.substring(#this.lastIndexOf('/') + 1) : #this).toUpperCase() + '.a'");
 			synchronizer.setLocalFilenameGeneratorExpression(expression);
 			return synchronizer;
 		}

@@ -17,8 +17,8 @@
 package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.Matchers.any;
 
 import java.io.File;
 import java.io.FileInputStream;

@@ -17,8 +17,8 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 
 import java.nio.ByteBuffer;
@@ -171,9 +171,8 @@ public class KinesisProducingMessageHandlerTests {
 
 			given(mock.putRecordAsync(any(PutRecordRequest.class), any(AsyncHandler.class)))
 					.willAnswer(invocation -> {
-						PutRecordRequest request = invocation.getArgumentAt(0, PutRecordRequest.class);
-						AsyncHandler<PutRecordRequest, PutRecordResult> handler =
-								invocation.getArgumentAt(1, AsyncHandler.class);
+						PutRecordRequest request = invocation.getArgument(0);
+						AsyncHandler<PutRecordRequest, PutRecordResult> handler = invocation.getArgument(1);
 						PutRecordResult result = new PutRecordResult()
 								.withSequenceNumber(request.getSequenceNumberForOrdering())
 								.withShardId("shardId-1");
@@ -181,7 +180,7 @@ public class KinesisProducingMessageHandlerTests {
 						return mock(Future.class);
 					})
 					.willAnswer(invocation -> {
-						AsyncHandler<?, ?> handler = invocation.getArgumentAt(1, AsyncHandler.class);
+						AsyncHandler<?, ?> handler = invocation.getArgument(1);
 						handler.onError(new RuntimeException("putRecordRequestEx"));
 						return mock(Future.class);
 					});
@@ -189,13 +188,12 @@ public class KinesisProducingMessageHandlerTests {
 
 			given(mock.putRecordsAsync(any(PutRecordsRequest.class), any(AsyncHandler.class)))
 					.willAnswer(invocation -> {
-						AsyncHandler<PutRecordsRequest, PutRecordsResult> handler =
-								invocation.getArgumentAt(1, AsyncHandler.class);
+						AsyncHandler<PutRecordsRequest, PutRecordsResult> handler = invocation.getArgument(1);
 						handler.onSuccess(new PutRecordsRequest(), new PutRecordsResult());
 						return mock(Future.class);
 					})
 					.willAnswer(invocation -> {
-						AsyncHandler<?, ?> handler = invocation.getArgumentAt(1, AsyncHandler.class);
+						AsyncHandler<?, ?> handler = invocation.getArgument(1);
 						handler.onError(new RuntimeException("putRecordsRequestEx"));
 						return mock(Future.class);
 					});

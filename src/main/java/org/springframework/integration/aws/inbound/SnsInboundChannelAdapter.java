@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,9 +97,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 				Arrays.asList(MediaType.APPLICATION_JSON_UTF8, MediaType.TEXT_PLAIN));
 		super.setRequestMapping(requestMapping);
 		super.setStatusCodeExpression(new ValueExpression<>(HttpStatus.NO_CONTENT));
-		super.setMessageConverters(
-				Collections.<HttpMessageConverter<?>>singletonList(this.jackson2HttpMessageConverter));
-		super.setRequestPayloadType(HashMap.class);
+		super.setMessageConverters(Collections.singletonList(this.jackson2HttpMessageConverter));
+		super.setRequestPayloadTypeClass(HashMap.class);
 	}
 
 	public void setHandleNotificationStatus(boolean handleNotificationStatus) {
@@ -184,7 +183,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 	}
 
 	@Override
-	public void setRequestPayloadType(Class<?> requestPayloadType) {
+	public void setRequestPayloadTypeClass(Class<?> requestPayloadType) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -202,6 +201,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 	public void setStatusCodeExpression(Expression statusCodeExpression) {
 		throw new UnsupportedOperationException();
 	}
+
 
 	private static class NotificationStatusResolver extends NotificationStatusHandlerMethodArgumentResolver {
 

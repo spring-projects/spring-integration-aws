@@ -16,8 +16,8 @@
 
 package org.springframework.integration.aws.outbound;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 
 import org.junit.runner.RunWith;

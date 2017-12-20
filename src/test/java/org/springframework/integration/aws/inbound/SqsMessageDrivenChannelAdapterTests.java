@@ -18,9 +18,9 @@ package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
-import static org.mockito.Matchers.any;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
