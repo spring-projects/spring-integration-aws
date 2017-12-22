@@ -26,9 +26,14 @@ public abstract class AwsHeaders {
 	private static final String PREFIX = "aws_";
 
 	/**
-	 * The {@value QUEUE} header for sending/receiving data over SQS.
+	 * The {@value QUEUE} header for sending data to SQS.
 	 */
 	public static final String QUEUE = PREFIX + "queue";
+
+	/**
+	 * The {@value RECEIVED_QUEUE} header for receiving data from SQS.
+	 */
+	public static final String RECEIVED_QUEUE = PREFIX + "receivedQueue";
 
 	/**
 	 * The {@value TOPIC} header for sending/receiving data over SNS.
@@ -66,22 +71,37 @@ public abstract class AwsHeaders {
 	public static final String SNS_PUBLISHED_MESSAGE_ID = PREFIX + "snsPublishedMessageId";
 
 	/**
-	 * The {@value STREAM} header for sending/receiving data over Kinesis.
-	 */
-	public static final String STREAM = PREFIX + "stream";
-
-	/**
 	 * The {@value SHARD} header to represent Kinesis shardId.
 	 */
 	public static final String SHARD = PREFIX + "shard";
 
 	/**
-	 * The {@value PARTITION_KEY} header for sending/receiving data over Kinesis.
+	 * The {@value RECEIVED_STREAM} header for receiving data from Kinesis.
+	 */
+	public static final String RECEIVED_STREAM = PREFIX + "receivedStream";
+
+	/**
+	 * The {@value RECEIVED_PARTITION_KEY} header for receiving data from Kinesis.
+	 */
+	public static final String RECEIVED_PARTITION_KEY = PREFIX + "receivedPartitionKey";
+
+	/**
+	 * The {@value RECEIVED_SEQUENCE_NUMBER} header for receiving data from Kinesis.
+	 */
+	public static final String RECEIVED_SEQUENCE_NUMBER = PREFIX + "receivedSequenceNumber";
+
+	/**
+	 * The {@value STREAM} header for sending data to Kinesis.
+	 */
+	public static final String STREAM = PREFIX + "stream";
+
+	/**
+	 * The {@value PARTITION_KEY} header for sending data to Kinesis.
 	 */
 	public static final String PARTITION_KEY = PREFIX + "partitionKey";
 
 	/**
-	 * The {@value SEQUENCE_NUMBER} header for sending/receiving data over Kinesis.
+	 * The {@value SEQUENCE_NUMBER} header for sending data to Kinesis.
 	 */
 	public static final String SEQUENCE_NUMBER = PREFIX + "sequenceNumber";
 

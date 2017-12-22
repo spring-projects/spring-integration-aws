@@ -32,7 +32,6 @@ repositories {
 
 ext {
 	assertjVersion = '3.8.0'
-	jacksonVersion = '2.9.3'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.25'
 	springCloudAwsVersion = '2.0.0.BUILD-SNAPSHOT'
@@ -99,7 +98,6 @@ dependencies {
 	compile 'org.springframework.integration:spring-integration-core'
 	compile 'org.springframework.cloud:spring-cloud-aws-core'
 
-	compile("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion", optional)
 	compile('org.springframework.cloud:spring-cloud-aws-messaging', optional)
 	compile('org.springframework.integration:spring-integration-file', optional)
 	compile('org.springframework.integration:spring-integration-http', optional)

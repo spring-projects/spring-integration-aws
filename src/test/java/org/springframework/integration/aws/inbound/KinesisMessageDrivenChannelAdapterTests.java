@@ -126,10 +126,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isEqualTo("foo");
 		MessageHeaders headers = message.getHeaders();
-		assertThat(headers.get(AwsHeaders.PARTITION_KEY)).isEqualTo("partition1");
+		assertThat(headers.get(AwsHeaders.RECEIVED_PARTITION_KEY)).isEqualTo("partition1");
 		assertThat(headers.get(AwsHeaders.SHARD)).isEqualTo("1");
-		assertThat(headers.get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("1");
-		assertThat(headers.get(AwsHeaders.STREAM)).isEqualTo(STREAM1);
+		assertThat(headers.get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER)).isEqualTo("1");
+		assertThat(headers.get(AwsHeaders.RECEIVED_STREAM)).isEqualTo(STREAM1);
 		Checkpointer checkpointer = headers.get(AwsHeaders.CHECKPOINTER, Checkpointer.class);
 		assertThat(checkpointer).isNotNull();
 
@@ -139,10 +139,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isEqualTo("bar");
 		headers = message.getHeaders();
-		assertThat(headers.get(AwsHeaders.PARTITION_KEY)).isEqualTo("partition1");
+		assertThat(headers.get(AwsHeaders.RECEIVED_PARTITION_KEY)).isEqualTo("partition1");
 		assertThat(headers.get(AwsHeaders.SHARD)).isEqualTo("1");
-		assertThat(headers.get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("2");
-		assertThat(headers.get(AwsHeaders.STREAM)).isEqualTo(STREAM1);
+		assertThat(headers.get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER)).isEqualTo("2");
+		assertThat(headers.get(AwsHeaders.RECEIVED_STREAM)).isEqualTo(STREAM1);
 
 		assertThat(this.kinesisChannel.receive(10)).isNull();
 
