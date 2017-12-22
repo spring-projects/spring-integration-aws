@@ -79,11 +79,11 @@ public class SqsMessageDrivenChannelAdapterTests {
 		org.springframework.messaging.Message<?> receive = this.inputChannel.receive(1000);
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");
-		assertThat(receive.getHeaders().get(AwsHeaders.QUEUE)).isEqualTo("testQueue");
+		assertThat(receive.getHeaders().get(AwsHeaders.RECEIVED_QUEUE)).isEqualTo("testQueue");
 		receive = this.inputChannel.receive(1000);
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");
-		assertThat(receive.getHeaders().get(AwsHeaders.QUEUE)).isEqualTo("testQueue");
+		assertThat(receive.getHeaders().get(AwsHeaders.RECEIVED_QUEUE)).isEqualTo("testQueue");
 
 		try {
 			this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.stop('testQueue')"));
