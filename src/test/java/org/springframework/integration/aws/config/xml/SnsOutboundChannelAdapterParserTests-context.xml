@@ -8,34 +8,39 @@
 	   http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd">
 
 	<bean id="amazonSns" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="com.amazonaws.services.sns.AmazonSNS"/>
+		<constructor-arg value="com.amazonaws.services.sns.AmazonSNSAsync"/>
 	</bean>
 
 	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
 		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver" />
 	</bean>
 
+	<bean id="errorMessageStrategy" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.integration.support.ErrorMessageStrategy"/>
+	</bean>
+
+	<bean id="asyncHandler" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="com.amazonaws.handlers.AsyncHandler"/>
+	</bean>
+
+	<int:channel id="successChannel"/>
+
+	<int:channel id="notificationChannel"/>
+
 	<int-aws:sns-outbound-channel-adapter
 			id="defaultAdapter"
+			channel="notificationChannel"
+			failure-channel="errorChannel"
 			sns="amazonSns"
+			success-channel="successChannel"
+			error-message-strategy="errorMessageStrategy"
+			async-handler="asyncHandler"
+			send-timeout="202"
+			sync="false"
 			resource-id-resolver="resourceIdResolver">
 		<int-aws:request-handler-advice-chain>
 			<bean class="org.springframework.integration.handler.advice.RequestHandlerRetryAdvice"/>
 		</int-aws:request-handler-advice-chain>
 	</int-aws:sns-outbound-channel-adapter>
-
-	<int:channel id="notificationChannel"/>
-
-	<int-aws:sns-outbound-gateway
-			id="snsGateway"
-			sns="amazonSns"
-			request-channel="notificationChannel"
-			reply-channel="errorChannel"
-			topic-arn="foo"
-			subject="bar"
-			body-expression="payload.toUpperCase()"
-			resource-id-resolver="resourceIdResolver"
-			auto-startup="false"
-			phase="201"/>
 
 </beans>

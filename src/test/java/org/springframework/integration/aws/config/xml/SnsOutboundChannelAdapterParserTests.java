@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,14 @@ package org.springframework.integration.aws.config.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
-import org.springframework.expression.Expression;
 import org.springframework.integration.endpoint.AbstractEndpoint;
-import org.springframework.integration.handler.advice.RequestHandlerRetryAdvice;
+import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -37,7 +33,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.sns.AmazonSNSAsync;
 
 /**
  * @author Artem Bilan
@@ -48,18 +45,14 @@ import com.amazonaws.services.sns.AmazonSNS;
 public class SnsOutboundChannelAdapterParserTests {
 
 	@Autowired
-	private AmazonSNS amazonSns;
-
-	@Autowired
-	@Qualifier("defaultAdapter")
-	private MessageChannel defaultAdapterChannel;
+	private AmazonSNSAsync amazonSns;
 
 	@Autowired
 	@Qualifier("errorChannel")
 	private MessageChannel errorChannel;
 
 	@Autowired
-	@Qualifier("defaultAdapter.adapter")
+	@Qualifier("defaultAdapter")
 	private AbstractEndpoint defaultAdapter;
 
 	@Autowired
@@ -71,28 +64,23 @@ public class SnsOutboundChannelAdapterParserTests {
 	private MessageChannel notificationChannel;
 
 	@Autowired
-	@Qualifier("snsGateway")
-	private AbstractEndpoint snsGateway;
-
-	@Autowired
-	@Qualifier("snsGateway.handler")
-	private MessageHandler snsGatewayHandler;
-
-	@Autowired
 	private ResourceIdResolver resourceIdResolver;
 
+	@Autowired
+	private ErrorMessageStrategy errorMessageStrategy;
+
+	@Autowired
+	private AsyncHandler<?, ?> asyncHandler;
+
+	@Autowired
+	private MessageChannel successChannel;
+
 	@Test
-	public void testSnsOutboundChannelAdapterDefaultParser() throws Exception {
+	public void testSnsOutboundChannelAdapterDefaultParser() {
 		Object handler = TestUtils.getPropertyValue(this.defaultAdapter, "handler");
-		assertThat(AopUtils.isAopProxy(handler)).isFalse();
-
-		assertThat(handler).isSameAs(this.defaultAdapterHandler);
-
-		assertThat(TestUtils.getPropertyValue(handler, "adviceChain", List.class).get(0))
-				.isInstanceOf(RequestHandlerRetryAdvice.class);
 
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapter, "inputChannel"))
-				.isSameAs(this.defaultAdapterChannel);
+				.isSameAs(this.notificationChannel);
 
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "amazonSns")).isSameAs(this.amazonSns);
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "evaluationContext")).isNotNull();
@@ -101,30 +89,28 @@ public class SnsOutboundChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "bodyExpression")).isNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "resourceIdResolver"))
 				.isSameAs(this.resourceIdResolver);
-	}
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "failureChannel"))
+				.isSameAs(this.errorChannel);
 
-	@Test
-	public void testSnsOutboundGatewayParser() {
-		assertThat(TestUtils.getPropertyValue(this.snsGateway, "inputChannel")).isSameAs(this.notificationChannel);
-		assertThat(TestUtils.getPropertyValue(this.snsGateway, "handler")).isSameAs(this.snsGatewayHandler);
-		assertThat(TestUtils.getPropertyValue(this.snsGateway, "autoStartup", Boolean.class)).isFalse();
-		assertThat(TestUtils.getPropertyValue(this.snsGateway, "phase", Integer.class)).isEqualTo(201);
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "produceReply", Boolean.class)).isTrue();
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "outputChannel")).isSameAs(this.errorChannel);
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "resourceIdResolver"))
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "resourceIdResolver"))
 				.isSameAs(this.resourceIdResolver);
 
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "amazonSns")).isSameAs(this.amazonSns);
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "evaluationContext")).isNotNull();
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "topicArnExpression", Expression.class)
-				.getExpressionString())
-				.isEqualTo("foo");
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "subjectExpression", Expression.class)
-				.getExpressionString())
-				.isEqualTo("bar");
-		assertThat(TestUtils.getPropertyValue(this.snsGatewayHandler, "bodyExpression", Expression.class)
-				.getExpressionString())
-				.isEqualTo("payload.toUpperCase()");
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "outputChannel"))
+				.isSameAs(this.successChannel);
+
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "errorMessageStrategy"))
+				.isSameAs(this.errorMessageStrategy);
+
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "asyncHandler"))
+				.isSameAs(this.asyncHandler);
+
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "sync", Boolean.class))
+				.isFalse();
+
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler,
+				"sendTimeoutExpression.literalValue"))
+				.isEqualTo("202");
+
 	}
 
 }

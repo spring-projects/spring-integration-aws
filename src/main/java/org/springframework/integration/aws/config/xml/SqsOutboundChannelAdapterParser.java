@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2015-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package org.springframework.integration.aws.config.xml;
 
 import org.w3c.dom.Element;
 
-import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.ParserContext;
@@ -39,37 +38,28 @@ public class SqsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
 	protected AbstractBeanDefinition parseConsumer(Element element, ParserContext parserContext) {
 		BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(SqsMessageHandler.class);
 
-		String template = element.getAttribute(AwsParserUtils.QUEUE_MESSAGING_TEMPLATE_REF);
-		boolean hasTemplate = StringUtils.hasText(template);
-		String sqs = element.getAttribute(AwsParserUtils.SQS_REF);
-		boolean hasSqs = StringUtils.hasText(sqs);
 		String resourceIdResolver = element.getAttribute(AwsParserUtils.RESOURCE_ID_RESOLVER_REF);
 		boolean hasResourceIdResolver = StringUtils.hasText(resourceIdResolver);
-		if (hasTemplate && (hasSqs || hasResourceIdResolver)) {
-			parserContext.getReaderContext().error(AwsParserUtils.QUEUE_MESSAGING_TEMPLATE_REF +
-					" should not be defined in conjunction with " + AwsParserUtils.SQS_REF
-					+ " or " + AwsParserUtils.RESOURCE_ID_RESOLVER_REF, element);
-		}
 
-		if (!hasTemplate && !hasSqs) {
-			parserContext.getReaderContext().error("One of " + AwsParserUtils.QUEUE_MESSAGING_TEMPLATE_REF + " or "
-					+ AwsParserUtils.SQS_REF + " must be defined.", element);
-		}
+		builder.addConstructorArgReference(element.getAttribute(AwsParserUtils.SQS_REF));
 
-		if (hasSqs) {
-			builder.addConstructorArgReference(sqs);
-		}
 		if (hasResourceIdResolver) {
 			builder.addConstructorArgReference(resourceIdResolver);
 		}
-		if (hasTemplate) {
-			builder.addConstructorArgReference(template);
-		}
-		BeanDefinition queue = IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression("queue",
-				"queue-expression", parserContext, element, false);
-		if (queue != null) {
-			builder.addPropertyValue("queueExpression", queue);
-		}
+
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "sync");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "message-converter");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "error-message-strategy");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "failure-channel");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "async-handler");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "success-channel", "outputChannel");
+
+		AwsParserUtils.populateExpressionAttribute("queue", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("delay", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("message-group-id", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("message-deduplication-id", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("send-timeout", builder, element, parserContext);
+
 		return builder.getBeanDefinition();
 	}
 

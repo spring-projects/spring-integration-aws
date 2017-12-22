@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,13 @@ package org.springframework.integration.aws.config.xml;
 
 import org.w3c.dom.Element;
 
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.xml.ParserContext;
+import org.springframework.integration.aws.outbound.SnsMessageHandler;
 import org.springframework.integration.config.xml.AbstractOutboundChannelAdapterParser;
+import org.springframework.integration.config.xml.IntegrationNamespaceUtils;
 
 /**
  * The parser for the {@code <int-aws:sns-outbound-channel-adapter>}.
@@ -31,12 +35,32 @@ public class SnsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
 
 	@Override
 	protected AbstractBeanDefinition parseConsumer(Element element, ParserContext parserContext) {
-		AbstractBeanDefinition beanDefinition =
-				new SnsOutboundGatewayParser()
-						.parseHandler(element, parserContext)
-						.getBeanDefinition();
-		beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(1, false);
-		return beanDefinition;
+		String sns = element.getAttribute(AwsParserUtils.SNS_REF);
+
+		BeanDefinitionBuilder builder =
+				BeanDefinitionBuilder.genericBeanDefinition(SnsMessageHandler.class)
+						.addConstructorArgReference(sns);
+
+		AwsParserUtils.populateExpressionAttribute("topic-arn", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("subject", builder, element, parserContext);
+
+		BeanDefinition message =
+				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("body-expression", element);
+		if (message != null) {
+			builder.addPropertyValue("bodyExpression", message);
+		}
+
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "resource-id-resolver");
+
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "sync");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "error-message-strategy");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "failure-channel");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "async-handler");
+		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "success-channel", "outputChannel");
+
+		AwsParserUtils.populateExpressionAttribute("send-timeout", builder, element, parserContext);
+
+		return builder.getBeanDefinition();
 	}
 
 }

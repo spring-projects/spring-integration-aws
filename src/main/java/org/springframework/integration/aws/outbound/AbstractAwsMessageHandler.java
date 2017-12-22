@@ -40,9 +40,13 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
 
 /**
+ * The base {@link AbstractMessageProducingHandler} for AWS services.
+ * Utilizes common logic ({@link AsyncHandler}, {@link ErrorMessageStrategy},
+ * {@code failureChannel} etc.) and message pre- and post-processing,
+ *
  * @author Artem Bilan
  *
- * @since 1.1
+ * @since 2.0
  */
 public abstract class AbstractAwsMessageHandler extends AbstractMessageProducingHandler {
 

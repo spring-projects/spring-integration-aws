@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2015-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,10 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.Test;
 
 import org.springframework.beans.factory.BeanDefinitionStoreException;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
-import org.springframework.integration.aws.outbound.SqsMessageHandler;
-import org.springframework.integration.test.util.TestUtils;
 
 /**
  * @author Rahul Pilani
@@ -50,23 +45,6 @@ public class SqsOutboundChannelAdapterParserTests {
 	@Test(expected = BeanDefinitionStoreException.class)
 	public void test_neither_sqs_nor_queue_messaging_template_defined() {
 		new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad4.xml", getClass()).close();
-	}
-
-	@Test
-	public void test_happy_path_with_queue_messaging_template() {
-		ConfigurableApplicationContext applicationContext =
-				new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-good.xml", getClass());
-
-		SqsMessageHandler handlerWithTemplate =
-				applicationContext.getBean("sqsOutboundChannelAdapterWithQueueMessagingTemplate.handler",
-						SqsMessageHandler.class);
-		assertThat(TestUtils.getPropertyValue(handlerWithTemplate, "template")).isNotNull();
-
-		SqsMessageHandler handlerWithSqs = applicationContext.getBean("sqsOutboundChannelAdapterWithSqs.handler",
-				SqsMessageHandler.class);
-		assertThat(TestUtils.getPropertyValue(handlerWithSqs, "template")).isNotNull();
-
-		applicationContext.close();
 	}
 
 }

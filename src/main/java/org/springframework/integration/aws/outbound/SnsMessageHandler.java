@@ -16,26 +16,28 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.concurrent.Future;
+
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
-import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.expression.spel.support.StandardTypeLocator;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.aws.support.SnsBodyBuilder;
-import org.springframework.integration.expression.ExpressionUtils;
-import org.springframework.integration.handler.AbstractReplyProducingMessageHandler;
+import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 
-import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
 
 /**
- * The {@link AbstractReplyProducingMessageHandler} implementation to send SNS Notifications
- * ({@link AmazonSNS#publish(PublishRequest)}) to the provided {@code topicArn}
+ * The {@link AbstractAwsMessageHandler} implementation to send SNS Notifications
+ * ({@link AmazonSNSAsync#publishAsync(PublishRequest)}) to the provided {@code topicArn}
  * (or evaluated at runtime against {@link Message}).
  * <p>
  * The SNS Message subject can be evaluated as a result of {@link #subjectExpression}.
@@ -69,27 +71,16 @@ import com.amazonaws.services.sns.model.PublishResult;
  * to the {@link String} using {@link #getConversionService()}.
  * </li>
  * </ul>
- * <p>
- * If this {@link AbstractReplyProducingMessageHandler} is configured with {@link #produceReply} as
- * {@code true}, the reply message is composed to be sent to the {@code outputChannel} or
- * {@code replyChannel}. The reply message's {@code payload} is exactly the {@link PublishRequest}
- * object, which has been just published to SNS. Also this message has {@link AwsHeaders#TOPIC}
- * and {@link AwsHeaders#MESSAGE_ID} headers to track published SNS message in the
- * downstream.
  *
  * @author Artem Bilan
  *
- * @see AmazonSNS
+ * @see AmazonSNSAsync
  * @see PublishRequest
  * @see SnsBodyBuilder
  */
-public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
+public class SnsMessageHandler extends AbstractAwsMessageHandler {
 
-	private final AmazonSNS amazonSns;
-
-	private final boolean produceReply;
-
-	private EvaluationContext evaluationContext;
+	private final AmazonSNSAsync amazonSns;
 
 	private Expression topicArnExpression;
 
@@ -99,14 +90,9 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 
 	private ResourceIdResolver resourceIdResolver;
 
-	public SnsMessageHandler(AmazonSNS amazonSns) {
-		this(amazonSns, false);
-	}
-
-	public SnsMessageHandler(AmazonSNS amazonSns, boolean produceReply) {
+	public SnsMessageHandler(AmazonSNSAsync amazonSns) {
 		Assert.notNull(amazonSns, "amazonSns must not be null.");
 		this.amazonSns = amazonSns;
-		this.produceReply = produceReply;
 	}
 
 	public void setTopicArn(String topicArn) {
@@ -151,10 +137,9 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 	}
 
 	@Override
-	protected void doInit() {
-		super.doInit();
-		this.evaluationContext = ExpressionUtils.createStandardEvaluationContext(getBeanFactory());
-		TypeLocator typeLocator = this.evaluationContext.getTypeLocator();
+	protected void onInit() throws Exception {
+		super.onInit();
+		TypeLocator typeLocator = getEvaluationContext().getTypeLocator();
 		if (typeLocator instanceof StandardTypeLocator) {
 			/*
 			 * Register the 'org.springframework.integration.aws.support' package
@@ -165,8 +150,8 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 	}
 
 	@Override
-	protected Object handleRequestMessage(Message<?> requestMessage) {
-		Object payload = requestMessage.getPayload();
+	protected Future<?> handleMessageToAws(Message<?> message) {
+		Object payload = message.getPayload();
 
 		PublishRequest publishRequest = null;
 
@@ -176,21 +161,21 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 		else {
 			Assert.state(this.topicArnExpression != null, "'topicArn' or 'topicArnExpression' must be specified.");
 			publishRequest = new PublishRequest();
-			String topicArn = this.topicArnExpression.getValue(this.evaluationContext, requestMessage, String.class);
+			String topicArn = this.topicArnExpression.getValue(getEvaluationContext(), message, String.class);
 			if (this.resourceIdResolver != null) {
 				topicArn = this.resourceIdResolver.resolveToPhysicalResourceId(topicArn);
 			}
 			publishRequest.setTopicArn(topicArn);
 
 			if (this.subjectExpression != null) {
-				String subject = this.subjectExpression.getValue(this.evaluationContext, requestMessage, String.class);
+				String subject = this.subjectExpression.getValue(getEvaluationContext(), message, String.class);
 				publishRequest.setSubject(subject);
 			}
 
-			Object snsMessage = requestMessage.getPayload();
+			Object snsMessage = message.getPayload();
 
 			if (this.bodyExpression != null) {
-				snsMessage = this.bodyExpression.getValue(this.evaluationContext, requestMessage);
+				snsMessage = this.bodyExpression.getValue(getEvaluationContext(), message);
 			}
 
 			if (snsMessage instanceof SnsBodyBuilder) {
@@ -202,16 +187,25 @@ public class SnsMessageHandler extends AbstractReplyProducingMessageHandler {
 			}
 		}
 
-		PublishResult publishResult = this.amazonSns.publish(publishRequest);
+		AsyncHandler<PublishRequest, PublishResult> asyncHandler = obtainAsyncHandler(message, publishRequest);
+		return this.amazonSns.publishAsync(publishRequest, asyncHandler);
 
-		if (this.produceReply) {
-			return getMessageBuilderFactory()
-					.withPayload(publishRequest)
-					.setHeader(AwsHeaders.TOPIC, publishRequest.getTopicArn())
-					.setHeader(AwsHeaders.MESSAGE_ID, publishResult.getMessageId());
+	}
+
+	@Override
+	protected void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
+			AmazonWebServiceRequest request, Object result) {
+
+		if (request instanceof PublishRequest) {
+			PublishRequest publishRequest = (PublishRequest) request;
+
+			messageBuilder.setHeader(AwsHeaders.TOPIC, publishRequest.getTopicArn());
 		}
-		else {
-			return null;
+
+		if (result instanceof PublishResult) {
+			PublishResult publishResult = (PublishResult) result;
+
+			messageBuilder.setHeader(AwsHeaders.MESSAGE_ID, publishResult.getMessageId());
 		}
 	}
 

@@ -39,11 +39,14 @@ import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.PollableChannel;
+import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
 
@@ -61,28 +64,29 @@ public class SnsMessageHandlerTests {
 	private MessageChannel sendToSnsChannel;
 
 	@Autowired
-	private AmazonSNS amazonSNS;
+	private AmazonSNSAsync amazonSNS;
+
+	@Autowired
+	private PollableChannel resultChannel;
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testSnsMessageHandler() {
 		SnsBodyBuilder payload = SnsBodyBuilder.withDefault("foo")
 				.forProtocols("{\"foo\" : \"bar\"}", "sms");
 
-		QueueChannel replyChannel = new QueueChannel();
-
 		Message<?> message = MessageBuilder.withPayload(payload)
 				.setHeader("topic", "topic")
 				.setHeader("subject", "subject")
-				.setReplyChannel(replyChannel)
 				.build();
 
 		this.sendToSnsChannel.send(message);
 
-		Message<?> reply = replyChannel.receive(1000);
+		Message<?> reply = this.resultChannel.receive(10000);
 		assertThat(reply).isNotNull();
 
 		ArgumentCaptor<PublishRequest> captor = ArgumentCaptor.forClass(PublishRequest.class);
-		verify(this.amazonSNS).publish(captor.capture());
+		verify(this.amazonSNS).publishAsync(captor.capture(), any(AsyncHandler.class));
 
 		PublishRequest publishRequest = captor.getValue();
 
@@ -94,7 +98,7 @@ public class SnsMessageHandlerTests {
 
 		assertThat(reply.getHeaders().get(AwsHeaders.MESSAGE_ID)).isEqualTo("111");
 		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("topic");
-		assertThat(reply.getPayload()).isSameAs(publishRequest);
+		assertThat(reply.getPayload()).isSameAs(payload);
 	}
 
 	@Configuration
@@ -102,23 +106,35 @@ public class SnsMessageHandlerTests {
 	public static class ContextConfiguration {
 
 		@Bean
-		public AmazonSNS amazonSNS() {
-			AmazonSNS mock = mock(AmazonSNS.class);
+		@SuppressWarnings("unchecked")
+		public AmazonSNSAsync amazonSNS() {
+			AmazonSNSAsync mock = mock(AmazonSNSAsync.class);
 
-			willAnswer(invocation -> new PublishResult().withMessageId("111"))
+			willAnswer(invocation -> {
+				PublishResult publishResult = new PublishResult().withMessageId("111");
+				AsyncHandler<PublishRequest, PublishResult> asyncHandler = invocation.getArgument(1);
+				asyncHandler.onSuccess(invocation.getArgument(0), publishResult);
+				return new AsyncResult<>(publishResult);
+			})
 					.given(mock)
-					.publish(any(PublishRequest.class));
+					.publishAsync(any(PublishRequest.class), any(AsyncHandler.class));
 
 			return mock;
 		}
 
 		@Bean
+		public PollableChannel resultChannel() {
+			return new QueueChannel();
+		}
+
+		@Bean
 		@ServiceActivator(inputChannel = "sendToSnsChannel")
 		public MessageHandler snsMessageHandler() {
-			SnsMessageHandler snsMessageHandler = new SnsMessageHandler(amazonSNS(), true);
+			SnsMessageHandler snsMessageHandler = new SnsMessageHandler(amazonSNS());
 			snsMessageHandler.setTopicArnExpression(PARSER.parseExpression("headers.topic"));
 			snsMessageHandler.setSubjectExpression(PARSER.parseExpression("headers.subject"));
 			snsMessageHandler.setBodyExpression(PARSER.parseExpression("payload"));
+			snsMessageHandler.setOutputChannel(resultChannel());
 			return snsMessageHandler;
 		}
 

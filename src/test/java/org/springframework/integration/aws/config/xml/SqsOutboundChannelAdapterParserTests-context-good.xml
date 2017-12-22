@@ -13,8 +13,6 @@
 		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
 	</bean>
 
-	<aws-messaging:queue-messaging-template amazon-sqs="sqs" id="queueMessagingTemplate"/>
-
 	<int-aws:sqs-outbound-channel-adapter sqs="sqs"
 										  auto-startup="false"
 										  channel="errorChannel"
@@ -22,12 +20,5 @@
 										  id="sqsOutboundChannelAdapterWithSqs"
 										  queue="foo"
 										  resource-id-resolver="resourceIdResolver"/>
-
-	<int-aws:sqs-outbound-channel-adapter auto-startup="false"
-										  channel="errorChannel"
-										  phase="100"
-										  id="sqsOutboundChannelAdapterWithQueueMessagingTemplate"
-										  queue="foo"
-										  queue-messaging-template="queueMessagingTemplate"/>
 
 </beans>
