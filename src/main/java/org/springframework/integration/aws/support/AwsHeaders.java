@@ -110,4 +110,9 @@ public abstract class AwsHeaders {
 	 */
 	public static final String SERVICE_RESULT = PREFIX + "serviceResult";
 
+	/**
+	 * The {@value RAW_RECORD} header represents received Kinesis record(s).
+	 */
+	public static final String RAW_RECORD = PREFIX + "rawRecord";
+
 }

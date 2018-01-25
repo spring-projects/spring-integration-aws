@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.KinesisLocalRunning;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
+import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
 import org.springframework.integration.aws.outbound.KinesisMessageHandler;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
@@ -64,6 +65,9 @@ public class KinesisIntegrationTests {
 	@Autowired
 	private PollableChannel kinesisReceiveChannel;
 
+	@Autowired
+	private PollableChannel errorChannel;
+
 	@BeforeClass
 	public static void setup() {
 		KINESIS_LOCAL_RUNNING.getKinesis().createStream(TEST_STREAM, 1);
@@ -76,14 +80,27 @@ public class KinesisIntegrationTests {
 
 	@Test
 	public void testKinesisInboundOutbound() {
+		this.kinesisSendChannel.send(
+				MessageBuilder.withPayload("foo")
+						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
+						.build());
+
 		Date now = new Date();
 		this.kinesisSendChannel.send(
 				MessageBuilder.withPayload(now)
 						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
 						.build());
+
 		Message<?> receive = this.kinesisReceiveChannel.receive(10_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
+
+		Message<?> errorMessage = this.errorChannel.receive(10_000);
+		assertThat(errorMessage).isNotNull();
+		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
+		assertThat(((Exception) errorMessage.getPayload()).getMessage())
+				.contains("Channel 'kinesisReceiveChannel' expected one of the following datataypes " +
+						"[class java.util.Date], but received [class java.lang.String]");
 	}
 
 	@Configuration
@@ -103,11 +120,20 @@ public class KinesisIntegrationTests {
 			KinesisMessageDrivenChannelAdapter adapter =
 					new KinesisMessageDrivenChannelAdapter(KINESIS_LOCAL_RUNNING.getKinesis(), TEST_STREAM);
 			adapter.setOutputChannel(kinesisReceiveChannel());
+			adapter.setErrorChannel(errorChannel());
+			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
 			return adapter;
 		}
 
 		@Bean
 		public PollableChannel kinesisReceiveChannel() {
+			QueueChannel queueChannel = new QueueChannel();
+			queueChannel.setDatatypes(Date.class);
+			return queueChannel;
+		}
+
+		@Bean
+		public PollableChannel errorChannel() {
 			return new QueueChannel();
 		}
 

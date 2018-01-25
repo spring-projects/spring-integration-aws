@@ -39,6 +39,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -46,9 +47,12 @@ import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.metadata.MetadataStore;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
+import org.springframework.integration.support.ErrorMessageStrategy;
+import org.springframework.integration.support.ErrorMessageUtils;
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
+import org.springframework.messaging.Message;
 import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
@@ -80,6 +84,8 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
 @ManagedResource
 @IntegrationManagedResource
 public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
+
+	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
 	private final AmazonKinesis amazonKinesis;
 
@@ -144,6 +150,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis,
 			KinesisShardOffset... shardOffsets) {
+
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		Assert.notEmpty(shardOffsets, "'shardOffsets' must not be null.");
 		Assert.noNullElements(shardOffsets, "'shardOffsets' must not contain null elements.");
@@ -274,7 +281,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 	@Override
-	public void destroy() throws Exception {
+	public void destroy() {
 		if (!this.consumerExecutorExplicitlySet) {
 			((ExecutorService) this.consumerExecutor).shutdown();
 		}
@@ -444,113 +451,102 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 	private void populateShardsForStream(final String stream, final CountDownLatch shardsGatherLatch) {
-		this.dispatcherExecutor.execute(new Runnable() {
+		this.dispatcherExecutor.execute(() -> {
+			try {
+				int describeStreamRetries = 0;
+				List<Shard> shardsToConsume = new ArrayList<>();
 
-			@Override
-			public void run() {
-				try {
-					int describeStreamRetries = 0;
-					List<Shard> shardsToConsume = new ArrayList<>();
+				String exclusiveStartShardId = null;
+				while (true) {
+					DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest()
+							.withStreamName(stream)
+							.withExclusiveStartShardId(exclusiveStartShardId);
 
-					String exclusiveStartShardId = null;
-					while (true) {
-						DescribeStreamRequest describeStreamRequest = new DescribeStreamRequest()
-								.withStreamName(stream)
-								.withExclusiveStartShardId(exclusiveStartShardId);
+					DescribeStreamResult describeStreamResult = null;
+					// Call DescribeStream, with backoff and retries (if we get LimitExceededException).
+					try {
+						describeStreamResult = this.amazonKinesis.describeStream(describeStreamRequest);
+					}
+					catch (LimitExceededException e) {
+						logger.info("Got LimitExceededException when describing stream [" + stream + "]. " +
+								"Backing off for [" + this.describeStreamBackoff + "] millis.");
+					}
 
-						DescribeStreamResult describeStreamResult = null;
-						// Call DescribeStream, with backoff and retries (if we get LimitExceededException).
+					if (describeStreamResult == null ||
+							!StreamStatus.ACTIVE.toString()
+									.equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
+						if (describeStreamRetries++ > this.describeStreamRetries) {
+							ResourceNotFoundException resourceNotFoundException =
+									new ResourceNotFoundException("The stream [" + stream +
+											"] isn't ACTIVE or doesn't exist.");
+							resourceNotFoundException.setServiceName("Kinesis");
+							throw resourceNotFoundException;
+						}
 						try {
-							describeStreamResult = KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-									.describeStream(describeStreamRequest);
+							Thread.sleep(this.describeStreamBackoff);
+							continue;
 						}
-						catch (LimitExceededException e) {
-							logger.info("Got LimitExceededException when describing stream [" + stream + "]. " +
-									"Backing off for [" +
-									KinesisMessageDrivenChannelAdapter.this.describeStreamBackoff + "] millis.");
+						catch (InterruptedException e) {
+							Thread.interrupted();
+							throw new IllegalStateException("The [describeStream] thread for the stream ["
+									+ stream + "] has been interrupted.", e);
 						}
+					}
 
-						if (describeStreamResult == null ||
-								!StreamStatus.ACTIVE.toString()
-										.equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
-							if (describeStreamRetries++ >
-									KinesisMessageDrivenChannelAdapter.this.describeStreamRetries) {
-								ResourceNotFoundException resourceNotFoundException =
-										new ResourceNotFoundException("The stream [" + stream +
-												"] isn't ACTIVE or doesn't exist.");
-								resourceNotFoundException.setServiceName("Kinesis");
-								throw resourceNotFoundException;
+					List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
+					for (Shard shard : shards) {
+						String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
+						if (endingSequenceNumber != null) {
+							String key = buildCheckpointKeyForShard(stream, shard.getShardId());
+							String checkpoint = this.checkpointStore.get(key);
+
+							boolean skipClosedShard = checkpoint != null &&
+									new BigInteger(endingSequenceNumber)
+											.compareTo(new BigInteger(checkpoint)) <= 0;
+
+							if (logger.isTraceEnabled()) {
+								logger.trace("The shard [" + shard + "] in stream [" + stream +
+										"] is closed CLOSED with endingSequenceNumber [" + endingSequenceNumber +
+										"].\nThe last processed checkpoint is [" + checkpoint + "]." +
+										(skipClosedShard ? "\nThe shard will be skipped." : ""));
 							}
-							try {
-								Thread.sleep(KinesisMessageDrivenChannelAdapter.this.describeStreamBackoff);
+
+							if (skipClosedShard) {
+								// Skip CLOSED shard which has been read before according a checkpoint
 								continue;
 							}
-							catch (InterruptedException e) {
-								Thread.interrupted();
-								throw new IllegalStateException("The [describeStream] thread for the stream ["
-										+ stream + "] has been interrupted.", e);
-							}
 						}
 
-						List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
-						for (Shard shard : shards) {
-							String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
-							if (endingSequenceNumber != null) {
-								String key = buildCheckpointKeyForShard(stream, shard.getShardId());
-								String checkpoint = KinesisMessageDrivenChannelAdapter.this.checkpointStore.get(key);
-
-								boolean skipClosedShard = checkpoint != null &&
-										new BigInteger(endingSequenceNumber)
-												.compareTo(new BigInteger(checkpoint)) <= 0;
-
-								if (logger.isTraceEnabled()) {
-									logger.trace("The shard [" + shard + "] in stream [" + stream +
-											"] is closed CLOSED with endingSequenceNumber [" + endingSequenceNumber +
-											"].\nThe last processed checkpoint is [" + checkpoint + "]." +
-											(skipClosedShard ? "\nThe shard will be skipped." : ""));
-								}
-
-								if (skipClosedShard) {
-									// Skip CLOSED shard which has been read before according a checkpoint
-									continue;
-								}
-							}
-
-							shardsToConsume.add(shard);
-						}
-
-						if (describeStreamResult.getStreamDescription().getHasMoreShards()) {
-							exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
-						}
-						else {
-							break;
-						}
+						shardsToConsume.add(shard);
 					}
 
-					for (Shard shard : shardsToConsume) {
-						KinesisShardOffset shardOffset =
-								new KinesisShardOffset(KinesisMessageDrivenChannelAdapter.this.streamInitialSequence);
-						shardOffset.setShard(shard.getShardId());
-						shardOffset.setStream(stream);
-						boolean addedOffset;
-						synchronized (KinesisMessageDrivenChannelAdapter.this.shardOffsets) {
-							addedOffset = KinesisMessageDrivenChannelAdapter.this.shardOffsets.add(shardOffset);
-						}
-						if (addedOffset
-								&& shardsGatherLatch == null
-								&& KinesisMessageDrivenChannelAdapter.this.active) {
-							populateConsumer(shardOffset);
-						}
+					if (describeStreamResult.getStreamDescription().getHasMoreShards()) {
+						exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
+					}
+					else {
+						break;
 					}
 				}
-				finally {
-					if (shardsGatherLatch != null) {
-						shardsGatherLatch.countDown();
+
+				for (Shard shard : shardsToConsume) {
+					KinesisShardOffset shardOffset = new KinesisShardOffset(this.streamInitialSequence);
+					shardOffset.setShard(shard.getShardId());
+					shardOffset.setStream(stream);
+					boolean addedOffset;
+					synchronized (this.shardOffsets) {
+						addedOffset = this.shardOffsets.add(shardOffset);
 					}
-					KinesisMessageDrivenChannelAdapter.this.inResharding.remove(stream);
+					if (addedOffset && shardsGatherLatch == null && this.active) {
+						populateConsumer(shardOffset);
+					}
 				}
 			}
-
+			finally {
+				if (shardsGatherLatch != null) {
+					shardsGatherLatch.countDown();
+				}
+				this.inResharding.remove(stream);
+			}
 		});
 	}
 
@@ -596,7 +592,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 	private String buildCheckpointKeyForShard(String stream, String shardId) {
-		return KinesisMessageDrivenChannelAdapter.this.consumerGroup + ":" + stream + ":" + shardId;
+		return this.consumerGroup + ":" + stream + ":" + shardId;
 	}
 
 	@Override
@@ -615,6 +611,31 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		}
 		this.shardConsumers.clear();
 		this.consumerInvokers.clear();
+	}
+
+	/**
+	 * If there's an error channel, we create a new attributes holder here.
+	 * Then set the attributes for use by the {@link ErrorMessageStrategy}.
+	 * @param record the Kinesis record to use.
+	 * @param message the Spring Messaging message to use.
+	 */
+	private void setAttributesIfNecessary(Object record, Message<?> message) {
+		if (getErrorChannel() != null) {
+			AttributeAccessor attributes = ErrorMessageUtils.getAttributeAccessor(message, null);
+			attributesHolder.set(attributes);
+			attributes.setAttribute(AwsHeaders.RAW_RECORD, record);
+		}
+	}
+
+	@Override
+	protected AttributeAccessor getErrorMessageAttributes(org.springframework.messaging.Message<?> message) {
+		AttributeAccessor attributes = attributesHolder.get();
+		if (attributes == null) {
+			return super.getErrorMessageAttributes(message);
+		}
+		else {
+			return attributes;
+		}
 	}
 
 	@Override
@@ -731,37 +752,31 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 					case NEW:
 					case EXPIRED:
-						this.task = new Runnable() {
-
-							@Override
-							public void run() {
-								if (logger.isInfoEnabled() && ShardConsumer.this.state == ConsumerState.NEW) {
-									logger.info("The [" + ShardConsumer.this + "] has been started.");
+						this.task = () -> {
+							if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
+								logger.info("The [" + this + "] has been started.");
+							}
+							if (this.shardOffset.isReset()) {
+								this.checkpointer.remove();
+							}
+							else {
+								String checkpoint = this.checkpointer.getCheckpoint();
+								if (checkpoint != null) {
+									this.shardOffset.setSequenceNumber(checkpoint);
+									this.shardOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
 								}
-								if (ShardConsumer.this.shardOffset.isReset()) {
-									ShardConsumer.this.checkpointer.remove();
-								}
-								else {
-									String checkpoint = ShardConsumer.this.checkpointer.getCheckpoint();
-									if (checkpoint != null) {
-										ShardConsumer.this.shardOffset.setSequenceNumber(checkpoint);
-										ShardConsumer.this.shardOffset
-												.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
-									}
-								}
-
-								GetShardIteratorRequest shardIteratorRequest =
-										ShardConsumer.this.shardOffset.toShardIteratorRequest();
-								ShardConsumer.this.shardIterator =
-										KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-												.getShardIterator(shardIteratorRequest)
-												.getShardIterator();
-								if (ConsumerState.STOP != ShardConsumer.this.state) {
-									ShardConsumer.this.state = ConsumerState.CONSUME;
-								}
-								ShardConsumer.this.task = null;
 							}
 
+							GetShardIteratorRequest shardIteratorRequest = this.shardOffset.toShardIteratorRequest();
+							this.shardIterator =
+									KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+											.getShardIterator(shardIteratorRequest)
+											.getShardIterator();
+							if (ConsumerState.STOP != this.state) {
+								this.state = ConsumerState.CONSUME;
+							}
+
+							this.task = null;
 						};
 						break;
 
@@ -779,14 +794,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					case STOP:
 						if (this.shardIterator == null) {
 							if (logger.isInfoEnabled()) {
-								logger.info("Stopping the [" + ShardConsumer.this +
+								logger.info("Stopping the [" + this +
 										"] on the checkpoint [" + this.checkpointer.getCheckpoint() +
 										"] because the shard has been CLOSED and exhausted.");
 							}
 						}
 						else {
 							if (logger.isInfoEnabled()) {
-								logger.info("Stopping the [" + ShardConsumer.this + "].");
+								logger.info("Stopping the [" + this + "].");
 							}
 						}
 						this.task = null;
@@ -805,36 +820,38 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		}
 
 		private Runnable processTask() {
-			return new Runnable() {
+			return () -> {
+				GetRecordsRequest getRecordsRequest = new GetRecordsRequest();
+				getRecordsRequest.setShardIterator(this.shardIterator);
+				getRecordsRequest.setLimit(KinesisMessageDrivenChannelAdapter.this.recordsLimit);
 
-				@Override
-				public void run() {
-					GetRecordsRequest getRecordsRequest = new GetRecordsRequest();
-					getRecordsRequest.setShardIterator(ShardConsumer.this.shardIterator);
-					getRecordsRequest.setLimit(KinesisMessageDrivenChannelAdapter.this.recordsLimit);
+				GetRecordsResult result = getRecords(getRecordsRequest);
 
-					GetRecordsResult result = getRecords(getRecordsRequest);
-
+				try {
 					if (result != null) {
 						List<Record> records = result.getRecords();
 
 						if (!records.isEmpty()) {
 							processRecords(records);
 						}
+					}
+				}
+				finally {
+					attributesHolder.remove();
+					if (result != null) {
+						this.shardIterator = result.getNextShardIterator();
 
-						ShardConsumer.this.shardIterator = result.getNextShardIterator();
-
-						if (ShardConsumer.this.shardIterator == null) {
+						if (this.shardIterator == null) {
 							// Shard is closed: nothing to consume any more.
 							// Resharding is possible.
 							stop();
 						}
 
-						if (ConsumerState.STOP != ShardConsumer.this.state && records.isEmpty()) {
+						if (ConsumerState.STOP != this.state && result.getRecords().isEmpty()) {
 							if (logger.isDebugEnabled()) {
-								logger.debug("No records for [" + ShardConsumer.this +
+								logger.debug("No records for [" + this +
 										"] on sequenceNumber [" +
-										ShardConsumer.this.checkpointer.getLastCheckpointValue() +
+										this.checkpointer.getLastCheckpointValue() +
 										"]. Suspend consuming for [" +
 										KinesisMessageDrivenChannelAdapter.this.consumerBackoff + "] milliseconds.");
 							}
@@ -842,9 +859,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						}
 					}
 
-					ShardConsumer.this.task = null;
+					this.task = null;
 				}
-
 			};
 		}
 
@@ -909,7 +925,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
 							}
 
-							sendMessage(messageBuilder.build());
+							performSend(messageBuilder, records);
 
 							if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 								this.checkpointer.checkpoint(record.getSequenceNumber());
@@ -927,12 +943,18 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
 						}
 
-						sendMessage(messageBuilder.build());
+						performSend(messageBuilder, records);
 
 						break;
 
 				}
 			}
+		}
+
+		private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord) {
+			Message<?> messageToSend = messageBuilder.build();
+			setAttributesIfNecessary(rawRecord, messageToSend);
+			sendMessage(messageToSend);
 		}
 
 		@Override
@@ -957,14 +979,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private final Semaphore processBarrier = new Semaphore(0);
 
-		private final Runnable notifier = new Runnable() {
-
-			@Override
-			public void run() {
-				notifyBarrier();
-			}
-
-		};
+		private final Runnable notifier = this::notifyBarrier;
 
 		ConsumerInvoker(Collection<ShardConsumer> shardConsumers) {
 			for (ShardConsumer shardConsumer : shardConsumers) {
