@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -167,8 +167,8 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler {
 						: null);
 
 		String sequenceNumber = message.getHeaders().get(AwsHeaders.SEQUENCE_NUMBER, String.class);
-		if (!StringUtils.hasText(stream) && this.streamExpression != null) {
-			partitionKey = this.sequenceNumberExpression.getValue(getEvaluationContext(), message, String.class);
+		if (!StringUtils.hasText(sequenceNumber) && this.sequenceNumberExpression != null) {
+			sequenceNumber = this.sequenceNumberExpression.getValue(getEvaluationContext(), message, String.class);
 		}
 
 		Object payload = message.getPayload();
