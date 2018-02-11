@@ -34,7 +34,7 @@ ext {
 	assertjVersion = '3.8.0'
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.25'
-	springCloudAwsVersion = '2.0.0.BUILD-SNAPSHOT'
+	springCloudAwsVersion = '2.0.0.M3'
 	springIntegrationVersion = '5.0.1.RELEASE'
 
 	idPrefix = 'aws'
