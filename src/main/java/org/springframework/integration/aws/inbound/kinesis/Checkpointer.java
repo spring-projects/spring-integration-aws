@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,22 @@ package org.springframework.integration.aws.inbound.kinesis;
  * A callback for target record process to perform checkpoint on the related shard.
  *
  * @author Artem Bilan
+ *
  * @since 1.1
  */
 public interface Checkpointer {
 
-	void checkpoint();
+	/**
+	 * Checkpoint the currently held sequence number if it is bigger than already stored.
+	 * @return true if checkpoint performed; false otherwise.
+	 */
+	boolean checkpoint();
 
-	void checkpoint(String sequenceNumber);
+	/**
+	 * Checkpoint the provided sequence number, if it is bigger than already stored.
+	 * @param sequenceNumber the sequence number to checkpoint.
+	 * @return true if checkpoint performed; false otherwise.
+	 */
+	boolean checkpoint(String sequenceNumber);
 
 }

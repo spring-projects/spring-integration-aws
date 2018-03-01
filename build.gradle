@@ -31,11 +31,11 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.8.0'
+	assertjVersion = '3.9.1'
 	servletApiVersion = '3.1.0'
-	slf4jVersion = '1.7.25'
-	springCloudAwsVersion = '2.0.0.M3'
-	springIntegrationVersion = '5.0.1.RELEASE'
+	log4jVersion = '2.10.0'
+	springCloudAwsVersion = '2.0.0.M4'
+	springIntegrationVersion = '5.0.3.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -102,6 +102,8 @@ dependencies {
 	compile('org.springframework.integration:spring-integration-file', optional)
 	compile('org.springframework.integration:spring-integration-http', optional)
 
+//	compile('com.amazonaws:amazon-kinesis-client:1.9.0', optional)
+
 	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
 	compile('com.amazonaws:aws-java-sdk-dynamodb', optional)
 
@@ -110,7 +112,8 @@ dependencies {
 	testCompile 'org.springframework.integration:spring-integration-test'
 	testCompile "org.assertj:assertj-core:$assertjVersion"
 
-	testRuntime "org.slf4j:slf4j-log4j12:$slf4jVersion"
+	testRuntime "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
+	testRuntime "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
 }
 
 eclipse.project.natures += 'org.springframework.ide.eclipse.core.springnature'

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import com.amazonaws.services.kinesis.model.Record;
 
 /**
  * An internal {@link Checkpointer} implementation based on
- * provided {@link MetadataStore} and unikey {@code key} for shard.
+ * provided {@link MetadataStore} and {@code key} for shard.
  * <p>
  * The instances of this class is created by the {@link KinesisMessageDrivenChannelAdapter}
  * for each {@code ShardConsumer}.
@@ -57,17 +57,18 @@ class ShardCheckpointer implements Checkpointer {
 	}
 
 	@Override
-	public void checkpoint() {
-		checkpoint(this.lastCheckpointValue);
+	public boolean checkpoint() {
+		return checkpoint(this.lastCheckpointValue);
 	}
 
 	@Override
-	public void checkpoint(String sequenceNumber) {
+	public boolean checkpoint(String sequenceNumber) {
 		if (this.active) {
 			String existingSequence = this.checkpointStore.get(this.key);
 			if (existingSequence == null ||
-					new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) <= 0) {
+					new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) < 0) {
 				this.checkpointStore.put(this.key, sequenceNumber);
+				return true;
 			}
 		}
 		else {
@@ -75,6 +76,8 @@ class ShardCheckpointer implements Checkpointer {
 				logger.info("The [" + this + "] has been closed. Checkpoints aren't accepted anymore.");
 			}
 		}
+
+		return false;
 	}
 
 	List<Record> filterRecords(List<Record> records) {

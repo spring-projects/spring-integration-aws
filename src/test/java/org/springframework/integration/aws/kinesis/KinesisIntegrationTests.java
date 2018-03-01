@@ -42,6 +42,8 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.PollableChannel;
+import org.springframework.messaging.support.ChannelInterceptorAdapter;
+import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
 
@@ -134,7 +136,19 @@ public class KinesisIntegrationTests {
 
 		@Bean
 		public PollableChannel errorChannel() {
-			return new QueueChannel();
+			QueueChannel queueChannel = new QueueChannel();
+			queueChannel.addInterceptor(new ChannelInterceptorAdapter() {
+
+				@Override
+				public void postSend(Message<?> message, MessageChannel channel, boolean sent) {
+					super.postSend(message, channel, sent);
+
+					if (message instanceof ErrorMessage) {
+						throw (RuntimeException) ((ErrorMessage) message).getPayload();
+					}
+				}
+			});
+			return queueChannel;
 		}
 
 	}
