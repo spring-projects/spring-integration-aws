@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.support.management.IntegrationManagedResource;
+import org.springframework.jmx.export.annotation.ManagedAttribute;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.messaging.Message;
@@ -158,6 +159,11 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	@ManagedOperation
 	public boolean isRunning(String logicalQueueName) {
 		return this.listenerContainer.isRunning(logicalQueueName);
+	}
+
+	@ManagedAttribute
+	public String[] getQueues() {
+		return  Arrays.copyOf(this.queues, this.queues.length);
 	}
 
 	@Override
