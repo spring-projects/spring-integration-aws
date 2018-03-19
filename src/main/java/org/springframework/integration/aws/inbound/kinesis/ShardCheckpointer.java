@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.MetadataStore;
 
 import com.amazonaws.services.kinesis.model.Record;
@@ -43,7 +44,7 @@ class ShardCheckpointer implements Checkpointer {
 
 	private static final Log logger = LogFactory.getLog(ShardCheckpointer.class);
 
-	private final MetadataStore checkpointStore;
+	private final ConcurrentMetadataStore checkpointStore;
 
 	private final String key;
 
@@ -51,7 +52,7 @@ class ShardCheckpointer implements Checkpointer {
 
 	private volatile boolean active = true;
 
-	ShardCheckpointer(MetadataStore checkpointStore, String key) {
+	ShardCheckpointer(ConcurrentMetadataStore checkpointStore, String key) {
 		this.checkpointStore = checkpointStore;
 		this.key = key;
 	}
@@ -64,11 +65,15 @@ class ShardCheckpointer implements Checkpointer {
 	@Override
 	public boolean checkpoint(String sequenceNumber) {
 		if (this.active) {
-			String existingSequence = this.checkpointStore.get(this.key);
+			String existingSequence = getCheckpoint();
 			if (existingSequence == null ||
 					new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) < 0) {
-				this.checkpointStore.put(this.key, sequenceNumber);
-				return true;
+				if (existingSequence != null) {
+					return this.checkpointStore.replace(this.key, existingSequence, sequenceNumber);
+				}
+				else {
+					return this.checkpointStore.putIfAbsent(this.key, sequenceNumber) == null;
+				}
 			}
 		}
 		else {

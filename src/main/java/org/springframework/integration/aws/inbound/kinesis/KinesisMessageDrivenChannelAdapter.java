@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
-import org.springframework.integration.metadata.MetadataStore;
+import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.integration.support.ErrorMessageStrategy;
@@ -100,7 +100,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private String consumerGroup = "SpringIntegration";
 
-	private MetadataStore checkpointStore = new SimpleMetadataStore();
+	private ConcurrentMetadataStore checkpointStore = new SimpleMetadataStore();
 
 	private Executor dispatcherExecutor;
 
@@ -167,7 +167,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.consumerGroup = consumerGroup;
 	}
 
-	public void setCheckpointStore(MetadataStore checkpointStore) {
+	public void setCheckpointStore(ConcurrentMetadataStore checkpointStore) {
 		Assert.notNull(checkpointStore, "'checkpointStore' must not be null");
 		this.checkpointStore = checkpointStore;
 	}

@@ -19,6 +19,8 @@ package org.springframework.integration.aws.kinesis;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -37,6 +39,8 @@ import org.springframework.integration.aws.outbound.KinesisMessageHandler;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
+import org.springframework.integration.metadata.ConcurrentMetadataStore;
+import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -81,7 +85,7 @@ public class KinesisIntegrationTests {
 	}
 
 	@Test
-	public void testKinesisInboundOutbound() {
+	public void testKinesisInboundOutbound() throws InterruptedException {
 		this.kinesisSendChannel.send(
 				MessageBuilder.withPayload("foo")
 						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
@@ -103,6 +107,29 @@ public class KinesisIntegrationTests {
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
 				.contains("Channel 'kinesisReceiveChannel' expected one of the following datataypes " +
 						"[class java.util.Date], but received [class java.lang.String]");
+
+
+		for (int i = 0; i < 1000; i++) {
+			this.kinesisSendChannel.send(
+					MessageBuilder.withPayload(new Date())
+							.setHeader(AwsHeaders.STREAM, TEST_STREAM)
+							.build());
+		}
+
+		Set<String> receivedSequences = new HashSet<>();
+
+
+		for (int i = 0; i < 1000; i++) {
+			receive = this.kinesisReceiveChannel.receive(10_000);
+			assertThat(receive).isNotNull();
+			String sequenceNumber = receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class);
+			assertThat(receivedSequences.add(sequenceNumber)).isTrue();
+		}
+
+		assertThat(receivedSequences.size()).isEqualTo(1000);
+
+		receive = this.kinesisReceiveChannel.receive(10);
+		assertThat(receive).isNull();
 	}
 
 	@Configuration
@@ -118,13 +145,38 @@ public class KinesisIntegrationTests {
 		}
 
 		@Bean
-		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel() {
+		public ConcurrentMetadataStore checkpointStore() {
+			return new SimpleMetadataStore();
+		}
+
+		private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter =
 					new KinesisMessageDrivenChannelAdapter(KINESIS_LOCAL_RUNNING.getKinesis(), TEST_STREAM);
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
+			adapter.setCheckpointStore(checkpointStore());
 			return adapter;
+		}
+
+		@Bean
+		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel1() {
+			return kinesisMessageDrivenChannelAdapter();
+		}
+
+		@Bean
+		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel2() {
+			return kinesisMessageDrivenChannelAdapter();
+		}
+
+		@Bean
+		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel3() {
+			return kinesisMessageDrivenChannelAdapter();
+		}
+
+		@Bean
+		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel4() {
+			return kinesisMessageDrivenChannelAdapter();
 		}
 
 		@Bean
