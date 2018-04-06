@@ -289,6 +289,9 @@ An XML variant may look like:
                    queue="foo"/>
 ````
 
+Starting with _version 2.0_, the `SqsMessageHandler` can be configured with the `HeaderMapper` to map message headers to the SQS message attributes.
+See `SqsHeaderMapper` implementation for more information and also consult with [Amazon SQS Message Attributes][] about value types and restrictions.   
+
 ### Inbound Channel Adapter
 
 The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with
@@ -466,6 +469,9 @@ The XML variant may look like:
 			body-expression="payload.toUpperCase()"/>
 ````
 
+Starting with _version 2.0_, the `SnsMessageHandler` can be configured with the `HeaderMapper` to map message headers to the SNS message attributes.
+See `SnsHeaderMapper` implementation for more information and also consult with [[Amazon SNS Message Attributes]][] about value types and restrictions.   
+
 ## Metadata Store for Amazon DynamoDB
 
 The `DynamoDbMetaDataStore`, a `ConcurrentMetadataStore` implementation, is provided to keep the metadata for Spring Integration components in the distributed Amazon DynamoDB store. 
@@ -530,6 +536,9 @@ When `CheckpointMode.manual` is used the `Checkpointer` instance is populated to
 The consumer group is included to the metadata store `key`.
 When records are consumed, they are filtered by the last stored `lastCheckpoint` under the key as `[CONSUMER_GROUP]:[STREAM]:[SHARD_ID]`.
 
+Starting with _version 2.0_, the `KinesisMessageDrivenChannelAdapter` can be configured with the `InboundMessageMapper` to extract message headers embedded into the record data (if any).
+See `EmbeddedJsonHeadersMessageMapper` implementation for more information.
+
 ### Outbound Channel Adapter
 
 The `KinesisMessageHandler` is an `AbstractMessageHandler` to perform put record to the Kinesis stream.
@@ -570,6 +579,9 @@ public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis,
 }
 ````
 
+Starting with _version 2.0_, the `KinesisMessageHandler` can be configured with the `OutboundMessageMapper` to embed message headers into the record data alongside with the payload.
+See `EmbeddedJsonHeadersMessageMapper` implementation for more information.
+
 For testing application with the Kinesis Channel Adapters you can use [Kinesalite][] NPM module.
 What you need in your application is to configure Kinesis client properly:
 
@@ -605,3 +617,5 @@ Also you can use for you testing purpose a copy of `org.springframework.integrat
 [Dynalite]: https://github.com/mhart/dynalite
 [Kinesis Client Library]: https://github.com/awslabs/amazon-kinesis-client
 [Kinesalite]: https://github.com/mhart/kinesalite
+[Amazon SQS Message Attributes]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-attributes.html
+[Amazon SNS Message Attributes]: https://docs.aws.amazon.com/sns/latest/dg/SNSMessageAttributes.html

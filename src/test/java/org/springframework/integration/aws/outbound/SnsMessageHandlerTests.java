@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.Map;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -33,12 +35,14 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.aws.support.SnsBodyBuilder;
+import org.springframework.integration.aws.support.SnsHeaderMapper;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.test.annotation.DirtiesContext;
@@ -47,6 +51,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sns.AmazonSNSAsync;
+import com.amazonaws.services.sns.model.MessageAttributeValue;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
 
@@ -78,6 +83,7 @@ public class SnsMessageHandlerTests {
 		Message<?> message = MessageBuilder.withPayload(payload)
 				.setHeader("topic", "topic")
 				.setHeader("subject", "subject")
+				.setHeader("foo", "bar")
 				.build();
 
 		this.sendToSnsChannel.send(message);
@@ -95,6 +101,13 @@ public class SnsMessageHandlerTests {
 		assertThat(publishRequest.getSubject()).isEqualTo("subject");
 		assertThat(publishRequest.getMessage())
 				.isEqualTo("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}");
+
+		Map<String, MessageAttributeValue> messageAttributes = publishRequest.getMessageAttributes();
+
+		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.ID);
+		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
+		assertThat(messageAttributes).containsKey("foo");
+		assertThat(messageAttributes.get("foo").getStringValue()).isEqualTo("bar");
 
 		assertThat(reply.getHeaders().get(AwsHeaders.MESSAGE_ID)).isEqualTo("111");
 		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("topic");
@@ -135,6 +148,9 @@ public class SnsMessageHandlerTests {
 			snsMessageHandler.setSubjectExpression(PARSER.parseExpression("headers.subject"));
 			snsMessageHandler.setBodyExpression(PARSER.parseExpression("payload"));
 			snsMessageHandler.setOutputChannel(resultChannel());
+			SnsHeaderMapper headerMapper = new SnsHeaderMapper();
+			headerMapper.setOutboundHeaderNames("foo");
+			snsMessageHandler.setHeaderMapper(headerMapper);
 			return snsMessageHandler;
 		}
 

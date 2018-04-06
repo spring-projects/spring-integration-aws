@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -38,6 +39,7 @@ import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.config.EnableIntegration;
+import org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -77,7 +79,7 @@ public class KinesisMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testKinesisMessageHandler() {
+	public void testKinesisMessageHandler() throws Exception {
 		Message<?> message = MessageBuilder.withPayload("message").build();
 		try {
 			this.kinesisSendChannel.send(message);
@@ -101,6 +103,7 @@ public class KinesisMessageHandlerTests {
 		message = MessageBuilder.fromMessage(message)
 				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
 				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
+				.setHeader("foo", "bar")
 				.build();
 
 		this.kinesisSendChannel.send(message);
@@ -119,7 +122,12 @@ public class KinesisMessageHandlerTests {
 		assertThat(putRecordRequest.getPartitionKey()).isEqualTo("fooKey");
 		assertThat(putRecordRequest.getSequenceNumberForOrdering()).isEqualTo("10");
 		assertThat(putRecordRequest.getExplicitHashKey()).isNull();
-		assertThat(putRecordRequest.getData()).isEqualTo(ByteBuffer.wrap("message".getBytes()));
+
+		Message<?> messageToCheck = new EmbeddedJsonHeadersMessageMapper()
+				.toMessage(putRecordRequest.getData().array());
+
+		assertThat(messageToCheck.getHeaders()).contains(entry("foo", "bar"));
+		assertThat(messageToCheck.getPayload()).isEqualTo("message".getBytes());
 
 		AsyncHandler<?, ?> asyncHandler = asyncHandlerArgumentCaptor.getValue();
 
@@ -195,6 +203,7 @@ public class KinesisMessageHandlerTests {
 				}
 
 			});
+			kinesisMessageHandler.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return kinesisMessageHandler;
 		}
 

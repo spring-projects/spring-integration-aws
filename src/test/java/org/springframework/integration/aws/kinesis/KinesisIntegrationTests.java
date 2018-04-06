@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.kinesis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 import java.util.Date;
 import java.util.HashSet;
@@ -42,6 +43,7 @@ import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.MessageBuilder;
+import org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -95,11 +97,13 @@ public class KinesisIntegrationTests {
 		this.kinesisSendChannel.send(
 				MessageBuilder.withPayload(now)
 						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
+						.setHeader("foo", "BAR")
 						.build());
 
 		Message<?> receive = this.kinesisReceiveChannel.receive(10_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
+		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));
 
 		Message<?> errorMessage = this.errorChannel.receive(10_000);
 		assertThat(errorMessage).isNotNull();
@@ -141,6 +145,7 @@ public class KinesisIntegrationTests {
 		public MessageHandler kinesisMessageHandler() {
 			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(KINESIS_LOCAL_RUNNING.getKinesis());
 			kinesisMessageHandler.setPartitionKey("1");
+			kinesisMessageHandler.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return kinesisMessageHandler;
 		}
 
@@ -156,6 +161,7 @@ public class KinesisIntegrationTests {
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
 			adapter.setCheckpointStore(checkpointStore());
+			adapter.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return adapter;
 		}
 

@@ -16,6 +16,8 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
@@ -23,8 +25,10 @@ import org.springframework.cloud.aws.messaging.support.destination.DynamicQueueU
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.SqsHeaderMapper;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.converter.GenericMessageConverter;
@@ -36,6 +40,7 @@ import org.springframework.util.StringUtils;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
@@ -52,7 +57,7 @@ import com.amazonaws.services.sqs.model.SendMessageResult;
  * @see com.amazonaws.handlers.AsyncHandler
 
  */
-public class SqsMessageHandler extends AbstractAwsMessageHandler {
+public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, MessageAttributeValue>> {
 
 	private final AmazonSQSAsync amazonSqs;
 
@@ -76,6 +81,7 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler {
 	public SqsMessageHandler(AmazonSQSAsync amazonSqs, ResourceIdResolver resourceIdResolver) {
 		this.amazonSqs = amazonSqs;
 		this.destinationResolver = new DynamicQueueUrlDestinationResolver(amazonSqs, resourceIdResolver);
+		doSetHeaderMapper(new SqsHeaderMapper());
 	}
 
 	public void setQueue(String queue) {
@@ -187,10 +193,25 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler {
 						this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
 				sendMessageRequest.setMessageDeduplicationId(messageDeduplicationId);
 			}
+
+			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper = getHeaderMapper();
+			if (headerMapper != null) {
+				mapHeaders(message, sendMessageRequest, headerMapper);
+			}
 		}
 		AsyncHandler<SendMessageRequest, SendMessageResult> asyncHandler =
 				obtainAsyncHandler(message, sendMessageRequest);
 		return this.amazonSqs.sendMessageAsync(sendMessageRequest, asyncHandler);
+	}
+
+	private void mapHeaders(Message<?> message, SendMessageRequest sendMessageRequest,
+			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper) {
+
+		HashMap<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+		headerMapper.fromHeaders(message.getHeaders(), messageAttributes);
+		if (!messageAttributes.isEmpty()) {
+			sendMessageRequest.setMessageAttributes(messageAttributes);
+		}
 	}
 
 	@Override

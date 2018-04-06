@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.springframework.cloud.aws.core.env.ResourceIdResolver;
@@ -25,6 +27,8 @@ import org.springframework.expression.common.LiteralExpression;
 import org.springframework.expression.spel.support.StandardTypeLocator;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.aws.support.SnsBodyBuilder;
+import org.springframework.integration.aws.support.SnsHeaderMapper;
+import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
@@ -32,6 +36,7 @@ import org.springframework.util.Assert;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sns.AmazonSNSAsync;
+import com.amazonaws.services.sns.model.MessageAttributeValue;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
 
@@ -78,7 +83,7 @@ import com.amazonaws.services.sns.model.PublishResult;
  * @see PublishRequest
  * @see SnsBodyBuilder
  */
-public class SnsMessageHandler extends AbstractAwsMessageHandler {
+public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, MessageAttributeValue>> {
 
 	private final AmazonSNSAsync amazonSns;
 
@@ -93,6 +98,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler {
 	public SnsMessageHandler(AmazonSNSAsync amazonSns) {
 		Assert.notNull(amazonSns, "amazonSns must not be null.");
 		this.amazonSns = amazonSns;
+		doSetHeaderMapper(new SnsHeaderMapper());
 	}
 
 	public void setTopicArn(String topicArn) {
@@ -185,11 +191,26 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler {
 			else {
 				publishRequest.setMessage(getConversionService().convert(snsMessage, String.class));
 			}
+
+			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper = getHeaderMapper();
+			if (headerMapper != null) {
+				mapHeaders(message, publishRequest, headerMapper);
+			}
 		}
 
 		AsyncHandler<PublishRequest, PublishResult> asyncHandler = obtainAsyncHandler(message, publishRequest);
 		return this.amazonSns.publishAsync(publishRequest, asyncHandler);
 
+	}
+
+	private void mapHeaders(Message<?> message, PublishRequest publishRequest,
+			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper) {
+
+		HashMap<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+		headerMapper.fromHeaders(message.getHeaders(), messageAttributes);
+		if (!messageAttributes.isEmpty()) {
+			publishRequest.setMessageAttributes(messageAttributes);
+		}
 	}
 
 	@Override

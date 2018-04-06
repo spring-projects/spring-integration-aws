@@ -3,7 +3,7 @@ buildscript {
 		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 	dependencies {
-		classpath 'io.spring.gradle:dependency-management-plugin:1.0.4.RELEASE'
+		classpath 'io.spring.gradle:dependency-management-plugin:1.0.5.RELEASE'
 		classpath 'io.spring.gradle:spring-io-plugin:0.0.8.RELEASE'
 	}
 }
@@ -33,9 +33,9 @@ repositories {
 ext {
 	assertjVersion = '3.9.1'
 	servletApiVersion = '3.1.0'
-	log4jVersion = '2.10.0'
+	log4jVersion = '2.11.0'
 	springCloudAwsVersion = '2.0.0.M4'
-	springIntegrationVersion = '5.0.3.RELEASE'
+	springIntegrationVersion = '5.0.4.RELEASE'
 
 	idPrefix = 'aws'
 

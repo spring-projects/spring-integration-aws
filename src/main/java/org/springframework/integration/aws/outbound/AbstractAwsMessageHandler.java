@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.springframework.integration.aws.support.AwsRequestFailureException;
 import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageProducingHandler;
+import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.integration.support.DefaultErrorMessageStrategy;
 import org.springframework.integration.support.ErrorMessageStrategy;
@@ -44,11 +45,13 @@ import com.amazonaws.handlers.AsyncHandler;
  * Utilizes common logic ({@link AsyncHandler}, {@link ErrorMessageStrategy},
  * {@code failureChannel} etc.) and message pre- and post-processing,
  *
+ * @param <H> the headers container type.
+ *
  * @author Artem Bilan
  *
  * @since 2.0
  */
-public abstract class AbstractAwsMessageHandler extends AbstractMessageProducingHandler {
+public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProducingHandler {
 
 	protected static final long DEFAULT_SEND_TIMEOUT = 10000;
 
@@ -65,6 +68,8 @@ public abstract class AbstractAwsMessageHandler extends AbstractMessageProducing
 	private MessageChannel failureChannel;
 
 	private String failureChannelName;
+
+	private HeaderMapper<H> headerMapper;
 
 	public void setAsyncHandler(AsyncHandler<? extends AmazonWebServiceRequest, ?> asyncHandler) {
 		this.asyncHandler = asyncHandler;
@@ -141,6 +146,22 @@ public abstract class AbstractAwsMessageHandler extends AbstractMessageProducing
 		return this.errorMessageStrategy;
 	}
 
+	/**
+	 * Specify a {@link HeaderMapper} to map outbound headers.
+	 * @param headerMapper the {@link HeaderMapper} to map outbound headers.
+	 */
+	public void setHeaderMapper(HeaderMapper<H> headerMapper) {
+		doSetHeaderMapper(headerMapper);
+	}
+
+	protected final void doSetHeaderMapper(HeaderMapper<H> headerMapper) {
+		this.headerMapper = headerMapper;
+	}
+
+	protected HeaderMapper<H> getHeaderMapper() {
+		return this.headerMapper;
+	}
+
 	protected EvaluationContext getEvaluationContext() {
 		return this.evaluationContext;
 	}
@@ -213,7 +234,7 @@ public abstract class AbstractAwsMessageHandler extends AbstractMessageProducing
 		};
 	}
 
-	protected abstract Future<?> handleMessageToAws(Message<?> message);
+	protected abstract Future<?> handleMessageToAws(Message<?> message) throws Exception;
 
 	protected abstract void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
 			AmazonWebServiceRequest request, Object result);

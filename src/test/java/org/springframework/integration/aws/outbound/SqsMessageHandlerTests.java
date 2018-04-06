@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 the original author or authors.
+ * Copyright 2015-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.util.Map;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -39,6 +41,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessageHandlingException;
+import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -47,6 +50,7 @@ import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
 import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
+import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 
 /**
@@ -105,8 +109,18 @@ public class SqsMessageHandlerTests {
 		verify(this.amazonSqs, times(3))
 				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 
-		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
+		SendMessageRequest sendMessageRequestArgumentCaptorValue = sendMessageRequestArgumentCaptor.getValue();
+		assertThat(sendMessageRequestArgumentCaptorValue.getQueueUrl())
 				.isEqualTo("http://queue-url.com/baz");
+
+		Map<String, MessageAttributeValue> messageAttributes =
+				sendMessageRequestArgumentCaptorValue.getMessageAttributes();
+
+		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.ID);
+		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
+		assertThat(messageAttributes).containsKey("foo");
+		assertThat(messageAttributes.get("foo").getStringValue()).isEqualTo("baz");
+
 	}
 
 	@Configuration

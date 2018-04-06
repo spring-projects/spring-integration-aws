@@ -44,6 +44,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
+import org.springframework.integration.mapping.InboundMessageMapper;
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
@@ -135,6 +136,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private int describeStreamRetries = 50;
 
 	private boolean resetCheckpoints;
+
+	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
 	private volatile boolean active;
 
@@ -256,6 +259,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	 */
 	public void setIdleBetweenPolls(int idleBetweenPolls) {
 		this.idleBetweenPolls = Math.max(250, idleBetweenPolls);
+	}
+
+	/**
+	 * Specify an {@link InboundMessageMapper} to extract message headers embedded into the record data.
+	 * @param embeddedHeadersMapper the {@link InboundMessageMapper} to use.
+	 * @since 2.0
+	 */
+	public void setEmbeddedHeadersMapper(InboundMessageMapper<byte[]> embeddedHeadersMapper) {
+		this.embeddedHeadersMapper = embeddedHeadersMapper;
 	}
 
 	@Override
@@ -931,9 +943,26 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						for (Record record : records) {
 							Object payload = record.getData().array();
 
-							if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
+							Message<?> messageToUse = null;
+							if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+								try {
+									messageToUse =
+											KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper
+													.toMessage((byte[]) payload);
+
+									payload = messageToUse.getPayload();
+								}
+								catch (Exception e) {
+									logger.warn("Could not parse embedded headers. Remain payload untouched.", e);
+								}
+							}
+
+							if (payload instanceof byte[] &&
+									KinesisMessageDrivenChannelAdapter.this.converter != null) {
+
 								payload = KinesisMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
 							}
+
 							AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory()
 									.withPayload(payload)
 									.setHeader(AwsHeaders.RECEIVED_STREAM, this.shardOffset.getStream())
@@ -942,6 +971,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 									.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
 							if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 								messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
+							}
+
+							if (messageToUse != null) {
+								messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
 							}
 
 							performSend(messageBuilder, record);

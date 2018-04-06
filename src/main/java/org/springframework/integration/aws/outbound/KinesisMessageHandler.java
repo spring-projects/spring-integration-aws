@@ -25,8 +25,12 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.mapping.HeaderMapper;
+import org.springframework.integration.mapping.OutboundMessageMapper;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
+import org.springframework.integration.support.MutableMessage;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -50,19 +54,21 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
  * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
  */
-public class KinesisMessageHandler extends AbstractAwsMessageHandler {
+public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 
 	private final AmazonKinesisAsync amazonKinesis;
 
 	private Converter<Object, byte[]> converter = new SerializingConverter();
 
-	private volatile Expression streamExpression;
+	private Expression streamExpression;
 
-	private volatile Expression partitionKeyExpression;
+	private Expression partitionKeyExpression;
 
-	private volatile Expression explicitHashKeyExpression;
+	private Expression explicitHashKeyExpression;
 
-	private volatile Expression sequenceNumberExpression;
+	private Expression sequenceNumberExpression;
+
+	private OutboundMessageMapper<byte[]> embeddedHeadersMapper;
 
 	public KinesisMessageHandler(AmazonKinesisAsync amazonKinesis) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -123,11 +129,33 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler {
 		this.sequenceNumberExpression = sequenceNumberExpression;
 	}
 
+	/**
+	 * Specify a {@link OutboundMessageMapper} for embedding message headers into the record data
+	 * together with payload.
+	 * @param embeddedHeadersMapper the {@link OutboundMessageMapper} to embed headers into the record data.
+	 * @since 2.0
+	 * @see org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper
+	 */
+	public void setEmbeddedHeadersMapper(OutboundMessageMapper<byte[]> embeddedHeadersMapper) {
+		this.embeddedHeadersMapper = embeddedHeadersMapper;
+	}
+
+	/**
+	 * Unsupported operation. Use {@link #setEmbeddedHeadersMapper} instead.
+	 * @param headerMapper is not used.
+	 * @see #setEmbeddedHeadersMapper
+	 */
 	@Override
-	protected Future<?> handleMessageToAws(Message<?> message) {
+	public void setHeaderMapper(HeaderMapper<Void> headerMapper) {
+		throw new UnsupportedOperationException("Kinesis doesn't support headers.\n" +
+				"Consider to use 'OutboundMessageMapper<byte[]>' for embedding headers into the record data.");
+	}
+
+	@Override
+	protected Future<?> handleMessageToAws(Message<?> message) throws Exception {
 		if (message.getPayload() instanceof PutRecordsRequest) {
 			AsyncHandler<PutRecordsRequest, PutRecordsResult> asyncHandler =
-							obtainAsyncHandler(message, (PutRecordsRequest) message.getPayload());
+					obtainAsyncHandler(message, (PutRecordsRequest) message.getPayload());
 
 			return this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(), asyncHandler);
 		}
@@ -144,8 +172,9 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler {
 		}
 	}
 
-	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
-		String stream = message.getHeaders().get(AwsHeaders.STREAM, String.class);
+	private PutRecordRequest buildPutRecordRequest(Message<?> message) throws Exception {
+		MessageHeaders messageHeaders = message.getHeaders();
+		String stream = messageHeaders.get(AwsHeaders.STREAM, String.class);
 		if (!StringUtils.hasText(stream) && this.streamExpression != null) {
 			stream = this.streamExpression.getValue(getEvaluationContext(), message, String.class);
 		}
@@ -153,7 +182,7 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler {
 				"Consider configuring this handler with a 'stream'( or 'streamExpression') or supply an " +
 				"'aws_stream' message header.");
 
-		String partitionKey = message.getHeaders().get(AwsHeaders.PARTITION_KEY, String.class);
+		String partitionKey = messageHeaders.get(AwsHeaders.PARTITION_KEY, String.class);
 		if (!StringUtils.hasText(partitionKey) && this.partitionKeyExpression != null) {
 			partitionKey = this.partitionKeyExpression.getValue(getEvaluationContext(), message, String.class);
 		}
@@ -166,25 +195,38 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler {
 						? this.explicitHashKeyExpression.getValue(getEvaluationContext(), message, String.class)
 						: null);
 
-		String sequenceNumber = message.getHeaders().get(AwsHeaders.SEQUENCE_NUMBER, String.class);
+		String sequenceNumber = messageHeaders.get(AwsHeaders.SEQUENCE_NUMBER, String.class);
 		if (!StringUtils.hasText(sequenceNumber) && this.sequenceNumberExpression != null) {
 			sequenceNumber = this.sequenceNumberExpression.getValue(getEvaluationContext(), message, String.class);
 		}
 
 		Object payload = message.getPayload();
 
-		ByteBuffer data;
+		ByteBuffer data = null;
+
+		Message<?> messageToEmbed = null;
 
 		if (payload instanceof ByteBuffer) {
 			data = (ByteBuffer) payload;
+			if (this.embeddedHeadersMapper != null) {
+				messageToEmbed = new MutableMessage<>(data.array(), messageHeaders);
+			}
 		}
 		else {
 			byte[] bytes =
 					payload instanceof byte[]
 							? (byte[]) payload
 							: this.converter.convert(payload);
+			if (this.embeddedHeadersMapper != null) {
+				messageToEmbed = new MutableMessage<>(bytes, messageHeaders);
+			}
+			else {
+				data = ByteBuffer.wrap(bytes);
+			}
+		}
 
-			data = ByteBuffer.wrap(bytes);
+		if (messageToEmbed != null) {
+			data = ByteBuffer.wrap(this.embeddedHeadersMapper.fromMessage(messageToEmbed));
 		}
 
 		return new PutRecordRequest()
