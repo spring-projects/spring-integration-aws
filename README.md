@@ -241,7 +241,7 @@ The S3 Outbound Gateway is represented by the same `S3MessageHandler` with the `
 The "request-reply" nature of this gateway is async and the `Transfer` result from the `TransferManager`
 operation is sent to the `outputChannel`, assuming the transfer progress observation in the downstream flow.
 
-The `S3ProgressListener can be supplied to track the transfer progress.
+The `S3ProgressListener` can be supplied to track the transfer progress.
 Also the listener can be populated into the returned `Transfer` afterwards in the downstream flow.
 
 See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
@@ -530,14 +530,22 @@ This channel adapter can be configured with the `DynamoDbMetaDataStore` mentione
 By default this adapter uses `DeserializingConverter` to convert `byte[]` from the `Record` data.
 Can be specified as `null` with meaning no conversion and the target `Message` is sent with the `byte[]` payload.
 
-Additional headers like `AwsHeaders.RECEIVED_STREAM`, `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` are populated to the message for downstream logic.
+Additional headers like `AwsHeaders.RECEIVED_STREAM`, `AwsHeaders.SHARD`, `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` are populated to the message for downstream logic.
 When `CheckpointMode.manual` is used the `Checkpointer` instance is populated to the `AwsHeaders.CHECKPOINTER` header for acknowledgment in the downstream logic manually. 
+
+The `KinesisMessageDrivenChannelAdapter` ca be configured with the `ListenerMode` `record` or `batch` to process records one by one or send the whole just polled batch of records.
+If `Converter` is configured to `null`, the entire `List<Record>` is sent as a payload.
+Otherwise a list of converted `Record.getData().array()` is wrapped to the payload of message to send.
+In this case the `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` headers contains values as a `List<String>` of partition keys and sequence numbers of converted records respectively.
 
 The consumer group is included to the metadata store `key`.
 When records are consumed, they are filtered by the last stored `lastCheckpoint` under the key as `[CONSUMER_GROUP]:[STREAM]:[SHARD_ID]`.
 
 Starting with _version 2.0_, the `KinesisMessageDrivenChannelAdapter` can be configured with the `InboundMessageMapper` to extract message headers embedded into the record data (if any).
 See `EmbeddedJsonHeadersMessageMapper` implementation for more information.
+When `InboundMessageMapper` is used together with the `ListenerMode.batch`, each `Record` is converted to the `Message` with extracted embedded headers (if any) and converted `byte[]` payload if any and converter is present.
+In this case `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` headers are populated to the particular message for a record.
+These messages are wrapped as a list payload to one outbound message. 
 
 ### Outbound Channel Adapter
 

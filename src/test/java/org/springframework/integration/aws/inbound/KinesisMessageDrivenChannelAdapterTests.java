@@ -36,7 +36,6 @@ import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.integration.aws.inbound.kinesis.CheckpointMode;
 import org.springframework.integration.aws.inbound.kinesis.Checkpointer;
@@ -158,15 +157,18 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		message = this.kinesisChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
-		List<Record> payload = (List<Record>) message.getPayload();
+		List<String> payload = (List<String>) message.getPayload();
 		assertThat(payload).size().isEqualTo(1);
-		Record record = payload.get(0);
-		assertThat(record.getPartitionKey()).isEqualTo("partition1");
-		assertThat(record.getSequenceNumber()).isEqualTo("2");
+		String record = payload.get(0);
+		assertThat(record).isEqualTo("bar");
 
-		DeserializingConverter deserializingConverter = new DeserializingConverter();
-		assertThat(deserializingConverter.convert(record.getData().array())).isEqualTo("bar");
+		Object partitionKeyHeader = message.getHeaders().get(AwsHeaders.RECEIVED_PARTITION_KEY);
+		assertThat(partitionKeyHeader).isInstanceOf(List.class);
+		assertThat((List<String>) partitionKeyHeader).contains("partition1");
 
+		Object sequenceNumberHeader = message.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER);
+		assertThat(sequenceNumberHeader).isInstanceOf(List.class);
+		assertThat((List<String>) sequenceNumberHeader).contains("2");
 		int n = 0;
 
 		while (n++ < 100) {

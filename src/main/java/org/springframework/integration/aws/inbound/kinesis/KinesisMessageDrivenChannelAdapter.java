@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.AttributeAccessor;
@@ -941,43 +942,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
 					case record:
 						for (Record record : records) {
-							Object payload = record.getData().array();
-
-							Message<?> messageToUse = null;
-							if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-								try {
-									messageToUse =
-											KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper
-													.toMessage((byte[]) payload);
-
-									payload = messageToUse.getPayload();
-								}
-								catch (Exception e) {
-									logger.warn("Could not parse embedded headers. Remain payload untouched.", e);
-								}
-							}
-
-							if (payload instanceof byte[] &&
-									KinesisMessageDrivenChannelAdapter.this.converter != null) {
-
-								payload = KinesisMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
-							}
-
-							AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory()
-									.withPayload(payload)
-									.setHeader(AwsHeaders.RECEIVED_STREAM, this.shardOffset.getStream())
-									.setHeader(AwsHeaders.SHARD, this.shardOffset.getShard())
-									.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.getPartitionKey())
-									.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
-							if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-								messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
-							}
-
-							if (messageToUse != null) {
-								messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
-							}
-
-							performSend(messageBuilder, record);
+							performSend(prepareMessageForRecord(record), record);
 
 							if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 								this.checkpointer.checkpoint(record.getSequenceNumber());
@@ -987,13 +952,40 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						break;
 
 					case batch:
-						AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory()
-								.withPayload(records)
-								.setHeader(AwsHeaders.RECEIVED_STREAM, this.shardOffset.getStream())
-								.setHeader(AwsHeaders.SHARD, this.shardOffset.getShard());
-						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-							messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
+						Object payload = records;
+
+						if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+							payload = records.stream()
+									.map(this::prepareMessageForRecord)
+									.collect(Collectors.toList());
 						}
+
+						final List<String> partitionKeys;
+						final List<String> sequenceNumbers;
+						if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
+							partitionKeys = new ArrayList<>();
+							sequenceNumbers = new ArrayList<>();
+
+							payload = records.stream()
+									.map(r -> {
+										partitionKeys.add(r.getPartitionKey());
+										sequenceNumbers.add(r.getSequenceNumber());
+
+										return KinesisMessageDrivenChannelAdapter.this.converter
+												.convert(r.getData().array());
+									})
+									.collect(Collectors.toList());
+						}
+						else {
+							partitionKeys = null;
+							sequenceNumbers = null;
+						}
+
+						AbstractIntegrationMessageBuilder<?> messageBuilder =
+								getMessageBuilderFactory()
+										.withPayload(payload)
+										.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
+										.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
 
 						performSend(messageBuilder, records);
 
@@ -1003,7 +995,50 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			}
 		}
 
+		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
+			Object payload = record.getData().array();
+			Message<?> messageToUse = null;
+
+			if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+				try {
+					messageToUse =
+							KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper
+									.toMessage((byte[]) payload);
+
+					payload = messageToUse.getPayload();
+				}
+				catch (Exception e) {
+					logger.warn("Could not parse embedded headers. Remain payload untouched.", e);
+				}
+			}
+
+			if (payload instanceof byte[] &&
+					KinesisMessageDrivenChannelAdapter.this.converter != null) {
+
+				payload = KinesisMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
+			}
+
+			AbstractIntegrationMessageBuilder<Object> messageBuilder =
+					getMessageBuilderFactory()
+							.withPayload(payload)
+							.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.getPartitionKey())
+							.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
+
+			if (messageToUse != null) {
+				messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
+			}
+
+			return messageBuilder;
+		}
+
 		private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord) {
+			messageBuilder.setHeader(AwsHeaders.RECEIVED_STREAM, this.shardOffset.getStream())
+					.setHeader(AwsHeaders.SHARD, this.shardOffset.getShard());
+
+			if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+				messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, this.checkpointer);
+			}
+
 			Message<?> messageToSend = messageBuilder.build();
 			setAttributesIfNecessary(rawRecord, messageToSend);
 			try {

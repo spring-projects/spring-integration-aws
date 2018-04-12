@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,8 @@ public enum ListenerMode {
 	record,
 
 	/**
-	 * Each {@link Message} will contains {@code List<Record>} if not empty.
+	 * Each {@link Message} will contain {@code List} ( if not empty)
+	 * of converted or raw {@code Record}s.
 	 */
 	batch
 
