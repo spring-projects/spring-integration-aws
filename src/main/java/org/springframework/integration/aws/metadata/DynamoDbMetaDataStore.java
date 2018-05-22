@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,8 @@ import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+import com.amazonaws.services.dynamodbv2.model.TimeToLiveSpecification;
+import com.amazonaws.services.dynamodbv2.model.UpdateTimeToLiveRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
 import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
 import com.amazonaws.waiters.PollingStrategy;
@@ -74,6 +76,8 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	private static final String VALUE = "VALUE";
 
+	private static final String TTL = "TTL";
+
 	private final AmazonDynamoDBAsync dynamoDB;
 
 	private final Table table;
@@ -87,6 +91,8 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 	private long readCapacity = 1L;
 
 	private long writeCapacity = 1L;
+
+	private Integer timeToLive;
 
 	public DynamoDbMetaDataStore(AmazonDynamoDBAsync dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
@@ -118,10 +124,22 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 		this.createTableDelay = createTableDelay;
 	}
 
+	/**
+	 * Configure a period in seconds for items expiration.
+	 * If it is configured to non-positive value (<= 0), the TTL is disabled on the table.
+	 * @param timeToLive period in seconds for items expiration.
+	 * @since 2.0
+	 * @see <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">DynamoDB TTL</a>
+	 */
+	public void setTimeToLive(int timeToLive) {
+		this.timeToLive = timeToLive;
+	}
+
 	@Override
-	public void afterPropertiesSet() throws Exception {
+	public void afterPropertiesSet() {
 		try {
 			this.table.describe();
+			updateTimeToLiveIfAny();
 			this.createTableLatch.countDown();
 			return;
 		}
@@ -167,6 +185,7 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 							@Override
 							public void onWaitSuccess(DescribeTableRequest request) {
+								updateTimeToLiveIfAny();
 								DynamoDbMetaDataStore.this.createTableLatch.countDown();
 								DynamoDbMetaDataStore.this.table.describe();
 							}
@@ -182,6 +201,20 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 					}
 
 				});
+	}
+
+	private void updateTimeToLiveIfAny() {
+		if (this.timeToLive != null) {
+			UpdateTimeToLiveRequest updateTimeToLiveRequest =
+					new UpdateTimeToLiveRequest()
+							.withTableName(this.table.getTableName())
+							.withTimeToLiveSpecification(
+									new TimeToLiveSpecification()
+											.withAttributeName(TTL)
+											.withEnabled(this.timeToLive > 0));
+
+			this.dynamoDB.updateTimeToLive(updateTimeToLiveRequest);
+		}
 	}
 
 	private void awaitForActive() {
@@ -202,10 +235,16 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		this.table.putItem(
+		Item item =
 				new Item()
 						.withPrimaryKey(KEY, key)
-						.withString(VALUE, value));
+						.withString(VALUE, value);
+
+		if (this.timeToLive != null && this.timeToLive > 0) {
+			item = item.withLong(TTL, (System.currentTimeMillis() + this.timeToLive) / 1000);
+		}
+
+		this.table.putItem(item);
 	}
 
 	@Override
@@ -226,17 +265,25 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		try {
-			this.table.updateItem(
-					new UpdateItemSpec()
-							.withPrimaryKey(KEY, key)
-							.withAttributeUpdate(
-									new AttributeUpdate(VALUE)
-											.put(value))
-							.withExpected(
-									new Expected(KEY)
-											.notExist()));
+		UpdateItemSpec updateItemSpec =
+				new UpdateItemSpec()
+						.withPrimaryKey(KEY, key)
+						.withAttributeUpdate(
+								new AttributeUpdate(VALUE)
+										.put(value))
+						.withExpected(
+								new Expected(KEY)
+										.notExist());
 
+		if (this.timeToLive != null && this.timeToLive > 0) {
+			updateItemSpec =
+					updateItemSpec.addAttributeUpdate(
+							new AttributeUpdate(TTL)
+									.put((System.currentTimeMillis() + this.timeToLive) / 1000));
+		}
+
+		try {
+			this.table.updateItem(updateItemSpec);
 			return null;
 		}
 		catch (ConditionalCheckFailedException e) {
@@ -252,17 +299,26 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
+		UpdateItemSpec updateItemSpec =
+				new UpdateItemSpec()
+						.withPrimaryKey(KEY, key)
+						.withAttributeUpdate(
+								new AttributeUpdate(VALUE)
+										.put(newValue))
+						.withExpected(
+								new Expected(VALUE)
+										.eq(oldValue))
+						.withReturnValues(ReturnValue.UPDATED_NEW);
+
+		if (this.timeToLive != null && this.timeToLive > 0) {
+			updateItemSpec =
+					updateItemSpec.addAttributeUpdate(
+							new AttributeUpdate(TTL)
+									.put((System.currentTimeMillis() + this.timeToLive) / 1000));
+		}
+
 		try {
-			return this.table.updateItem(
-					new UpdateItemSpec()
-							.withPrimaryKey(KEY, key)
-							.withAttributeUpdate(
-									new AttributeUpdate(VALUE)
-											.put(newValue))
-							.withExpected(
-									new Expected(VALUE)
-											.eq(oldValue))
-							.withReturnValues(ReturnValue.UPDATED_NEW))
+			return this.table.updateItem(updateItemSpec)
 					.getItem() != null;
 		}
 		catch (ConditionalCheckFailedException e) {
@@ -276,11 +332,12 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item = this.table.deleteItem(
-				new DeleteItemSpec()
-						.withPrimaryKey(KEY, key)
-						.withReturnValues(ReturnValue.ALL_OLD))
-				.getItem();
+		Item item =
+				this.table.deleteItem(
+						new DeleteItemSpec()
+								.withPrimaryKey(KEY, key)
+								.withReturnValues(ReturnValue.ALL_OLD))
+						.getItem();
 
 		return getValueIfAny(item);
 	}

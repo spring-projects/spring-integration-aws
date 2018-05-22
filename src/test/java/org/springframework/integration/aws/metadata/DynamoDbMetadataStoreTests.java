@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ public class DynamoDbMetadataStoreTests {
 	private final String file1Id = "12345";
 
 	@BeforeClass
-	public static void setup() throws Exception {
+	public static void setup() {
 		AmazonDynamoDBAsync dynamoDB = DYNAMO_DB_RUNNING.getDynamoDB();
 
 		try {
@@ -77,6 +77,7 @@ public class DynamoDbMetadataStoreTests {
 		}
 
 		store = new DynamoDbMetaDataStore(dynamoDB, TEST_TABLE);
+		store.setTimeToLive(10); // Dynalite doesn't support TTL
 		store.afterPropertiesSet();
 	}
 
@@ -106,7 +107,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testPutIfAbsent() throws Exception {
+	public void testPutIfAbsent() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).describedAs("Get First time, Value must not exist").isNull();
 
@@ -121,7 +122,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testRemove() throws Exception {
+	public void testRemove() {
 		String fileID = store.remove(this.file1);
 		assertThat(fileID).isNull();
 
@@ -137,7 +138,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testReplace() throws Exception {
+	public void testReplace() {
 		boolean removedValue = store.replace(this.file1, this.file1Id, "4567");
 		assertThat(removedValue).isFalse();
 

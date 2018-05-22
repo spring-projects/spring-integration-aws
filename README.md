@@ -497,7 +497,11 @@ this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
 ````
 
 Where you should specify the port on which you have ran the Dynalite service.
-Also you can use for you testing purpose a copy of `org.springframework.integration.aws.DynamoDbLocalRunning` in the `/test` directory of this project.    
+Also you can use for your testing purpose a copy of `org.springframework.integration.aws.DynamoDbLocalRunning` in the `/test` directory of this project.    
+
+Starting with _version 2.0_, the ``DynamoDbMetaDataStore` can be configured with the `timeToLive` option to enable the [DynamoDB TTL][] feature.
+The `TTL` attribute is added to each item with the value based on the sum of current time and provided `timeToLive` in seconds.
+If the provided `timeToLive` value is non-positive, the TTL functionality is disable on the table.
 
 ## Amazon Kinesis
 
@@ -623,6 +627,7 @@ Also you can use for you testing purpose a copy of `org.springframework.integrat
 [Pull requests]: http://help.github.com/send-pull-requests
 [contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc
 [Dynalite]: https://github.com/mhart/dynalite
+[DynamoDB TTL]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html
 [Kinesis Client Library]: https://github.com/awslabs/amazon-kinesis-client
 [Kinesalite]: https://github.com/mhart/kinesalite
 [Amazon SQS Message Attributes]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-attributes.html

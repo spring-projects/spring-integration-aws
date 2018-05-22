@@ -95,7 +95,7 @@ class ShardCheckpointer implements Checkpointer {
 				if (new BigInteger(sequenceNumber).compareTo(new BigInteger(this.lastCheckpointValue)) <= 0) {
 					if (logger.isDebugEnabled()) {
 						logger.debug("Removing record with sequenceNumber " + sequenceNumber +
-								" because the sequenceNumber is <= checkpoint(" + this.lastCheckpointValue + ")");
+								" because it is <= checkpoint(" + this.lastCheckpointValue + ")");
 					}
 					iterator.remove();
 				}
