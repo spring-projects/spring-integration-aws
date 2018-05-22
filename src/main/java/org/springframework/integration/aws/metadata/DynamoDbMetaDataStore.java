@@ -126,7 +126,7 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	/**
 	 * Configure a period in seconds for items expiration.
-	 * If it is configured to non-positive value (<= 0), the TTL is disabled on the table.
+	 * If it is configured to non-positive value ({@code <= 0}), the TTL is disabled on the table.
 	 * @param timeToLive period in seconds for items expiration.
 	 * @since 2.0
 	 * @see <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">DynamoDB TTL</a>
