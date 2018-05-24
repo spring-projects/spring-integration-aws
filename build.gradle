@@ -32,10 +32,11 @@ repositories {
 
 ext {
 	assertjVersion = '3.9.1'
+	dynamodbLockClientVersion = '1.0.0'
 	servletApiVersion = '3.1.0'
 	log4jVersion = '2.11.0'
-	springCloudAwsVersion = '2.0.0.M4'
-	springIntegrationVersion = '5.0.4.RELEASE'
+	springCloudAwsVersion = '2.0.0.RC1'
+	springIntegrationVersion = '5.0.6.BUILD-SNAPSHOT'
 
 	idPrefix = 'aws'
 
@@ -106,6 +107,7 @@ dependencies {
 
 	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
 	compile('com.amazonaws:aws-java-sdk-dynamodb', optional)
+	compile("com.amazonaws:dynamodb-lock-client:$dynamodbLockClientVersion", optional)
 
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
