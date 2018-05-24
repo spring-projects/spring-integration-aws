@@ -37,7 +37,6 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.SmartLifecycle;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.integration.support.locks.ExpirableLockRegistry;
@@ -64,7 +63,7 @@ import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
  *
  * @since 2.0
  */
-public class DynamoDbLockRegistry implements ExpirableLockRegistry, InitializingBean, DisposableBean, SmartLifecycle {
+public class DynamoDbLockRegistry implements ExpirableLockRegistry, InitializingBean, DisposableBean {
 
 	/**
 	 * The {@value DEFAULT_TABLE_NAME} default name for the locks table in the DynamoDB.
@@ -227,98 +226,73 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		this.leaseDuration =
 				(long) new DirectFieldAccessor(this.dynamoDBLockClient)
 						.getPropertyValue("leaseDurationInMilliseconds");
-	}
 
-	@Override
-	public boolean isAutoStartup() {
-		return true;
-	}
 
-	@Override
-	public void start() {
-		if (!this.running.getAndSet(true)) {
-			if (!this.dynamoDBLockClientExplicitlySet) {
-				try {
-					this.dynamoDBLockClient.assertLockTableExists();
-					this.createTableLatch.countDown();
-					return;
+		this.executor.execute(() -> {
+			try {
+				if (!this.dynamoDBLockClientExplicitlySet) {
+					try {
+						this.dynamoDBLockClient.assertLockTableExists();
+						return;
+					}
+					catch (LockTableDoesNotExistException e) {
+						if (logger.isInfoEnabled()) {
+							logger.info("No table '" + this.tableName + "'. Creating one...");
+						}
+					}
+
+					CreateDynamoDBTableOptions createDynamoDBTableOptions =
+							CreateDynamoDBTableOptions
+									.builder(this.dynamoDB,
+											new ProvisionedThroughput(this.readCapacity, this.writeCapacity),
+											this.tableName)
+									.withPartitionKeyName(this.partitionKey)
+									.withSortKeyName(this.sortKeyName)
+									.build();
+
+					AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
 				}
-				catch (LockTableDoesNotExistException e) {
-					if (logger.isInfoEnabled()) {
-						logger.info("No table '" + this.tableName + "'. Creating one...");
+
+				int i = 0;
+				// We need up to one minute to wait until table is created on AWS.
+				while (i++ < 60) {
+					if (this.dynamoDBLockClient.lockTableExists()) {
+						return;
+					}
+					else {
+						try {
+							// This is allowed minimum for constant AWS requests.
+							Thread.sleep(1000);
+						}
+						catch (InterruptedException e) {
+							ReflectionUtils.rethrowRuntimeException(e);
+						}
 					}
 				}
 
-				CreateDynamoDBTableOptions createDynamoDBTableOptions =
-						CreateDynamoDBTableOptions
-								.builder(this.dynamoDB,
-										new ProvisionedThroughput(this.readCapacity, this.writeCapacity),
-										this.tableName)
-								.withPartitionKeyName(this.partitionKey)
-								.withSortKeyName(this.sortKeyName)
-								.build();
-
-				AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
+				logger.error("Cannot describe DynamoDb table: " + this.tableName);
 			}
-		}
-
-		int i = 0;
-
-		boolean tableExists = false;
-
-		// We need up to one minute to wait until table is created on AWS.
-		while (i++ < 60) {
-			tableExists = this.dynamoDBLockClient.lockTableExists();
-			if (!tableExists) {
-				try {
-					// This is allowed minimum for constant AWS requests.
-					Thread.sleep(1000);
-				}
-				catch (InterruptedException e) {
-					ReflectionUtils.rethrowRuntimeException(e);
-				}
+			finally {
+				// Release create table barrier either way.
+				// If there is an error during creation/description,
+				// we deffer the actual ResourceNotFoundException to the end-user active calls.
+				this.createTableLatch.countDown();
 			}
-			else {
-				break;
-			}
-		}
-
-		if (!tableExists) {
-			logger.error("Cannot describe DynamoDb table: " + this.tableName);
-		}
-
-		this.createTableLatch.countDown();
-	}
-
-	@Override
-	public void stop(Runnable callback) {
-		stop();
-		callback.run();
-	}
-
-	@Override
-	public void stop() {
-		this.running.set(false);
-	}
-
-	@Override
-	public boolean isRunning() {
-		return false;
-	}
-
-	@Override
-	public int getPhase() {
-		return Integer.MAX_VALUE;
+		});
 	}
 
 	private void awaitForActive() {
+		IllegalStateException illegalStateException =
+				new IllegalStateException(
+						"The DynamoDb table " + this.tableName + " has not been created during " + 60 + " seconds");
 		try {
-			this.createTableLatch.await(60, TimeUnit.SECONDS);
+			if (!this.createTableLatch.await(60, TimeUnit.SECONDS)) {
+				throw illegalStateException;
+			}
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			throw new IllegalStateException("The DynamoDb table " + this.tableName +
-					" has not been created during " + 60 + " seconds");
+			throw illegalStateException;
 		}
 	}
 
@@ -335,7 +309,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	@Override
 	public Lock obtain(Object lockKey) {
-		Assert.isInstanceOf(String.class, lockKey);
+		Assert.isInstanceOf(String.class, lockKey, "'lockKey' must of String type");
 		return this.locks.computeIfAbsent((String) lockKey, DynamoDbLock::new);
 	}
 
@@ -388,22 +362,34 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 			this.acquireLockOptionsBuilder
 					.withAdditionalTimeToWaitForLock(Long.MAX_VALUE - DynamoDbLockRegistry.this.leaseDuration);
 
+			boolean wasInterruptedWhileUninterruptible = false;
 
 			try {
-				while (!doLock()) {
-					Thread.sleep(100); //NOSONAR
+				while (true) {
+					try {
+						while (!doLock()) {
+							Thread.sleep(100); //NOSONAR
+						}
+						break;
+					}
+					catch (InterruptedException e) {
+						/*
+						 * This method must be uninterruptible so catch and ignore
+						 * interrupts and only break out of the while loop when
+						 * we get the lock.
+						 */
+						wasInterruptedWhileUninterruptible = true;
+					}
+					catch (Exception e) {
+						this.delegate.unlock();
+						rethrowAsLockException(e);
+					}
 				}
 			}
-			catch (InterruptedException e) {
-				/*
-				 * This method must be uninterruptible so catch and ignore
-				 * interrupts and only break out of the while loop when
-				 * we get the lock.
-				 */
-			}
-			catch (Exception e) {
-				this.delegate.unlock();
-				rethrowAsLockException(e);
+			finally {
+				if (wasInterruptedWhileUninterruptible) {
+					Thread.currentThread().interrupt();
+				}
 			}
 
 		}

@@ -91,7 +91,6 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 		for (int i = 0; i < 2; i++) {
 			DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDB);
 			lockRepository.afterPropertiesSet();
-			lockRepository.start();
 			registries.add(lockRepository);
 
 			LockRegistryLeaderInitiator initiator =
@@ -182,7 +181,6 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 
 		DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDB);
 		lockRepository.afterPropertiesSet();
-		lockRepository.start();
 
 		LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository);
 		initiator.setLeaderEventPublisher(countingPublisher);
@@ -199,11 +197,9 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 		countingPublisher = new CountingPublisher(granted);
 		initiator.setLeaderEventPublisher(countingPublisher);
 
-		lockRepository.stop();
-
 		init();
 
-		lockRepository.start();
+		lockRepository.afterPropertiesSet();
 
 		assertThat(granted.await(10, TimeUnit.SECONDS)).isTrue();
 

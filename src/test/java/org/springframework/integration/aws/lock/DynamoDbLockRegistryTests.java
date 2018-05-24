@@ -237,10 +237,8 @@ public class DynamoDbLockRegistryTests {
 	public void testTwoThreadsDifferentRegistries() throws Exception {
 		final DynamoDbLockRegistry registry1 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
 		registry1.afterPropertiesSet();
-		registry1.start();
 		final DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
 		registry2.afterPropertiesSet();
-		registry2.start();
 
 		final Lock lock1 = registry1.obtain("foo");
 		final AtomicBoolean locked = new AtomicBoolean();
