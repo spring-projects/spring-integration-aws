@@ -207,7 +207,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(n).isLessThan(100);
 
 		// When resharding happens the describeStream() is performed again
-		verify(this.amazonKinesisForResharding, atLeast(2)).describeStream(any(DescribeStreamRequest.class));
+		verify(this.amazonKinesisForResharding, atLeast(1)).describeStream(any(DescribeStreamRequest.class));
 
 		this.reshardingChannelAdapter.stop();
 	}

@@ -23,7 +23,6 @@ apply from: "${rootProject.projectDir}/publish-maven.gradle"
 group = 'org.springframework.integration'
 
 repositories {
-	mavenLocal()
 //	maven { url 'http://repo.spring.io/libs-staging-local' }
 	if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
 		maven { url 'https://repo.spring.io/libs-snapshot' }
