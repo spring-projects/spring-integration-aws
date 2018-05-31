@@ -35,7 +35,7 @@ ext {
 	dynamodbLockClientVersion = '1.0.0'
 	servletApiVersion = '3.1.0'
 	log4jVersion = '2.11.0'
-	springCloudAwsVersion = '2.0.0.RC1'
+	springCloudAwsVersion = '2.0.0.RC2'
 	springIntegrationVersion = '5.0.6.BUILD-SNAPSHOT'
 
 	idPrefix = 'aws'
