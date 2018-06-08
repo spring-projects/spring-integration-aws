@@ -617,6 +617,15 @@ this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
 Where you should specify the port on which you have ran the Kinesalite service.
 Also you can use for you testing purpose a copy of `org.springframework.integration.aws.KinesisLocalRunning` in the `/test` directory of this project.    
 
+## Lock Registry for Amazon DynamoDB
+
+Starting with _version 2.0_, the `DynamoDbLockRegistry` implementation is available.
+Certain components (for example aggregator and resequencer) use a lock obtained from a `LockRegistry` instance to ensure that only one thread is manipulating a group at a time. 
+The `DefaultLockRegistry` performs this function within a single component; you can now configure an external lock registry on these components. 
+When used with a shared `MessageGroupStore`, the `DynamoDbLockRegistry` can be use to provide this functionality across multiple application instances, such that only one instance can manipulate the group at a time.   
+This implementation can also be used for the distributed leader elections using a [LockRegistryLeaderInitiator][].
+The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `DynamoDbLockRegistry` working. 
+
 [Spring Cloud AWS]: https://github.com/spring-cloud/spring-cloud-aws
 [AWS SDK for Java]: http://aws.amazon.com/sdkforjava/
 [Amazon Web Services]: http://aws.amazon.com/
@@ -632,3 +641,4 @@ Also you can use for you testing purpose a copy of `org.springframework.integrat
 [Kinesalite]: https://github.com/mhart/kinesalite
 [Amazon SQS Message Attributes]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-attributes.html
 [Amazon SNS Message Attributes]: https://docs.aws.amazon.com/sns/latest/dg/SNSMessageAttributes.html
+[LockRegistryLeaderInitiator]: https://docs.spring.io/spring-integration/docs/current/reference/html/messaging-endpoints-chapter.html#leadership-event-handling 
