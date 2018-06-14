@@ -126,7 +126,8 @@ public class SqsMessageDrivenChannelAdapterTests {
 			given(sqs.receiveMessage(new ReceiveMessageRequest("http://testQueue.amazonaws.com")
 					.withAttributeNames("All")
 					.withMessageAttributeNames("All")
-					.withMaxNumberOfMessages(10)))
+					.withMaxNumberOfMessages(10)
+					.withWaitTimeSeconds(20)))
 					.willReturn(new ReceiveMessageResult()
 							.withMessages(new Message().withBody("messageContent"),
 									new Message().withBody("messageContent2")))
