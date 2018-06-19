@@ -22,12 +22,15 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.springframework.integration.test.matcher.EqualsResultMatcher.equalsResult;
+import static org.springframework.integration.test.matcher.EventuallyMatcher.eventually;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,6 +51,7 @@ import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.MetadataStore;
 import org.springframework.integration.metadata.SimpleMetadataStore;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
@@ -149,9 +153,17 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
+
+		Map<?, ?> forLocking =
+				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
+						"shardLocksMonitor.forLocking", Map.class);
+
+		Assert.assertThat(0, eventually(equalsResult(forLocking::size)));
+
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
+
 		this.kinesisMessageDrivenChannelAdapter.start();
 
 		message = this.kinesisChannel.receive(10000);
@@ -169,19 +181,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		Object sequenceNumberHeader = message.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER);
 		assertThat(sequenceNumberHeader).isInstanceOf(List.class);
 		assertThat((List<String>) sequenceNumberHeader).contains("2");
-		int n = 0;
 
-		while (n++ < 100) {
-			if (!this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1").equals("2")) {
-				Thread.sleep(100);
-			}
-			else {
-				break;
-			}
-		}
-
-		assertThat(n).isLessThan(100);
-		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
+		Assert.assertThat("2",
+				eventually(equalsResult(() ->
+						this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1"))));
 
 		List consumerInvoker =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
@@ -291,10 +294,22 @@ public class KinesisMessageDrivenChannelAdapterTests {
 					.willReturn(new GetRecordsResult()
 							.withNextShardIterator(shard1Iterator3));
 
+			String shard1Iterator4 = "shard1Iterator4";
+
 			given(amazonKinesis.getShardIterator(KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "1")
 					.toShardIteratorRequest()))
 					.willReturn(new GetShardIteratorResult()
-							.withShardIterator(shard1Iterator2));
+							.withShardIterator(shard1Iterator4));
+
+			given(amazonKinesis.getRecords(new GetRecordsRequest()
+					.withShardIterator(shard1Iterator4)
+					.withLimit(25)))
+					.willReturn(new GetRecordsResult()
+							.withNextShardIterator(shard1Iterator3)
+							.withRecords(new Record()
+									.withPartitionKey("partition1")
+									.withSequenceNumber("2")
+									.withData(ByteBuffer.wrap(serializingConverter.convert("bar")))));
 
 			return amazonKinesis;
 		}
@@ -315,6 +330,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			adapter.setOutputChannel(kinesisChannel());
 			adapter.setCheckpointStore(checkpointStore());
 			adapter.setCheckpointMode(CheckpointMode.manual);
+			adapter.setLockRegistry(new DefaultLockRegistry());
 			adapter.setStartTimeout(10000);
 			adapter.setDescribeStreamRetries(1);
 			adapter.setConcurrency(10);

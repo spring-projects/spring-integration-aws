@@ -44,6 +44,8 @@ import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
+import org.springframework.integration.support.locks.LockRegistry;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -154,6 +156,11 @@ public class KinesisIntegrationTests {
 			return new SimpleMetadataStore();
 		}
 
+		@Bean
+		public LockRegistry lockRegistry() {
+			return new DefaultLockRegistry();
+		}
+
 		private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter =
 					new KinesisMessageDrivenChannelAdapter(KINESIS_LOCAL_RUNNING.getKinesis(), TEST_STREAM);
@@ -161,6 +168,7 @@ public class KinesisIntegrationTests {
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
 			adapter.setCheckpointStore(checkpointStore());
+			adapter.setLockRegistry(lockRegistry());
 			adapter.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return adapter;
 		}

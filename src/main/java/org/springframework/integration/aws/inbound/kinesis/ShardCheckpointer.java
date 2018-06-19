@@ -17,17 +17,12 @@
 package org.springframework.integration.aws.inbound.kinesis;
 
 import java.math.BigInteger;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.MetadataStore;
-
-import com.amazonaws.services.kinesis.model.Record;
 
 /**
  * An internal {@link Checkpointer} implementation based on
@@ -85,30 +80,8 @@ class ShardCheckpointer implements Checkpointer {
 		return false;
 	}
 
-	List<Record> filterRecords(List<Record> records) {
-		List<Record> recordsToProcess = new LinkedList<>(records);
-		this.lastCheckpointValue = getCheckpoint();
-		if (this.lastCheckpointValue != null) {
-			for (Iterator<Record> iterator = recordsToProcess.iterator(); iterator.hasNext(); ) {
-				Record record = iterator.next();
-				String sequenceNumber = record.getSequenceNumber();
-				if (new BigInteger(sequenceNumber).compareTo(new BigInteger(this.lastCheckpointValue)) <= 0) {
-					if (logger.isDebugEnabled()) {
-						logger.debug("Removing record with sequenceNumber " + sequenceNumber +
-								" because it is <= checkpoint(" + this.lastCheckpointValue + ")");
-					}
-					iterator.remove();
-				}
-				else {
-					this.lastCheckpointValue = sequenceNumber;
-				}
-			}
-
-		}
-		else {
-			this.lastCheckpointValue = recordsToProcess.get(recordsToProcess.size() - 1).getSequenceNumber();
-		}
-		return recordsToProcess;
+	void setHighestSequence(String highestSequence) {
+		this.lastCheckpointValue = highestSequence;
 	}
 
 	String getCheckpoint() {

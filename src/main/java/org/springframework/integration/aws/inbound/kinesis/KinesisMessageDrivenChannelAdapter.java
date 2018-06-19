@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -37,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.DisposableBean;
@@ -51,6 +53,7 @@ import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.support.ErrorMessageUtils;
+import org.springframework.integration.support.locks.LockRegistry;
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
@@ -59,6 +62,7 @@ import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
+import org.springframework.util.concurrent.SettableListenableFuture;
 
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
@@ -100,6 +104,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private final List<ConsumerInvoker> consumerInvokers = new ArrayList<>();
 
+	private final ShardLocksMonitor shardLocksMonitor = new ShardLocksMonitor();
+
+	private final ExecutorService shardLocksExecutor =
+			Executors.newSingleThreadExecutor(
+					new CustomizableThreadFactory(
+							(getComponentName() == null
+									? ""
+									: getComponentName())
+									+ "-kinesis-shard-locks-"));
+
 	private String consumerGroup = "SpringIntegration";
 
 	private ConcurrentMetadataStore checkpointStore = new SimpleMetadataStore();
@@ -139,6 +153,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private boolean resetCheckpoints;
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
+
+	private LockRegistry lockRegistry;
 
 	private volatile boolean active;
 
@@ -271,6 +287,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		this.embeddedHeadersMapper = embeddedHeadersMapper;
 	}
 
+	/**
+	 * Specify a {@link LockRegistry} for an exclusive access to provided streams.
+	 * This is not used when shards-based configuration is provided.
+	 * @param lockRegistry the {@link LockRegistry} to use.
+	 * @since 2.0
+	 */
+	public void setLockRegistry(LockRegistry lockRegistry) {
+		this.lockRegistry = lockRegistry;
+	}
+
 	@Override
 	protected void onInit() {
 		super.onInit();
@@ -289,6 +315,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 									? ""
 									: getComponentName())
 									+ "-kinesis-dispatcher-"));
+		}
+
+		if (this.streams == null) {
+			if (this.lockRegistry != null) {
+				logger.warn("The LockRegistry is ignored when explicit shards configuration is used.");
+			}
+			this.lockRegistry = null;
 		}
 	}
 
@@ -398,6 +431,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			logger.warn("The 'checkpointMode' is overridden from [CheckpointMode.record] to [CheckpointMode.batch] " +
 					"because it does not make sense in case of [ListenerMode.batch].");
 		}
+
+		if (this.lockRegistry != null) {
+			this.shardLocksMonitor.start();
+		}
+
 		if (this.streams != null) {
 			populateShardsForStreams();
 		}
@@ -509,9 +547,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 					try {
 						for (Shard shard : shards) {
+							String key = buildCheckpointKeyForShard(stream, shard.getShardId());
 							String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
 							if (endingSequenceNumber != null) {
-								String key = buildCheckpointKeyForShard(stream, shard.getShardId());
 								String checkpoint = this.checkpointStore.get(key);
 
 								boolean skipClosedShard = checkpoint != null &&
@@ -531,7 +569,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								}
 							}
 
-							shardsToConsume.add(shard);
+							if (this.lockRegistry == null || this.shardLocksMonitor.tryLock(key)) {
+								shardsToConsume.add(shard);
+							}
 						}
 					}
 					catch (Exception e) {
@@ -624,6 +664,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		}
 		super.doStop();
 		stopConsumers();
+
+		this.shardLocksMonitor.stop();
 	}
 
 	private void stopConsumers() {
@@ -735,6 +777,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private final Runnable processTask = processTask();
 
+		private final String key;
+
 		private Runnable notifier;
 
 		private volatile ConsumerState state = ConsumerState.NEW;
@@ -747,8 +791,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		ShardConsumer(KinesisShardOffset shardOffset) {
 			this.shardOffset = new KinesisShardOffset(shardOffset);
-			String key = buildCheckpointKeyForShard(shardOffset.getStream(), shardOffset.getShard());
-			this.checkpointer = new ShardCheckpointer(KinesisMessageDrivenChannelAdapter.this.checkpointStore, key);
+			this.key = buildCheckpointKeyForShard(shardOffset.getStream(), shardOffset.getShard());
+			this.checkpointer = new ShardCheckpointer(KinesisMessageDrivenChannelAdapter.this.checkpointStore, this.key);
 		}
 
 		void setNotifier(Runnable notifier) {
@@ -757,6 +801,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		void stop() {
 			this.state = ConsumerState.STOP;
+			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
+				KinesisMessageDrivenChannelAdapter.this.shardLocksMonitor.unlock(this.key);
+			}
 			if (this.notifier != null) {
 				this.notifier.run();
 			}
@@ -920,78 +967,68 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			ShardConsumer.this.state = ConsumerState.SLEEP;
 		}
 
-		private void processRecords(List<Record> recordsToProcess) {
-			List<Record> records = this.checkpointer.filterRecords(recordsToProcess);
-			if (!records.isEmpty()) {
-				if (logger.isTraceEnabled()) {
-					logger.trace("Processing records: " + records + " for [" + ShardConsumer.this + "]");
-				}
+		private void processRecords(List<Record> records) {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Processing records: " + records + " for [" + ShardConsumer.this + "]");
+			}
 
-				// TODO Reconsider this logic after rebalance and shard leader election implementation
-				if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-					if (!this.checkpointer.checkpoint()) {
-						if (logger.isInfoEnabled()) {
-							logger.info("The records '" + recordsToProcess + "' are skipped from processing because " +
-									"their sequence numbers are less than already checkpointed: " +
-									this.checkpointer.getCheckpoint());
+			this.checkpointer.setHighestSequence(records.get(records.size() - 1).getSequenceNumber());
+
+			switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
+				case record:
+					for (Record record : records) {
+						performSend(prepareMessageForRecord(record), record);
+
+						if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+							this.checkpointer.checkpoint(record.getSequenceNumber());
 						}
-						return;
 					}
-				}
 
-				switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
-					case record:
-						for (Record record : records) {
-							performSend(prepareMessageForRecord(record), record);
+					break;
 
-							if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-								this.checkpointer.checkpoint(record.getSequenceNumber());
-							}
-						}
+				case batch:
+					Object payload = records;
 
-						break;
+					if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+						payload = records.stream()
+								.map(this::prepareMessageForRecord)
+								.collect(Collectors.toList());
+					}
 
-					case batch:
-						Object payload = records;
+					final List<String> partitionKeys;
+					final List<String> sequenceNumbers;
+					if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
+						partitionKeys = new ArrayList<>();
+						sequenceNumbers = new ArrayList<>();
 
-						if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-							payload = records.stream()
-									.map(this::prepareMessageForRecord)
-									.collect(Collectors.toList());
-						}
+						payload = records.stream()
+								.map(r -> {
+									partitionKeys.add(r.getPartitionKey());
+									sequenceNumbers.add(r.getSequenceNumber());
 
-						final List<String> partitionKeys;
-						final List<String> sequenceNumbers;
-						if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
-							partitionKeys = new ArrayList<>();
-							sequenceNumbers = new ArrayList<>();
+									return KinesisMessageDrivenChannelAdapter.this.converter
+											.convert(r.getData().array());
+								})
+								.collect(Collectors.toList());
+					}
+					else {
+						partitionKeys = null;
+						sequenceNumbers = null;
+					}
 
-							payload = records.stream()
-									.map(r -> {
-										partitionKeys.add(r.getPartitionKey());
-										sequenceNumbers.add(r.getSequenceNumber());
+					AbstractIntegrationMessageBuilder<?> messageBuilder =
+							getMessageBuilderFactory()
+									.withPayload(payload)
+									.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
+									.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
 
-										return KinesisMessageDrivenChannelAdapter.this.converter
-												.convert(r.getData().array());
-									})
-									.collect(Collectors.toList());
-						}
-						else {
-							partitionKeys = null;
-							sequenceNumbers = null;
-						}
+					performSend(messageBuilder, records);
 
-						AbstractIntegrationMessageBuilder<?> messageBuilder =
-								getMessageBuilderFactory()
-										.withPayload(payload)
-										.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
-										.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
+					break;
+			}
 
-						performSend(messageBuilder, records);
-
-						break;
-
-				}
+			if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+				this.checkpointer.checkpoint();
 			}
 		}
 
@@ -1127,6 +1164,127 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					}
 				}
 			}
+		}
+
+		@Override
+		public boolean isLongLived() {
+			return true;
+		}
+
+	}
+
+	private final class ShardLocksMonitor implements SchedulingAwareRunnable {
+
+		private final Map<Lock, SettableListenableFuture<Boolean>> forLocking =
+				Collections.synchronizedMap(new HashMap<>());
+
+		private final Queue<Lock> forUnlocking = new ConcurrentLinkedQueue<>();
+
+		private volatile boolean active = true;
+
+		boolean tryLock(String lockKey) {
+			SettableListenableFuture<Boolean> lockedFuture = new SettableListenableFuture<>();
+			Lock lock = KinesisMessageDrivenChannelAdapter.this.lockRegistry.obtain(lockKey);
+			this.forLocking.put(lock, lockedFuture);
+			try {
+				return lockedFuture.get(10, TimeUnit.SECONDS);
+			}
+			catch (Exception e) {
+				logger.error("Error during locking: " + lock, e);
+				return false;
+			}
+		}
+
+		void unlock(String lockKey) {
+			this.forUnlocking.add(KinesisMessageDrivenChannelAdapter.this.lockRegistry.obtain(lockKey));
+		}
+
+		void start() {
+			this.active = true;
+			KinesisMessageDrivenChannelAdapter.this.shardLocksExecutor.execute(this);
+		}
+
+		void stop() {
+			this.active = false;
+		}
+
+		@Override
+		public void run() {
+			Set<Map.Entry<Lock, SettableListenableFuture<Boolean>>> entrySet = this.forLocking.entrySet();
+
+			try {
+				while (this.active) {
+					synchronized (this.forLocking) {
+						for (Map.Entry<Lock, SettableListenableFuture<Boolean>> entry : entrySet) {
+							Lock lock = entry.getKey();
+							SettableListenableFuture<Boolean> settableFuture = entry.getValue();
+							if (settableFuture != null) {
+								try {
+									if (lock.tryLock()) {
+										settableFuture.set(true);
+									}
+									else {
+										settableFuture.set(false);
+									}
+								}
+								catch (Exception e) {
+									logger.error("Error during locking: " + lock, e);
+								}
+								finally {
+									entry.setValue(null);
+								}
+							}
+						}
+					}
+
+					while (true) {
+						Lock lock = this.forUnlocking.poll();
+						if (lock != null) {
+							try {
+								lock.unlock();
+							}
+							catch (Exception e) {
+								logger.error("Error during unlocking: " + lock, e);
+							}
+							finally {
+								this.forLocking.remove(lock);
+							}
+						}
+						else {
+							break;
+						}
+					}
+
+					try {
+						Thread.sleep(250);
+					}
+					catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						throw new IllegalStateException("ShardLocksMonitor Thread [" +
+								this + "] has been interrupted", e);
+					}
+				}
+			}
+			finally {
+				synchronized (this.forLocking) {
+					for (Iterator<Map.Entry<Lock, SettableListenableFuture<Boolean>>> iterator = entrySet.iterator();
+							iterator.hasNext(); ) {
+
+						Map.Entry<Lock, SettableListenableFuture<Boolean>> next = iterator.next();
+						try {
+							next.getKey().unlock();
+						}
+						catch (Exception e) {
+							logger.error("Error during unlocking: " + next.getKey(), e);
+						}
+						finally {
+							iterator.remove();
+						}
+					}
+				}
+			}
+
+			this.forUnlocking.clear();
 		}
 
 		@Override

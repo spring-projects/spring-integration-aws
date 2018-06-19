@@ -36,7 +36,7 @@ ext {
 	jacksonVersion = '2.9.5'
 	servletApiVersion = '3.1.0'
 	log4jVersion = '2.11.0'
-	springCloudAwsVersion = '2.0.0.BUILD-SNAPSHOT'
+	springCloudAwsVersion = '2.0.0.RELEASE'
 	springIntegrationVersion = '5.0.6.RELEASE'
 
 	idPrefix = 'aws'
@@ -107,7 +107,7 @@ dependencies {
 	compile('org.springframework.integration:spring-integration-file', optional)
 	compile('org.springframework.integration:spring-integration-http', optional)
 
-//	compile('com.amazonaws:amazon-kinesis-client:1.9.0', optional)
+//	compile('com.amazonaws:amazon-kinesis-client:1.9.1', optional)
 
 	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
 	compile('com.amazonaws:aws-java-sdk-dynamodb', optional)
