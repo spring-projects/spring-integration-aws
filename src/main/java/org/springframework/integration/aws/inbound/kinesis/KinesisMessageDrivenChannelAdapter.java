@@ -673,7 +673,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			shardConsumer.stop();
 		}
 		this.shardConsumers.clear();
-		this.consumerInvokers.clear();
 	}
 
 	/**
