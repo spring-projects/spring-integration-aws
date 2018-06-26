@@ -36,6 +36,7 @@ import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.spec.DeleteItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
+import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
@@ -213,7 +214,14 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 											.withAttributeName(TTL)
 											.withEnabled(this.timeToLive > 0));
 
-			this.dynamoDB.updateTimeToLive(updateTimeToLiveRequest);
+			try {
+				this.dynamoDB.updateTimeToLive(updateTimeToLiveRequest);
+			}
+			catch (AmazonDynamoDBException e) {
+				if (logger.isWarnEnabled()) {
+					logger.warn("The error during 'updateTimeToLive' request", e);
+				}
+			}
 		}
 	}
 
