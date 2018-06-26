@@ -658,7 +658,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	@Override
 	protected void doStop() {
-		this.active = false;
 		for (ConsumerInvoker consumerInvoker : this.consumerInvokers) {
 			consumerInvoker.notifyBarrier();
 		}
@@ -666,6 +665,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		stopConsumers();
 
 		this.shardLocksMonitor.stop();
+		this.active = false;
 	}
 
 	private void stopConsumers() {
