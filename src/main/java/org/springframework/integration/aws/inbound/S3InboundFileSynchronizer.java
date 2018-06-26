@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,10 @@ package org.springframework.integration.aws.inbound;
 import java.io.File;
 import java.io.IOException;
 
-import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.S3Session;
 import org.springframework.integration.aws.support.S3SessionFactory;
 import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter;
-import org.springframework.integration.file.filters.FileListFilter;
 import org.springframework.integration.file.remote.session.Session;
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.file.remote.synchronizer.AbstractInboundFileSynchronizer;
@@ -54,18 +52,8 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	 */
 	public S3InboundFileSynchronizer(SessionFactory<S3ObjectSummary> sessionFactory) {
 		super(sessionFactory);
-		setRemoteDirectoryExpression(new LiteralExpression(null));
-		setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "s3MessageSource"));
-	}
-
-	@Override
-	public final void setRemoteDirectoryExpression(Expression remoteDirectoryExpression) {
-		super.setRemoteDirectoryExpression(remoteDirectoryExpression);
-	}
-
-	@Override
-	public final void setFilter(FileListFilter<S3ObjectSummary> filter) {
-		super.setFilter(filter);
+		doSetRemoteDirectoryExpression(new LiteralExpression(null));
+		doSetFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "s3MessageSource"));
 	}
 
 	@Override
@@ -86,6 +74,7 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	@Override
 	protected boolean copyFileToLocalDirectory(String remoteDirectoryPath, S3ObjectSummary remoteFile,
 			File localDirectory, Session<S3ObjectSummary> session) throws IOException {
+
 		return super.copyFileToLocalDirectory(((S3Session) session).normalizeBucketName(remoteDirectoryPath),
 				remoteFile, localDirectory, session);
 	}
