@@ -1193,6 +1193,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				logger.error("Error during locking: " + lock, e);
 				return false;
 			}
+			finally {
+				this.forLocking.remove(lock);
+			}
 		}
 
 		void unlock(String lockKey) {
@@ -1229,6 +1232,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								}
 								catch (Exception e) {
 									logger.error("Error during locking: " + lock, e);
+									settableFuture.set(false);
 								}
 								finally {
 									entry.setValue(null);
