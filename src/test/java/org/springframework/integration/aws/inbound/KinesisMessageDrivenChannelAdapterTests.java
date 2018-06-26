@@ -158,11 +158,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 						"shardLocksMonitor.forLocking", Map.class);
 
-		Assert.assertThat(0, eventually(equalsResult(forLocking::size)));
+		Assert.assertThat(0, eventually(100, 100, equalsResult(forLocking::size)));
 
-		List consumerInvoker =
+		List consumerInvokers =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
-		Assert.assertThat(0, eventually(equalsResult(consumerInvoker::size)));
+		Assert.assertThat(0, eventually(100, 100, equalsResult(consumerInvokers::size)));
 
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
@@ -187,12 +187,12 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat((List<String>) sequenceNumberHeader).contains("2");
 
 		Assert.assertThat("2",
-				eventually(equalsResult(() ->
+				eventually(100, 100, equalsResult(() ->
 						this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1"))));
 
-		consumerInvoker =
+		consumerInvokers =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
-		assertThat(consumerInvoker.size()).isEqualTo(2);
+		assertThat(consumerInvokers.size()).isEqualTo(2);
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 	}
