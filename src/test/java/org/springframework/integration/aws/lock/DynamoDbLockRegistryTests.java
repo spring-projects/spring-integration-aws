@@ -179,14 +179,22 @@ public class DynamoDbLockRegistryTests {
 		final AtomicBoolean locked = new AtomicBoolean();
 		final CountDownLatch latch = new CountDownLatch(1);
 		Future<Object> result = this.taskExecutor.submit(() -> {
-			Lock lock2 = this.dynamoDbLockRegistry.obtain("foo");
-			locked.set(lock2.tryLock(200, TimeUnit.MILLISECONDS));
+			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+			registry2.setHeartbeatPeriod(1);
+			registry2.setRefreshPeriod(10);
+			registry2.setLeaseDuration(2);
+			registry2.afterPropertiesSet();
+			Lock lock2 = registry2.obtain("foo");
+			locked.set(lock2.tryLock());
 			latch.countDown();
 			try {
 				lock2.unlock();
 			}
 			catch (Exception e) {
 				return e;
+			}
+			finally {
+				registry2.destroy();
 			}
 			return null;
 		});
@@ -206,8 +214,13 @@ public class DynamoDbLockRegistryTests {
 		final CountDownLatch latch2 = new CountDownLatch(1);
 		final CountDownLatch latch3 = new CountDownLatch(1);
 		lock1.lockInterruptibly();
-		this.taskExecutor.execute(() -> {
-			Lock lock2 = this.dynamoDbLockRegistry.obtain("foo");
+		this.taskExecutor.submit(() -> {
+			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+			registry2.setHeartbeatPeriod(1);
+			registry2.setRefreshPeriod(10);
+			registry2.setLeaseDuration(2);
+			registry2.afterPropertiesSet();
+			Lock lock2 = registry2.obtain("foo");
 			try {
 				latch1.countDown();
 				lock2.lockInterruptibly();
@@ -220,7 +233,9 @@ public class DynamoDbLockRegistryTests {
 			finally {
 				lock2.unlock();
 				latch3.countDown();
+				registry2.destroy();
 			}
+			return null;
 		});
 
 		assertThat(latch1.await(10, TimeUnit.SECONDS)).isTrue();
@@ -236,8 +251,15 @@ public class DynamoDbLockRegistryTests {
 	@Test
 	public void testTwoThreadsDifferentRegistries() throws Exception {
 		final DynamoDbLockRegistry registry1 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+		registry1.setHeartbeatPeriod(1);
+		registry1.setRefreshPeriod(10);
+		registry1.setLeaseDuration(2);
 		registry1.afterPropertiesSet();
+
 		final DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+		registry2.setHeartbeatPeriod(1);
+		registry2.setRefreshPeriod(10);
+		registry2.setLeaseDuration(2);
 		registry2.afterPropertiesSet();
 
 		final Lock lock1 = registry1.obtain("foo");
@@ -311,6 +333,7 @@ public class DynamoDbLockRegistryTests {
 			DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
 			dynamoDbLockRegistry.setHeartbeatPeriod(1);
 			dynamoDbLockRegistry.setRefreshPeriod(10);
+			dynamoDbLockRegistry.setLeaseDuration(2);
 			return dynamoDbLockRegistry;
 		}
 

@@ -169,6 +169,8 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 		assertThat(revoked11.await(10, TimeUnit.SECONDS)).isTrue();
 		assertThat(initiator1.getContext().isLeader()).isFalse();
 
+		initiator1.stop();
+
 		for (DynamoDbLockRegistry registry : registries) {
 			registry.destroy();
 		}

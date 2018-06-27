@@ -445,9 +445,10 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				return false;
 			}
 
+			long timeToWaitForLock = System.currentTimeMillis() - start + TimeUnit.MILLISECONDS.convert(time, unit);
 			this.acquireLockOptionsBuilder
-					.withAdditionalTimeToWaitForLock(
-							System.currentTimeMillis() - start + TimeUnit.MILLISECONDS.convert(time, unit));
+					.withAdditionalTimeToWaitForLock(timeToWaitForLock)
+					.withRefreshPeriod(timeToWaitForLock);
 
 			boolean acquired = false;
 			try {
