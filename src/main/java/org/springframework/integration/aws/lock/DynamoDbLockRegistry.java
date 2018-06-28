@@ -135,6 +135,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	 */
 	private boolean executorExplicitlySet;
 
+	private volatile boolean initialized;
+
 
 	public DynamoDbLockRegistry(AmazonDynamoDB dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
@@ -279,9 +281,14 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				this.createTableLatch.countDown();
 			}
 		});
+
+		this.initialized = true;
 	}
 
 	private void awaitForActive() {
+		Assert.state(this.initialized, () -> "The component has not been initialized: " + this +
+				".\n Is it declared as a bean?");
+
 		IllegalStateException illegalStateException =
 				new IllegalStateException(
 						"The DynamoDb table " + this.tableName + " has not been created during " + 60 + " seconds");
@@ -324,6 +331,20 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				iterator.remove();
 			}
 		}
+	}
+
+	@Override
+	public String toString() {
+		return "DynamoDbLockRegistry{" + "tableName='" + this.tableName + '\'' +
+				", readCapacity=" + this.readCapacity +
+				", writeCapacity=" + this.writeCapacity +
+				", partitionKey='" + this.partitionKey + '\'' +
+				", sortKeyName='" + this.sortKeyName + '\'' +
+				", sortKey='" + this.sortKey + '\'' +
+				", refreshPeriod=" + this.refreshPeriod +
+				", leaseDuration=" + this.leaseDuration +
+				", heartbeatPeriod=" + this.heartbeatPeriod +
+				'}';
 	}
 
 	private final class DynamoDbLock implements Lock {

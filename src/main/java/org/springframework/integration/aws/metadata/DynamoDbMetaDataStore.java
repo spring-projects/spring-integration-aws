@@ -95,6 +95,8 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	private Integer timeToLive;
 
+	private volatile boolean initialized;
+
 	public DynamoDbMetaDataStore(AmazonDynamoDBAsync dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
 	}
@@ -202,6 +204,8 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 					}
 
 				});
+
+		this.initialized = true;
 	}
 
 	private void updateTimeToLiveIfAny() {
@@ -226,6 +230,8 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 	}
 
 	private void awaitForActive() {
+		Assert.state(this.initialized, () -> "The component has not been initialized: " + this +
+				".\n Is it declared as a bean?");
 		try {
 			this.createTableLatch.await(this.createTableRetries * this.createTableDelay, TimeUnit.SECONDS);
 		}
@@ -359,4 +365,14 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 		}
 	}
 
+	@Override
+	public String toString() {
+		return "DynamoDbMetaDataStore{" + "table=" + this.table +
+				", createTableRetries=" + this.createTableRetries +
+				", createTableDelay=" + this.createTableDelay +
+				", readCapacity=" + this.readCapacity +
+				", writeCapacity=" + this.writeCapacity +
+				", timeToLive=" + this.timeToLive +
+				'}';
+	}
 }
