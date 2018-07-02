@@ -497,9 +497,10 @@ this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
 ````
 
 Where you should specify the port on which you have ran the Dynalite service.
-Also you can use for your testing purpose a copy of `org.springframework.integration.aws.DynamoDbLocalRunning` in the `/test` directory of this project.    
+Also you can use for your testing purpose a copy of `org.springframework.integration.aws.DynamoDbLocalRunning` in the `/test` directory of this project.
+The default port is expected as `4568`, because the `4567` is reserved for the `KinesisLocalRunning` against local Kinesalite npm service. 
 
-Starting with _version 2.0_, the ``DynamoDbMetaDataStore` can be configured with the `timeToLive` option to enable the [DynamoDB TTL][] feature.
+Starting with _version 2.0_, the `DynamoDbMetaDataStore` can be configured with the `timeToLive` option to enable the [DynamoDB TTL][] feature.
 The `TTL` attribute is added to each item with the value based on the sum of current time and provided `timeToLive` in seconds.
 If the provided `timeToLive` value is non-positive, the TTL functionality is disable on the table.
 

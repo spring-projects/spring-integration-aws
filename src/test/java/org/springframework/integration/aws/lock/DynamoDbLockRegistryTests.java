@@ -59,7 +59,7 @@ import com.amazonaws.waiters.WaiterParameters;
 public class DynamoDbLockRegistryTests {
 
 	@ClassRule
-	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning(4567);
+	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning();
 
 	private final AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
 

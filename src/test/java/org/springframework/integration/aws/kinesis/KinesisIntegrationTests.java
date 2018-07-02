@@ -65,7 +65,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 public class KinesisIntegrationTests {
 
 	@ClassRule
-	public static final KinesisLocalRunning KINESIS_LOCAL_RUNNING = KinesisLocalRunning.isRunning(4567);
+	public static final KinesisLocalRunning KINESIS_LOCAL_RUNNING = KinesisLocalRunning.isRunning();
 
 	private static final String TEST_STREAM = "TestStream";
 

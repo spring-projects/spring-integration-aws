@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,8 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsyncClientBuilder;
  */
 public final class DynamoDbLocalRunning extends TestWatcher {
 
+	public static final int DEFAULT_PORT = 4568;
+
 	private static Log logger = LogFactory.getLog(DynamoDbLocalRunning.class);
 
 	// Static so that we only test once on failure: speeds up test suite
@@ -91,6 +93,10 @@ public final class DynamoDbLocalRunning extends TestWatcher {
 		return super.apply(base, description);
 	}
 
+
+	public static DynamoDbLocalRunning isRunning() {
+		return isRunning(DEFAULT_PORT);
+	}
 
 	public static DynamoDbLocalRunning isRunning(int port) {
 		return new DynamoDbLocalRunning(port);

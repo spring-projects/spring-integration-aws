@@ -47,7 +47,7 @@ import com.amazonaws.waiters.WaiterParameters;
 public class DynamoDbMetadataStoreTests {
 
 	@ClassRule
-	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning(4567);
+	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning();
 
 	private static final String TEST_TABLE = "testMetadataStore";
 
