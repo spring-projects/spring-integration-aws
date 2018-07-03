@@ -64,14 +64,14 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 1.1
  */
-public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, InitializingBean {
+public class DynamoDbMetadataStore implements ConcurrentMetadataStore, InitializingBean {
 
 	/**
 	 * The {@value DEFAULT_TABLE_NAME} default name for the metadata table in the DynamoDB.
 	 */
 	public static final String DEFAULT_TABLE_NAME = "SpringIntegrationMetadataStore";
 
-	private static final Log logger = LogFactory.getLog(DynamoDbMetaDataStore.class);
+	private static final Log logger = LogFactory.getLog(DynamoDbMetadataStore.class);
 
 	private static final String KEY = "KEY";
 
@@ -97,11 +97,11 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	private volatile boolean initialized;
 
-	public DynamoDbMetaDataStore(AmazonDynamoDBAsync dynamoDB) {
+	public DynamoDbMetadataStore(AmazonDynamoDBAsync dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
 	}
 
-	public DynamoDbMetaDataStore(AmazonDynamoDBAsync dynamoDB, String tableName) {
+	public DynamoDbMetadataStore(AmazonDynamoDBAsync dynamoDB, String tableName) {
 		Assert.notNull(dynamoDB, "'dynamoDB' must not be null.");
 		Assert.hasText(tableName, "'tableName' must not be empty.");
 		this.dynamoDB = dynamoDB;
@@ -166,38 +166,38 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 					@Override
 					public void onError(Exception e) {
 						logger.error("Cannot create DynamoDb table: " +
-								DynamoDbMetaDataStore.this.table.getTableName(), e);
-						DynamoDbMetaDataStore.this.createTableLatch.countDown();
+								DynamoDbMetadataStore.this.table.getTableName(), e);
+						DynamoDbMetadataStore.this.createTableLatch.countDown();
 					}
 
 					@Override
 					public void onSuccess(CreateTableRequest request, CreateTableResult createTableResult) {
 						Waiter<DescribeTableRequest> waiter =
-								DynamoDbMetaDataStore.this.dynamoDB.waiters()
+								DynamoDbMetadataStore.this.dynamoDB.waiters()
 										.tableExists();
 
 						WaiterParameters<DescribeTableRequest> waiterParameters =
 								new WaiterParameters<>(
-										new DescribeTableRequest(DynamoDbMetaDataStore.this.table.getTableName()))
+										new DescribeTableRequest(DynamoDbMetadataStore.this.table.getTableName()))
 										.withPollingStrategy(
 												new PollingStrategy(
-														new MaxAttemptsRetryStrategy(DynamoDbMetaDataStore.this.createTableRetries),
-														new FixedDelayStrategy(DynamoDbMetaDataStore.this.createTableDelay)));
+														new MaxAttemptsRetryStrategy(DynamoDbMetadataStore.this.createTableRetries),
+														new FixedDelayStrategy(DynamoDbMetadataStore.this.createTableDelay)));
 
 						waiter.runAsync(waiterParameters, new WaiterHandler<DescribeTableRequest>() {
 
 							@Override
 							public void onWaitSuccess(DescribeTableRequest request) {
 								updateTimeToLiveIfAny();
-								DynamoDbMetaDataStore.this.createTableLatch.countDown();
-								DynamoDbMetaDataStore.this.table.describe();
+								DynamoDbMetadataStore.this.createTableLatch.countDown();
+								DynamoDbMetadataStore.this.table.describe();
 							}
 
 							@Override
 							public void onWaitFailure(Exception e) {
 								logger.error("Cannot describe DynamoDb table: " +
-										DynamoDbMetaDataStore.this.table.getTableName(), e);
-								DynamoDbMetaDataStore.this.createTableLatch.countDown();
+										DynamoDbMetadataStore.this.table.getTableName(), e);
+								DynamoDbMetadataStore.this.createTableLatch.countDown();
 							}
 
 						});
@@ -367,7 +367,7 @@ public class DynamoDbMetaDataStore implements ConcurrentMetadataStore, Initializ
 
 	@Override
 	public String toString() {
-		return "DynamoDbMetaDataStore{" + "table=" + this.table +
+		return "DynamoDbMetadataStore{" + "table=" + this.table +
 				", createTableRetries=" + this.createTableRetries +
 				", createTableDelay=" + this.createTableDelay +
 				", readCapacity=" + this.readCapacity +

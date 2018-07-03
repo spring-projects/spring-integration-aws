@@ -51,7 +51,7 @@ public class DynamoDbMetadataStoreTests {
 
 	private static final String TEST_TABLE = "testMetadataStore";
 
-	private static DynamoDbMetaDataStore store;
+	private static DynamoDbMetadataStore store;
 
 	private final String file1 = "/remotepath/filesTodownload/file-1.txt";
 
@@ -76,7 +76,7 @@ public class DynamoDbMetadataStoreTests {
 
 		}
 
-		store = new DynamoDbMetaDataStore(dynamoDB, TEST_TABLE);
+		store = new DynamoDbMetadataStore(dynamoDB, TEST_TABLE);
 		store.setTimeToLive(10); // Dynalite doesn't support TTL
 		store.afterPropertiesSet();
 	}
