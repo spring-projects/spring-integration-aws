@@ -141,71 +141,74 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	@Override
 	public void afterPropertiesSet() {
 		try {
-			this.table.describe();
-			updateTimeToLiveIfAny();
-			this.createTableLatch.countDown();
-			return;
-		}
-		catch (ResourceNotFoundException e) {
-			if (logger.isInfoEnabled()) {
-				logger.info("No table '" + this.table.getTableName() + "'. Creating one...");
+			try {
+				this.table.describe();
+				updateTimeToLiveIfAny();
+				this.createTableLatch.countDown();
+				return;
 			}
+			catch (ResourceNotFoundException e) {
+				if (logger.isInfoEnabled()) {
+					logger.info("No table '" + this.table.getTableName() + "'. Creating one...");
+				}
+			}
+
+			CreateTableRequest createTableRequest =
+					new CreateTableRequest()
+							.withTableName(this.table.getTableName())
+							.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
+							.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
+							.withProvisionedThroughput(new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
+
+
+			this.dynamoDB.createTableAsync(createTableRequest,
+					new AsyncHandler<CreateTableRequest, CreateTableResult>() {
+
+						@Override
+						public void onError(Exception e) {
+							logger.error("Cannot create DynamoDb table: " +
+									DynamoDbMetadataStore.this.table.getTableName(), e);
+							DynamoDbMetadataStore.this.createTableLatch.countDown();
+						}
+
+						@Override
+						public void onSuccess(CreateTableRequest request, CreateTableResult createTableResult) {
+							Waiter<DescribeTableRequest> waiter =
+									DynamoDbMetadataStore.this.dynamoDB.waiters()
+											.tableExists();
+
+							WaiterParameters<DescribeTableRequest> waiterParameters =
+									new WaiterParameters<>(
+											new DescribeTableRequest(DynamoDbMetadataStore.this.table.getTableName()))
+											.withPollingStrategy(
+													new PollingStrategy(
+															new MaxAttemptsRetryStrategy(DynamoDbMetadataStore.this.createTableRetries),
+															new FixedDelayStrategy(DynamoDbMetadataStore.this.createTableDelay)));
+
+							waiter.runAsync(waiterParameters, new WaiterHandler<DescribeTableRequest>() {
+
+								@Override
+								public void onWaitSuccess(DescribeTableRequest request) {
+									updateTimeToLiveIfAny();
+									DynamoDbMetadataStore.this.createTableLatch.countDown();
+									DynamoDbMetadataStore.this.table.describe();
+								}
+
+								@Override
+								public void onWaitFailure(Exception e) {
+									logger.error("Cannot describe DynamoDb table: " +
+											DynamoDbMetadataStore.this.table.getTableName(), e);
+									DynamoDbMetadataStore.this.createTableLatch.countDown();
+								}
+
+							});
+						}
+
+					});
 		}
-
-		CreateTableRequest createTableRequest =
-				new CreateTableRequest()
-						.withTableName(this.table.getTableName())
-						.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
-						.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
-						.withProvisionedThroughput(new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
-
-
-		this.dynamoDB.createTableAsync(createTableRequest,
-				new AsyncHandler<CreateTableRequest, CreateTableResult>() {
-
-					@Override
-					public void onError(Exception e) {
-						logger.error("Cannot create DynamoDb table: " +
-								DynamoDbMetadataStore.this.table.getTableName(), e);
-						DynamoDbMetadataStore.this.createTableLatch.countDown();
-					}
-
-					@Override
-					public void onSuccess(CreateTableRequest request, CreateTableResult createTableResult) {
-						Waiter<DescribeTableRequest> waiter =
-								DynamoDbMetadataStore.this.dynamoDB.waiters()
-										.tableExists();
-
-						WaiterParameters<DescribeTableRequest> waiterParameters =
-								new WaiterParameters<>(
-										new DescribeTableRequest(DynamoDbMetadataStore.this.table.getTableName()))
-										.withPollingStrategy(
-												new PollingStrategy(
-														new MaxAttemptsRetryStrategy(DynamoDbMetadataStore.this.createTableRetries),
-														new FixedDelayStrategy(DynamoDbMetadataStore.this.createTableDelay)));
-
-						waiter.runAsync(waiterParameters, new WaiterHandler<DescribeTableRequest>() {
-
-							@Override
-							public void onWaitSuccess(DescribeTableRequest request) {
-								updateTimeToLiveIfAny();
-								DynamoDbMetadataStore.this.createTableLatch.countDown();
-								DynamoDbMetadataStore.this.table.describe();
-							}
-
-							@Override
-							public void onWaitFailure(Exception e) {
-								logger.error("Cannot describe DynamoDb table: " +
-										DynamoDbMetadataStore.this.table.getTableName(), e);
-								DynamoDbMetadataStore.this.createTableLatch.countDown();
-							}
-
-						});
-					}
-
-				});
-
-		this.initialized = true;
+		finally {
+			this.initialized = true;
+		}
 	}
 
 	private void updateTimeToLiveIfAny() {
