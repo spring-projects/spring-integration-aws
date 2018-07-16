@@ -29,6 +29,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -170,6 +171,12 @@ public class KinesisIntegrationTests {
 			adapter.setCheckpointStore(checkpointStore());
 			adapter.setLockRegistry(lockRegistry());
 			adapter.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
+
+			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
+			dfa.setPropertyValue("describeStreamBackoff", 10);
+			dfa.setPropertyValue("consumerBackoff", 10);
+			dfa.setPropertyValue("idleBetweenPolls", 1);
+
 			return adapter;
 		}
 

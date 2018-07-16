@@ -156,7 +156,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		Map<?, ?> forLocking =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
-						"shardLocksMonitor.forLocking", Map.class);
+						"shardConsumerManager.locks", Map.class);
 
 		Assert.assertThat(0, eventually(100, 100, equalsResult(forLocking::size)));
 

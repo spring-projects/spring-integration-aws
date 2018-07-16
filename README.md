@@ -552,11 +552,9 @@ When `InboundMessageMapper` is used together with the `ListenerMode.batch`, each
 In this case `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` headers are populated to the particular message for a record.
 These messages are wrapped as a list payload to one outbound message. 
 
-Starting with _version 2.0_, the `KinesisMessageDrivenChannelAdapter` can be configured with the `LockRegistry` for leader selection for the shards in the provided streams.
-The container iterates over the shards in its streams and tries to acquire a distributed lock for the shard in its consumer group. 
-If `LockRegistry` is not provided, no exclusive locking happens.
-Also this locking mechanism is not applied when `KinesisShardOffset`-based configuration is provided. 
-In this case the global [Leader Election][] can be applied.
+Starting with _version 2.0_, the `KinesisMessageDrivenChannelAdapter` can be configured with the `LockRegistry` for leader selection for the provided shards or derived from the provided streams.
+The `KinesisMessageDrivenChannelAdapter` iterates over its shards and tries to acquire a distributed lock for the shard in its consumer group.
+If `LockRegistry` is not provided, no exclusive locking happens and all the shards are consumed by this `KinesisMessageDrivenChannelAdapter`. 
 See also `DynamoDbLockRegistry` for more information.
 
 ### Outbound Channel Adapter

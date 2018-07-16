@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -62,7 +63,6 @@ import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-import org.springframework.util.concurrent.SettableListenableFuture;
 
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
@@ -104,7 +104,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private final List<ConsumerInvoker> consumerInvokers = new ArrayList<>();
 
-	private final ShardLocksMonitor shardLocksMonitor = new ShardLocksMonitor();
+	private final ShardConsumerManager shardConsumerManager = new ShardConsumerManager();
 
 	private final ExecutorService shardLocksExecutor =
 			Executors.newSingleThreadExecutor(
@@ -159,6 +159,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private volatile boolean active;
 
 	private volatile int consumerInvokerMaxCapacity;
+
+	private volatile Future<?> shardConsumerManagerFuture;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -362,7 +364,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			synchronized (this.shardOffsets) {
 				for (KinesisShardOffset shardOffset : this.shardOffsets) {
 					if (shardOffsetForSearch.equals(shardOffset)) {
-						populateConsumer(shardOffset);
+						this.shardConsumerManager.addShardToConsume(shardOffset);
 						break;
 					}
 				}
@@ -410,7 +412,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				oldShardConsumer.close();
 			}
 			shardOffset.setReset(true);
-			populateConsumer(shardOffset);
+			this.shardConsumerManager.addShardToConsume(shardOffset);
 		}
 	}
 
@@ -432,10 +434,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					"because it does not make sense in case of [ListenerMode.batch].");
 		}
 
-		if (this.lockRegistry != null) {
-			this.shardLocksMonitor.start();
-		}
-
 		if (this.streams != null) {
 			populateShardsForStreams();
 		}
@@ -446,15 +444,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		this.concurrency = Math.min(this.maxConcurrency, this.shardOffsets.size());
 
-		for (int i = 0; i < this.concurrency; i++) {
-			Collection<ShardConsumer> shardConsumers = shardConsumerSubset(i);
-			this.consumerInvokerMaxCapacity = Math.max(this.consumerInvokerMaxCapacity, shardConsumers.size());
-			ConsumerInvoker consumerInvoker = new ConsumerInvoker(shardConsumers);
-			this.consumerInvokers.add(consumerInvoker);
-			this.consumerExecutor.execute(consumerInvoker);
-		}
-
 		this.dispatcherExecutor.execute(new ConsumerDispatcher());
+
+		this.shardConsumerManagerFuture = this.shardLocksExecutor.submit(this.shardConsumerManager);
 	}
 
 	private Collection<ShardConsumer> shardConsumerSubset(int i) {
@@ -569,9 +561,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								}
 							}
 
-							if (this.lockRegistry == null || this.shardLocksMonitor.tryLock(key)) {
-								shardsToConsume.add(shard);
-							}
+							shardsToConsume.add(shard);
 						}
 					}
 					catch (Exception e) {
@@ -598,7 +588,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						addedOffset = this.shardOffsets.add(shardOffset);
 					}
 					if (addedOffset && shardsGatherLatch == null && this.active) {
-						populateConsumer(shardOffset);
+						this.shardConsumerManager.addShardToConsume(shardOffset);
 					}
 				}
 			}
@@ -614,8 +604,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private void populateConsumers() {
 		synchronized (this.shardOffsets) {
 			for (KinesisShardOffset shardOffset : this.shardOffsets) {
-				shardOffset.setReset(this.resetCheckpoints);
-				populateConsumer(shardOffset);
+				this.shardConsumerManager.addShardToConsume(shardOffset);
 			}
 		}
 
@@ -623,6 +612,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	}
 
 	private void populateConsumer(KinesisShardOffset shardOffset) {
+		shardOffset.setReset(this.resetCheckpoints);
 		ShardConsumer shardConsumer = new ShardConsumer(shardOffset);
 
 		if (this.active) {
@@ -664,7 +654,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		super.doStop();
 		stopConsumers();
 
-		this.shardLocksMonitor.stop();
+		this.shardConsumerManagerFuture.cancel(true);
 		this.active = false;
 	}
 
@@ -801,7 +791,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		void stop() {
 			this.state = ConsumerState.STOP;
 			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
-				KinesisMessageDrivenChannelAdapter.this.shardLocksMonitor.unlock(this.key);
+				KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.unlock(this.key);
 			}
 			if (this.notifier != null) {
 				this.notifier.run();
@@ -1172,85 +1162,70 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	}
 
-	private final class ShardLocksMonitor implements SchedulingAwareRunnable {
+	private final class ShardConsumerManager implements SchedulingAwareRunnable {
 
-		private final Map<Lock, SettableListenableFuture<Boolean>> forLocking =
-				Collections.synchronizedMap(new HashMap<>());
+		private final Map<String, KinesisShardOffset> shardOffsetsToConsumer = new ConcurrentHashMap<>();
 
-		private final Queue<Lock> forUnlocking = new ConcurrentLinkedQueue<>();
+		private final Map<String, Lock> locks = new HashMap<>();
 
-		private volatile boolean active = true;
+		private final Queue<String> forUnlocking = new ConcurrentLinkedQueue<>();
 
-		boolean tryLock(String lockKey) {
-			SettableListenableFuture<Boolean> lockedFuture = new SettableListenableFuture<>();
-			Lock lock = KinesisMessageDrivenChannelAdapter.this.lockRegistry.obtain(lockKey);
-			this.forLocking.put(lock, lockedFuture);
-			try {
-				return lockedFuture.get(10, TimeUnit.SECONDS);
-			}
-			catch (Exception e) {
-				logger.error("Error during locking: " + lock, e);
-				return false;
-			}
-			finally {
-				this.forLocking.remove(lock);
-			}
+		ShardConsumerManager() {
+		}
+
+		void addShardToConsume(KinesisShardOffset kinesisShardOffset) {
+			String lockKey = buildCheckpointKeyForShard(kinesisShardOffset.getStream(), kinesisShardOffset.getShard());
+			this.shardOffsetsToConsumer.put(lockKey, kinesisShardOffset);
 		}
 
 		void unlock(String lockKey) {
-			this.forUnlocking.add(KinesisMessageDrivenChannelAdapter.this.lockRegistry.obtain(lockKey));
-		}
-
-		void start() {
-			this.active = true;
-			KinesisMessageDrivenChannelAdapter.this.shardLocksExecutor.execute(this);
-		}
-
-		void stop() {
-			this.active = false;
+			this.forUnlocking.add(lockKey);
 		}
 
 		@Override
 		public void run() {
-			Set<Map.Entry<Lock, SettableListenableFuture<Boolean>>> entrySet = this.forLocking.entrySet();
-
 			try {
-				while (this.active) {
-					synchronized (this.forLocking) {
-						for (Map.Entry<Lock, SettableListenableFuture<Boolean>> entry : entrySet) {
-							Lock lock = entry.getKey();
-							SettableListenableFuture<Boolean> settableFuture = entry.getValue();
-							if (settableFuture != null) {
+				while (!Thread.currentThread().isInterrupted()) {
+
+					this.shardOffsetsToConsumer.entrySet()
+							.removeIf(entry -> {
+								boolean remove = true;
+								if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
+									String key = entry.getKey();
+									Lock lock =
+											KinesisMessageDrivenChannelAdapter.this.lockRegistry.obtain(key);
+									try {
+										if (lock.tryLock()) {
+											this.locks.put(key, lock);
+										}
+										else {
+											remove = false;
+										}
+
+									}
+									catch (Exception e) {
+										logger.error("Error during locking: " + lock, e);
+									}
+								}
+
+								if (remove) {
+									populateConsumer(entry.getValue());
+								}
+
+								return remove;
+							});
+
+					while (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
+						String lockKey = this.forUnlocking.poll();
+						if (lockKey != null) {
+							Lock lock = this.locks.remove(lockKey);
+							if (lock != null) {
 								try {
-									if (lock.tryLock()) {
-										settableFuture.set(true);
-									}
-									else {
-										settableFuture.set(false);
-									}
+									lock.unlock();
 								}
 								catch (Exception e) {
-									logger.error("Error during locking: " + lock, e);
-									settableFuture.set(false);
+									logger.error("Error during unlocking: " + lock, e);
 								}
-								finally {
-									entry.setValue(null);
-								}
-							}
-						}
-					}
-
-					while (true) {
-						Lock lock = this.forUnlocking.poll();
-						if (lock != null) {
-							try {
-								lock.unlock();
-							}
-							catch (Exception e) {
-								logger.error("Error during unlocking: " + lock, e);
-							}
-							finally {
-								this.forLocking.remove(lock);
 							}
 						}
 						else {
@@ -1263,31 +1238,25 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					}
 					catch (InterruptedException e) {
 						Thread.currentThread().interrupt();
-						throw new IllegalStateException("ShardLocksMonitor Thread [" +
+						throw new IllegalStateException("ShardConsumerManager Thread [" +
 								this + "] has been interrupted", e);
 					}
 				}
 			}
 			finally {
-				synchronized (this.forLocking) {
-					for (Iterator<Map.Entry<Lock, SettableListenableFuture<Boolean>>> iterator = entrySet.iterator();
-							iterator.hasNext(); ) {
-
-						Map.Entry<Lock, SettableListenableFuture<Boolean>> next = iterator.next();
-						try {
-							next.getKey().unlock();
-						}
-						catch (Exception e) {
-							logger.error("Error during unlocking: " + next.getKey(), e);
-						}
-						finally {
-							iterator.remove();
-						}
+				for (Iterator<Lock> iterator = this.locks.values().iterator(); iterator.hasNext(); ) {
+					Lock lock = iterator.next();
+					try {
+						lock.unlock();
+					}
+					catch (Exception e) {
+						logger.error("Error during unlocking: " + lock, e);
+					}
+					finally {
+						iterator.remove();
 					}
 				}
 			}
-
-			this.forUnlocking.clear();
 		}
 
 		@Override
