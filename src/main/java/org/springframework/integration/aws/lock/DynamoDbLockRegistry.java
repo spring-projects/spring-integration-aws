@@ -366,8 +366,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 					AcquireLockOptions.builder(this.key)
 							.withReplaceData(false)
 							.withSortKey(DynamoDbLockRegistry.this.sortKey)
-							.withTimeUnit(TimeUnit.MILLISECONDS)
-							.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
+							.withTimeUnit(TimeUnit.MILLISECONDS);
 		}
 
 		private void rethrowAsLockException(Exception e) {
@@ -380,8 +379,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 			this.delegate.lock();
 
-			this.acquireLockOptionsBuilder
-					.withAdditionalTimeToWaitForLock(Long.MAX_VALUE - DynamoDbLockRegistry.this.leaseDuration);
+			setupDefaultAcquireLockOptionsBuilder();
 
 			boolean wasInterruptedWhileUninterruptible = false;
 
@@ -415,14 +413,19 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 		}
 
+		private void setupDefaultAcquireLockOptionsBuilder() {
+			this.acquireLockOptionsBuilder
+					.withAdditionalTimeToWaitForLock(Long.MAX_VALUE - DynamoDbLockRegistry.this.leaseDuration)
+					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
+		}
+
 		@Override
 		public void lockInterruptibly() throws InterruptedException {
 			awaitForActive();
 
 			this.delegate.lockInterruptibly();
 
-			this.acquireLockOptionsBuilder
-					.withAdditionalTimeToWaitForLock(Long.MAX_VALUE - DynamoDbLockRegistry.this.leaseDuration);
+			setupDefaultAcquireLockOptionsBuilder();
 
 			try {
 				while (!doLock()) {
@@ -460,18 +463,13 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
 			awaitForActive();
 
-			long start = System.currentTimeMillis();
-
 			if (!this.delegate.tryLock(time, unit)) {
 				return false;
 			}
 
-			long refreshPeriod = System.currentTimeMillis() - start + TimeUnit.MILLISECONDS.convert(time, unit);
-			long timeToWaitForLock = refreshPeriod - DynamoDbLockRegistry.this.leaseDuration;
-
 			this.acquireLockOptionsBuilder
-					.withAdditionalTimeToWaitForLock(timeToWaitForLock)
-					.withRefreshPeriod(refreshPeriod);
+					.withAdditionalTimeToWaitForLock(0L)
+					.withRefreshPeriod(0L);
 
 			boolean acquired = false;
 			try {
