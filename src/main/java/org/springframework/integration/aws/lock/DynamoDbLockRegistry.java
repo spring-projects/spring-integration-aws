@@ -448,8 +448,6 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 		@Override
 		public boolean tryLock() {
-			awaitForActive();
-
 			try {
 				return tryLock(0, TimeUnit.MILLISECONDS);
 			}
@@ -461,14 +459,18 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 		@Override
 		public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+			long start = System.currentTimeMillis();
+
 			awaitForActive();
 
 			if (!this.delegate.tryLock(time, unit)) {
 				return false;
 			}
 
+			long additionalTimeToWait = TimeUnit.MILLISECONDS.convert(time, unit) - System.currentTimeMillis() + start;
+
 			this.acquireLockOptionsBuilder
-					.withAdditionalTimeToWaitForLock(0L)
+					.withAdditionalTimeToWaitForLock(additionalTimeToWait)
 					.withRefreshPeriod(0L);
 
 			boolean acquired = false;
