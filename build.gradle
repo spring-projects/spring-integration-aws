@@ -13,7 +13,7 @@ plugins {
 	id 'eclipse'
 	id 'idea'
 	id 'jacoco'
-	id 'org.sonarqube' version '2.6.1'
+	id 'org.sonarqube' version '2.6.2'
 	id 'checkstyle'
 }
 description = 'Spring Integration AWS Support'
@@ -31,13 +31,13 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.9.1'
+	assertjVersion = '3.10.0'
 	dynamodbLockClientVersion = '1.0.0'
-	jacksonVersion = '2.9.5'
+	jacksonVersion = '2.9.6'
 	servletApiVersion = '3.1.0'
 	log4jVersion = '2.11.0'
 	springCloudAwsVersion = '2.0.0.RELEASE'
-	springIntegrationVersion = '5.0.6.RELEASE'
+	springIntegrationVersion = '5.0.7.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -93,7 +93,7 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "8.8"
+	toolVersion = "8.11"
 }
 
 dependencies {

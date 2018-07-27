@@ -75,4 +75,9 @@ public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessage
 		return file;
 	}
 
+	@Override
+	protected boolean isDirectory(S3ObjectSummary file) {
+		return false;
+	}
+
 }
