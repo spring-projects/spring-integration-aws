@@ -470,7 +470,7 @@ The XML variant may look like:
 ````
 
 Starting with _version 2.0_, the `SnsMessageHandler` can be configured with the `HeaderMapper` to map message headers to the SNS message attributes.
-See `SnsHeaderMapper` implementation for more information and also consult with [[Amazon SNS Message Attributes]][] about value types and restrictions.   
+See `SnsHeaderMapper` implementation for more information and also consult with [Amazon SNS Message Attributes][] about value types and restrictions.   
 
 ## Metadata Store for Amazon DynamoDB
 
@@ -641,6 +641,7 @@ The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `D
 [FTP/FTPS Adapters Chapter]: https://docs.spring.io/spring-integration/reference/html/ftp.html
 [Pull requests]: http://help.github.com/send-pull-requests
 [contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc
+[administrator guidelines]: https://github.com/spring-projects/spring-integration/wiki/Administrator-Guidelines
 [Dynalite]: https://github.com/mhart/dynalite
 [DynamoDB TTL]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html
 [Kinesis Client Library]: https://github.com/awslabs/amazon-kinesis-client
