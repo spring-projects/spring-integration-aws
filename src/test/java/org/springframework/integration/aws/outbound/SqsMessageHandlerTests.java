@@ -30,6 +30,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.aws.messaging.support.destination.DynamicQueueUrlDestinationResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.expression.Expression;
@@ -43,11 +44,14 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.amazonaws.services.sqs.model.CreateQueueRequest;
+import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
@@ -58,9 +62,11 @@ import com.amazonaws.services.sqs.model.SendMessageRequest;
  *
  * @author Artem Bilan
  * @author Rahul Pilani
+ * @author Seth Kelly
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class SqsMessageHandlerTests {
 
 	@Autowired
@@ -70,7 +76,13 @@ public class SqsMessageHandlerTests {
 	protected MessageChannel sqsSendChannel;
 
 	@Autowired
+	protected MessageChannel sqsSendChannelWithAutoCreate;
+
+	@Autowired
 	protected SqsMessageHandler sqsMessageHandler;
+
+	@Autowired
+	protected SqsMessageHandler sqsMessageHandlerWithAutoQueueCreate;
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -123,6 +135,26 @@ public class SqsMessageHandlerTests {
 
 	}
 
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testSqsMessageHandlerWithAutoQueueCreate() {
+		Message<String> message = MessageBuilder.withPayload("message").build();
+
+		this.sqsMessageHandlerWithAutoQueueCreate.setQueue("foo");
+		this.sqsSendChannelWithAutoCreate.send(message);
+		ArgumentCaptor<CreateQueueRequest> createQueueRequestArgumentCaptor =
+				ArgumentCaptor.forClass(CreateQueueRequest.class);
+		verify(this.amazonSqs).createQueue(createQueueRequestArgumentCaptor.capture());
+		assertThat(createQueueRequestArgumentCaptor.getValue().getQueueName()).isEqualTo("foo");
+
+		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor =
+				ArgumentCaptor.forClass(SendMessageRequest.class);
+		verify(this.amazonSqs)
+				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
+				.isEqualTo("http://queue-url.com/foo");
+	}
+
 	@Configuration
 	@EnableIntegration
 	public static class ContextConfiguration {
@@ -140,6 +172,15 @@ public class SqsMessageHandlerTests {
 					.given(amazonSqs)
 					.getQueueUrl(any(GetQueueUrlRequest.class));
 
+			willAnswer(invocation -> {
+				CreateQueueRequest createQueueRequest = (CreateQueueRequest) invocation.getArguments()[0];
+				CreateQueueResult queueUrl = new CreateQueueResult();
+				queueUrl.setQueueUrl("http://queue-url.com/" + createQueueRequest.getQueueName());
+				return queueUrl;
+			})
+					.given(amazonSqs)
+					.createQueue(any(CreateQueueRequest.class));
+
 			return amazonSqs;
 		}
 
@@ -147,6 +188,14 @@ public class SqsMessageHandlerTests {
 		@ServiceActivator(inputChannel = "sqsSendChannel")
 		public MessageHandler sqsMessageHandler() {
 			return new SqsMessageHandler(amazonSqs());
+		}
+
+		@Bean
+		@ServiceActivator(inputChannel = "sqsSendChannelWithAutoCreate")
+		public MessageHandler sqsMessageHandlerWithAutoQueueCreate() {
+			DynamicQueueUrlDestinationResolver destinationResolver = new DynamicQueueUrlDestinationResolver(amazonSqs(), null);
+			destinationResolver.setAutoCreate(true);
+			return new SqsMessageHandler(amazonSqs(), destinationResolver);
 		}
 
 	}
