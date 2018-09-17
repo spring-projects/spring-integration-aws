@@ -52,6 +52,7 @@ import com.amazonaws.services.sqs.model.SendMessageResult;
  * @author Artem Bilan
  * @author Rahul Pilani
  * @author Taylor Wicksell
+ * @author Seth Kelly
  *
  * @see AmazonSQSAsync#sendMessageAsync(SendMessageRequest, AsyncHandler)
  * @see com.amazonaws.handlers.AsyncHandler
@@ -75,12 +76,19 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 
 
 	public SqsMessageHandler(AmazonSQSAsync amazonSqs) {
-		this(amazonSqs, null);
+		this(amazonSqs, (ResourceIdResolver) null);
 	}
 
 	public SqsMessageHandler(AmazonSQSAsync amazonSqs, ResourceIdResolver resourceIdResolver) {
+		this(amazonSqs, new DynamicQueueUrlDestinationResolver(amazonSqs, resourceIdResolver));
+	}
+
+	public SqsMessageHandler(AmazonSQSAsync amazonSqs, DestinationResolver<?> destinationResolver) {
+		Assert.notNull(amazonSqs, "'amazonSqs' must not be null");
+		Assert.notNull(destinationResolver, "'destinationResolver' must not be null");
+
 		this.amazonSqs = amazonSqs;
-		this.destinationResolver = new DynamicQueueUrlDestinationResolver(amazonSqs, resourceIdResolver);
+		this.destinationResolver = destinationResolver;
 		doSetHeaderMapper(new SqsHeaderMapper());
 	}
 
