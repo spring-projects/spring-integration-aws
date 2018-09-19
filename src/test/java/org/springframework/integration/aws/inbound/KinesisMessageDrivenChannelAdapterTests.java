@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeast;
@@ -108,7 +109,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void testKinesisMessageDrivenChannelAdapter() throws InterruptedException {
+	public void testKinesisMessageDrivenChannelAdapter() {
 		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "shardOffsets", Set.class);
@@ -121,8 +122,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			assertThat(shardOffsets).doesNotContain(KinesisShardOffset.latest(STREAM1, "3"));
 		}
 
-		Map shardConsumers =
+		Map<KinesisShardOffset, ?> shardConsumers =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "shardConsumers", Map.class);
+
+		Assert.assertThat(shardConsumers.keySet(), eventually(100, 50, containsInAnyOrder(testOffset1, testOffset2)));
 
 		assertThat(shardConsumers).containsKeys(testOffset1, testOffset2);
 
