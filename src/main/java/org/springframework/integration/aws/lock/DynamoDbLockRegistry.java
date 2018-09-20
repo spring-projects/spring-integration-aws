@@ -471,7 +471,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 			this.acquireLockOptionsBuilder
 					.withAdditionalTimeToWaitForLock(additionalTimeToWait)
-					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
+					.withRefreshPeriod(DEFAULT_REFRESH_PERIOD_MS);
 
 			boolean acquired = false;
 			try {
