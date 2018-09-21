@@ -60,6 +60,7 @@ import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
  * Can create table in DynamoDB if an external {@link AmazonDynamoDBLockClient} is not provided.
  *
  * @author Artem Bilan
+ * @author Karl Lessard
  *
  * @since 2.0
  */
@@ -471,7 +472,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 			this.acquireLockOptionsBuilder
 					.withAdditionalTimeToWaitForLock(additionalTimeToWait)
-					.withRefreshPeriod(DEFAULT_REFRESH_PERIOD_MS);
+					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
 
 			boolean acquired = false;
 			try {
