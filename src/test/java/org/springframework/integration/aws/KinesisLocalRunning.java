@@ -48,7 +48,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
  */
 public final class KinesisLocalRunning extends TestWatcher {
 
-	public static final int DEFAULT_PORT = 4567;
+	public static final int DEFAULT_PORT = 4568;
 
 	private static Log logger = LogFactory.getLog(KinesisLocalRunning.class);
 

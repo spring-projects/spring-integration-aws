@@ -47,7 +47,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsyncClientBuilder;
  */
 public final class DynamoDbLocalRunning extends TestWatcher {
 
-	public static final int DEFAULT_PORT = 4568;
+	public static final int DEFAULT_PORT = 4569;
 
 	private static Log logger = LogFactory.getLog(DynamoDbLocalRunning.class);
 
