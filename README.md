@@ -17,6 +17,9 @@ Note the Spring Integration AWS Extension is based on the [Spring Cloud AWS][] p
 
 ## Spring Integration's extensions to AWS
 
+The current project version is `2.0.x` and it requires minimum Java `8` and Spring Integration `5.0.x`.
+Can be used with Spring Boot/Spring Cloud `2.0`.
+
 This guide intends to explain briefly the various adapters available for [Amazon Web Services][] such as:
 
 * **Amazon Simple Email Service (SES)**
