@@ -61,6 +61,7 @@ import com.amazonaws.waiters.WaiterParameters;
  * The {@link ConcurrentMetadataStore} for the {@link AmazonDynamoDB}.
  *
  * @author Artem Bilan
+ * @author Venkat Raman
  *
  * @since 1.1
  */
@@ -71,9 +72,12 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	 */
 	public static final String DEFAULT_TABLE_NAME = "SpringIntegrationMetadataStore";
 
-	private static final Log logger = LogFactory.getLog(DynamoDbMetadataStore.class);
+	/**
+   * The {@value DEFAULT_PARTITION_KEY_NAME} default partitionKey name for the table.
+   */
+	public static final String DEFAULT_PARTITION_KEY_NAME = "KEY";
 
-	private static final String KEY = "KEY";
+	private static final Log logger = LogFactory.getLog(DynamoDbMetadataStore.class);
 
 	private static final String VALUE = "VALUE";
 
@@ -156,8 +160,8 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 			CreateTableRequest createTableRequest =
 					new CreateTableRequest()
 							.withTableName(this.table.getTableName())
-							.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
-							.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
+							.withKeySchema(new KeySchemaElement(DEFAULT_PARTITION_KEY_NAME, KeyType.HASH))
+							.withAttributeDefinitions(new AttributeDefinition(DEFAULT_PARTITION_KEY_NAME, ScalarAttributeType.S))
 							.withProvisionedThroughput(new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
 
 
@@ -254,7 +258,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		Item item =
 				new Item()
-						.withPrimaryKey(KEY, key)
+						.withPrimaryKey(DEFAULT_PARTITION_KEY_NAME, key)
 						.withString(VALUE, value);
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
@@ -270,7 +274,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item = this.table.getItem(KEY, key);
+		Item item = this.table.getItem(DEFAULT_PARTITION_KEY_NAME, key);
 
 		return getValueIfAny(item);
 	}
@@ -284,12 +288,12 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		UpdateItemSpec updateItemSpec =
 				new UpdateItemSpec()
-						.withPrimaryKey(KEY, key)
+						.withPrimaryKey(DEFAULT_PARTITION_KEY_NAME, key)
 						.withAttributeUpdate(
 								new AttributeUpdate(VALUE)
 										.put(value))
 						.withExpected(
-								new Expected(KEY)
+								new Expected(DEFAULT_PARTITION_KEY_NAME)
 										.notExist());
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
@@ -318,7 +322,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		UpdateItemSpec updateItemSpec =
 				new UpdateItemSpec()
-						.withPrimaryKey(KEY, key)
+						.withPrimaryKey(DEFAULT_PARTITION_KEY_NAME, key)
 						.withAttributeUpdate(
 								new AttributeUpdate(VALUE)
 										.put(newValue))
@@ -352,7 +356,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 		Item item =
 				this.table.deleteItem(
 						new DeleteItemSpec()
-								.withPrimaryKey(KEY, key)
+								.withPrimaryKey(DEFAULT_PARTITION_KEY_NAME, key)
 								.withReturnValues(ReturnValue.ALL_OLD))
 						.getItem();
 
