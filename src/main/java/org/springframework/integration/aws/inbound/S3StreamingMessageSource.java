@@ -46,7 +46,7 @@ public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessage
 	}
 
 	public S3StreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template,
-			Comparator<AbstractFileInfo<S3ObjectSummary>> comparator) {
+			Comparator<S3ObjectSummary> comparator) {
 
 		super(template, comparator);
 

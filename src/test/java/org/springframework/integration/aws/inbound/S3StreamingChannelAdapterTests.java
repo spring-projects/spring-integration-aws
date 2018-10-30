@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -48,7 +49,6 @@ import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnc
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.file.FileHeaders;
-import org.springframework.integration.file.remote.FileInfo;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
@@ -114,14 +114,14 @@ public class S3StreamingChannelAdapterTests {
 
 		InputStream inputStreamA = (InputStream) message.getPayload();
 		assertThat(inputStreamA).isNotNull();
-		assertThat(IOUtils.toString(inputStreamA)).isEqualTo("Hello");
+		assertThat(IOUtils.toString(inputStreamA, Charset.defaultCharset())).isEqualTo("Hello");
 
 		message = this.s3FilesChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(InputStream.class);
 		assertThat(message.getHeaders().get(FileHeaders.REMOTE_FILE)).isEqualTo("subdir/b.test");
 		InputStream inputStreamB = (InputStream) message.getPayload();
-		assertThat(IOUtils.toString(inputStreamB)).isEqualTo("Bye");
+		assertThat(IOUtils.toString(inputStreamB, Charset.defaultCharset())).isEqualTo("Bye");
 
 		assertThat(this.s3FilesChannel.receive(10)).isNull();
 	}
@@ -161,9 +161,10 @@ public class S3StreamingChannelAdapterTests {
 			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
 			S3StreamingMessageSource s3MessageSource = new S3StreamingMessageSource(s3FileTemplate,
-					Comparator.comparing(FileInfo::getFilename));
+					Comparator.comparing(S3ObjectSummary::getKey));
 			s3MessageSource.setRemoteDirectory("/" + S3_BUCKET + "/subdir");
-			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));
+			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"
+			));
 
 			return s3MessageSource;
 		}

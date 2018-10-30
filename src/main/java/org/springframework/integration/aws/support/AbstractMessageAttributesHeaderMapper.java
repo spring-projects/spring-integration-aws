@@ -26,7 +26,7 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.cloud.aws.messaging.core.MessageAttributeDataTypes;
 import org.springframework.integration.mapping.HeaderMapper;
-import org.springframework.integration.util.PatternMatchUtils;
+import org.springframework.integration.support.utils.PatternMatchUtils;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
 import org.springframework.util.MimeType;

@@ -3,8 +3,7 @@ buildscript {
 		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 	dependencies {
-		classpath 'io.spring.gradle:dependency-management-plugin:1.0.5.RELEASE'
-		classpath 'io.spring.gradle:spring-io-plugin:0.0.8.RELEASE'
+		classpath 'io.spring.gradle:dependency-management-plugin:1.0.6.RELEASE'
 	}
 }
 
@@ -24,20 +23,20 @@ group = 'org.springframework.integration'
 
 repositories {
 //	maven { url 'http://repo.spring.io/libs-staging-local' }
-	if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
+	if (version.endsWith('BUILD-SNAPSHOT')) {
 		maven { url 'https://repo.spring.io/libs-snapshot' }
 	}
 	maven { url 'http://repo.spring.io/libs-milestone' }
 }
 
 ext {
-	assertjVersion = '3.10.0'
+	assertjVersion = '3.11.1'
 	dynamodbLockClientVersion = '1.0.0'
-	jacksonVersion = '2.9.6'
-	servletApiVersion = '3.1.0'
-	log4jVersion = '2.11.0'
-	springCloudAwsVersion = '2.0.0.RELEASE'
-	springIntegrationVersion = '5.0.7.RELEASE'
+	jacksonVersion = '2.9.7'
+	servletApiVersion = '4.0.0'
+	log4jVersion = '2.11.1'
+	springCloudAwsVersion = '2.1.0.BUILD-SNAPSHOT'
+	springIntegrationVersion = '5.1.0.RELEASE'
 
 	idPrefix = 'aws'
 
@@ -68,40 +67,27 @@ sourceSets {
 
 apply plugin: 'io.spring.dependency-management'
 
-if (project.hasProperty('platformVersion')) {
-	apply plugin: 'spring-io'
-}
-
 dependencyManagement {
 	imports {
 		mavenBom "org.springframework.cloud:spring-cloud-aws-dependencies:$springCloudAwsVersion"
 		mavenBom "org.springframework.integration:spring-integration-bom:$springIntegrationVersion"
 	}
-
-	if (project.hasProperty('platformVersion')) {
-		springIoTestRuntime {
-			imports {
-				mavenBom "io.spring.platform:platform-bom:$platformVersion"
-			}
-		}
-	}
 }
 
 jacoco {
-	toolVersion = "0.7.9"
+	toolVersion = "0.8.2"
 }
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "8.11"
+	toolVersion = "8.14"
 }
 
 dependencies {
 	compile 'org.springframework.integration:spring-integration-core'
+	compile 'org.springframework.cloud:spring-cloud-aws-core'
 
 	compile("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion", optional)
-
-	compile 'org.springframework.cloud:spring-cloud-aws-core'
 
 	compile('org.springframework.cloud:spring-cloud-aws-messaging', optional)
 	compile('org.springframework.integration:spring-integration-file', optional)
