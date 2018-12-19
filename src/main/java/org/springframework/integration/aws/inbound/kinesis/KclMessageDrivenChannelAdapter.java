@@ -19,6 +19,7 @@ package org.springframework.integration.aws.inbound.kinesis;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -47,12 +48,11 @@ import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
 import com.amazonaws.services.kinesis.model.Record;
 
 /**
- * The {@link MessageProducerSupport} implementation for receiving data from
- * Amazon Kinesis stream(s).
+ * The {@link MessageProducerSupport} implementation for receiving data from Amazon
+ * Kinesis stream(s) using AWS KCL.
  *
- * @author Artem Bilan
- * @author Krzysztof Witkowski
- *
+ * @author Hervé Fortin
+ * 
  * @since 2.1.0
  */
 @ManagedResource
@@ -111,7 +111,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 		super.doStart();
 
-		String workerId = Double.toString(Math.random());
+		String workerId = UUID.randomUUID().toString();
 		KinesisClientLibConfiguration kinesisClientLibConfiguration = new KinesisClientLibConfiguration(
 				this.consumerGroup, this.stream, this.awsCredentialsProvider, workerId);
 
