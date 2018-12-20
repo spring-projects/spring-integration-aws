@@ -29,7 +29,7 @@ import java.util.function.Function;
  * @param <S> type of the source future
  * @param <T> type of the target future
  *
- * @author Artem Bilan
+ * @author Arnaud Lecollaire
  * @since 2.1.0
  */
 public class FutureConverter<S, T> implements Future<T> {
