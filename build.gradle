@@ -37,8 +37,8 @@ ext {
 	log4jVersion = '2.11.1'
 	springCloudAwsVersion = '2.1.0.BUILD-SNAPSHOT'
 	springIntegrationVersion = '5.1.0.RELEASE'
-	kinesisClientVersion = '1.9.3'
-	kinesisProducerVersion = '0.12.10'
+	kinesisClientVersion = '2.0.5'
+	kinesisProducerVersion = '0.12.11'
 
 	idPrefix = 'aws'
 
@@ -95,7 +95,7 @@ dependencies {
 	compile('org.springframework.integration:spring-integration-file', optional)
 	compile('org.springframework.integration:spring-integration-http', optional)
 
-	compile("com.amazonaws:amazon-kinesis-client:$kinesisClientVersion", optional)
+	compile("software.amazon.kinesis:amazon-kinesis-client:$kinesisClientVersion", optional)
 	compile("com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion", optional)
 
 	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
