@@ -60,7 +60,7 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon
  * Kinesis stream(s) using AWS KCL.
  *
- * @author Hervé Fortin
+ * @author HervÃ© Fortin
  *
  * @since 2.1.0
  */
