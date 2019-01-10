@@ -87,6 +87,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	private int consumerBackoff;
 
+	private long checkpointsInterval = 60_000L;
+
 	public KclMessageDrivenChannelAdapter(String streams) {
 		Assert.notNull(streams, "'streams' must not be null.");
 		this.stream = streams;
@@ -123,7 +125,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		KinesisAsyncClient kinesisClient = KinesisAsyncClient.builder().region(parsedRegion).build();
 		CloudWatchAsyncClient cloudWatchClient = CloudWatchAsyncClient.builder().region(parsedRegion).build();
 		DynamoDbAsyncClient dynamoDBClient = DynamoDbAsyncClient.builder().region(parsedRegion).build();
-		ConfigsBuilder configsBuilder = new ConfigsBuilder(this.stream, this.consumerGroup, kinesisClient, dynamoDBClient, cloudWatchClient, workerId, recordProcessorFactory);
+		// concatenate consumer group and stream name for the application name to avoid a conflict when one consumer uses two streams
+		String applicationName = this.consumerGroup + '_' + stream;
+		ConfigsBuilder configsBuilder = new ConfigsBuilder(this.stream, applicationName, kinesisClient, dynamoDBClient, cloudWatchClient, workerId, recordProcessorFactory);
 		configsBuilder.retrievalConfig().initialPositionInStreamExtended(this.streamInitialSequence);
 		configsBuilder.retrievalConfig().listShardsBackoffTimeInMillis(this.consumerBackoff);
 		configsBuilder.coordinatorConfig().parentShardPollIntervalMillis(this.idleBetweenPolls);
@@ -217,6 +221,15 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		this.consumerBackoff = Math.max(1000, consumerBackoff);
 	}
 
+	/**
+	 * Sets the interval between 2 checkpoints.
+	 *
+	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds) 
+	 */
+	public void setCheckpointsInterval(long checkpointsInterval) {
+		this.checkpointsInterval = checkpointsInterval;
+	}
+
 	@Override
 	public String toString() {
 		return "KclMessageDrivenChannelAdapter{" + "shardOffsets=" + this.shardOffsets + ", consumerGroup='"
@@ -242,8 +255,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		// Backoff and retry settings
 		private static final int NUM_RETRIES = 10;
 
-		// Checkpoint about once a minute
-		private static final long CHECKPOINT_INTERVAL_MILLIS = 60000L;
 		private long nextCheckpointTimeInMillis;
 
 		/** {@inheritDoc} */
@@ -382,7 +393,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 			// Checkpoint once every checkpoint interval.
 			if (System.currentTimeMillis() > nextCheckpointTimeInMillis) {
 				checkpoint(processRecordsInput.checkpointer());
-				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + CHECKPOINT_INTERVAL_MILLIS;
+				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
 			}
 		}
 	}
