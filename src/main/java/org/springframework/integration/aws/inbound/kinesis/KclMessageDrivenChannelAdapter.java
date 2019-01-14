@@ -224,7 +224,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	/**
 	 * Sets the interval between 2 checkpoints.
 	 *
-	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds) 
+	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
 	 */
 	public void setCheckpointsInterval(long checkpointsInterval) {
 		this.checkpointsInterval = checkpointsInterval;
