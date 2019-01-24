@@ -23,6 +23,7 @@ import java.util.concurrent.Executor;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
@@ -101,7 +102,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 				CloudWatchAsyncClient.builder().region(region).build(), DynamoDbAsyncClient.builder().region(region).build());
 	}
 
-	public KclMessageDrivenChannelAdapter(String streams, Executor executor, 
+	public KclMessageDrivenChannelAdapter(String streams, Executor executor,
 			KinesisAsyncClient kinesisClient, CloudWatchAsyncClient cloudWatchClient, DynamoDbAsyncClient dynamoDBClient) {
 		Assert.notNull(streams, "'streams' must not be null.");
 		Assert.notNull(executor, "'executor' must not be null.");
@@ -156,7 +157,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	@Override
 	protected void doStart() {
 		super.doStart();
-		executor.execute(() -> scheduler.run());
+		this.executor.execute(() -> this.scheduler.run());
 	}
 
 	/**
