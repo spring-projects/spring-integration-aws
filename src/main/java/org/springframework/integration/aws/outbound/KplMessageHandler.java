@@ -25,7 +25,6 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.aws.support.AwsRequestFailureException;
-import org.springframework.integration.aws.support.FutureConverter;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.mapping.OutboundMessageMapper;
@@ -163,6 +162,9 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 		if (message.getPayload() instanceof PutRecordsRequest) {
 			throw new UnsupportedOperationException("not implemented");
 		}
+		else if (message.getPayload() instanceof UserRecord) {
+			return handleUserRecord(message, buildPutRecordRequest(message), (UserRecord) message.getPayload());
+		}
 		else {
 			final PutRecordRequest putRecordRequest =
 					(message.getPayload() instanceof PutRecordRequest)
@@ -183,7 +185,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 			UserRecord userRecord) {
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
 
-		final AsyncHandler<PutRecordRequest, PutRecordResult> asyncHandler =
+		final AsyncHandler<PutRecordRequest, UserRecordResult> asyncHandler =
 				obtainAsyncHandler(message, putRecordRequest);
 		final FutureCallback<UserRecordResult> callback = new FutureCallback<UserRecordResult>() {
 			@Override
@@ -193,21 +195,12 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 
 			@Override
 			public void onSuccess(UserRecordResult result) {
-				PutRecordResult putRecordResult = new PutRecordResult();
-				putRecordResult.setSequenceNumber(result.getSequenceNumber());
-				putRecordResult.setShardId(result.getShardId());
-				asyncHandler.onSuccess(putRecordRequest, putRecordResult);
+				asyncHandler.onSuccess(putRecordRequest, result);
 			}
 		};
 		Futures.addCallback(recordResult, callback, MoreExecutors.directExecutor());
 
-		return new FutureConverter<>(recordResult, userRecordResult -> {
-			PutRecordResult putRecordResult = new PutRecordResult();
-			putRecordResult.setSequenceNumber(userRecordResult.getSequenceNumber());
-			putRecordResult.setShardId(userRecordResult.getShardId());
-			asyncHandler.onSuccess(putRecordRequest, putRecordResult);
-			return putRecordResult;
-		});
+		return recordResult;
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) throws Exception {

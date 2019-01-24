@@ -17,14 +17,12 @@
 package org.springframework.integration.aws.inbound.kinesis;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
@@ -70,15 +68,19 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	private final String stream;
 
-	private final Set<KinesisShardOffset> shardOffsets = new HashSet<>();
-
 	private String consumerGroup = "SpringIntegration";
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
 	private Scheduler scheduler;
 
-	private String region;
+	private Executor executor;
+
+	private KinesisAsyncClient kinesisClient;
+
+	private CloudWatchAsyncClient cloudWatchClient;
+
+	private DynamoDbAsyncClient dynamoDBClient;
 
 	private InitialPositionInStreamExtended streamInitialSequence =
 			InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.LATEST);
@@ -89,9 +91,28 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	private long checkpointsInterval = 60_000L;
 
-	public KclMessageDrivenChannelAdapter(String streams) {
+	public KclMessageDrivenChannelAdapter(String streams, Executor executor) {
+		this(streams, executor, KinesisAsyncClient.builder().build(),
+				CloudWatchAsyncClient.builder().build(), DynamoDbAsyncClient.builder().build());
+	}
+
+	public KclMessageDrivenChannelAdapter(String streams, Executor executor, Region region) {
+		this(streams, executor, KinesisAsyncClient.builder().region(region).build(),
+				CloudWatchAsyncClient.builder().region(region).build(), DynamoDbAsyncClient.builder().region(region).build());
+	}
+
+	public KclMessageDrivenChannelAdapter(String streams, Executor executor, 
+			KinesisAsyncClient kinesisClient, CloudWatchAsyncClient cloudWatchClient, DynamoDbAsyncClient dynamoDBClient) {
 		Assert.notNull(streams, "'streams' must not be null.");
+		Assert.notNull(executor, "'executor' must not be null.");
+		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
+		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
+		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
 		this.stream = streams;
+		this.executor = executor;
+		this.kinesisClient = kinesisClient;
+		this.cloudWatchClient = cloudWatchClient;
+		this.dynamoDBClient = dynamoDBClient;
 	}
 
 	public void setConsumerGroup(String consumerGroup) {
@@ -110,24 +131,15 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		this.embeddedHeadersMapper = embeddedHeadersMapper;
 	}
 
-	/**
-	 * Takes no action by default. Subclasses may override this if they need
-	 * lifecycle-managed behavior. Protected by 'lifecycleLock'.
-	 */
 	@Override
-	protected void doStart() {
-		super.doStart();
+	protected void onInit() {
+		super.onInit();
 
 		String workerId = UUID.randomUUID().toString();
 		RecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
 
-		Region parsedRegion = (this.region == null) ? null : Region.of(this.region);
-		KinesisAsyncClient kinesisClient = KinesisAsyncClient.builder().region(parsedRegion).build();
-		CloudWatchAsyncClient cloudWatchClient = CloudWatchAsyncClient.builder().region(parsedRegion).build();
-		DynamoDbAsyncClient dynamoDBClient = DynamoDbAsyncClient.builder().region(parsedRegion).build();
-		// concatenate consumer group and stream name for the application name to avoid a conflict when one consumer uses two streams
-		String applicationName = this.consumerGroup + '_' + stream;
-		ConfigsBuilder configsBuilder = new ConfigsBuilder(this.stream, applicationName, kinesisClient, dynamoDBClient, cloudWatchClient, workerId, recordProcessorFactory);
+		ConfigsBuilder configsBuilder = new ConfigsBuilder(this.stream, this.consumerGroup,
+				this.kinesisClient, this.dynamoDBClient, this.cloudWatchClient, workerId, recordProcessorFactory);
 		configsBuilder.retrievalConfig().initialPositionInStreamExtended(this.streamInitialSequence);
 		configsBuilder.retrievalConfig().listShardsBackoffTimeInMillis(this.consumerBackoff);
 		configsBuilder.coordinatorConfig().parentShardPollIntervalMillis(this.idleBetweenPolls);
@@ -139,10 +151,12 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 			configsBuilder.metricsConfig(),
 			configsBuilder.processorConfig(),
 			configsBuilder.retrievalConfig());
+	}
 
-		Thread schedulerThread = new Thread(() -> this.scheduler.run());
-		schedulerThread.setDaemon(true);
-		schedulerThread.start();
+	@Override
+	protected void doStart() {
+		super.doStart();
+		executor.execute(() -> scheduler.run());
 	}
 
 	/**
@@ -198,10 +212,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		}
 	}
 
-	public void setRegion(String region) {
-		this.region = region;
-	}
-
 	public void setStreamInitialSequence(InitialPositionInStream streamInitialSequence) {
 		setStreamInitialSequence(InitialPositionInStreamExtended.newInitialPosition(streamInitialSequence));
 	}
@@ -212,12 +222,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	}
 
 	public void setIdleBetweenPolls(int idleBetweenPolls) {
-		Assert.notNull(idleBetweenPolls, "'idleBetweenPolls' must not be null");
 		this.idleBetweenPolls = Math.max(250, idleBetweenPolls);
 	}
 
 	public void setConsumerBackoff(int consumerBackoff) {
-		Assert.notNull(consumerBackoff, "'consumerBackoff' must not be null");
 		this.consumerBackoff = Math.max(1000, consumerBackoff);
 	}
 
@@ -232,8 +240,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	@Override
 	public String toString() {
-		return "KclMessageDrivenChannelAdapter{" + "shardOffsets=" + this.shardOffsets + ", consumerGroup='"
-				+ this.consumerGroup + '\'' + '}';
+		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' + ", stream='" + this.stream + "'}";
 	}
 
 	private class RecordProcessorFactory implements ShardRecordProcessorFactory {
