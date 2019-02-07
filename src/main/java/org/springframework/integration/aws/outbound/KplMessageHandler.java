@@ -206,7 +206,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 		recordResult.addListener(() -> {
 			try {
 				result.set(recordResult.get());
-			} catch (InterruptedException | ExecutionException e) {
+			}
+			catch (InterruptedException | ExecutionException e) {
 				result.setException(e);
 			}
 		}, MoreExecutors.directExecutor());

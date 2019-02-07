@@ -348,7 +348,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 			AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory().withPayload(payload)
 					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
 					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber())
-					.setHeader(AwsHeaders.RECEIVED_STREAM, stream)
+					.setHeader(AwsHeaders.RECEIVED_STREAM, KclMessageDrivenChannelAdapter.this.stream)
 					.setHeader(AwsHeaders.SHARD, this.shardId);
 
 			if (messageToUse != null) {
