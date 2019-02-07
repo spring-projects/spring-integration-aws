@@ -17,7 +17,6 @@
 package org.springframework.integration.aws.outbound;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.springframework.core.convert.converter.Converter;
@@ -35,7 +34,6 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-import org.springframework.util.concurrent.SettableListenableFuture;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
@@ -202,17 +200,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 		};
 		Futures.addCallback(recordResult, callback, MoreExecutors.directExecutor());
 
-		SettableListenableFuture<UserRecordResult> result = new SettableListenableFuture<>();
-		recordResult.addListener(() -> {
-			try {
-				result.set(recordResult.get());
-			}
-			catch (InterruptedException | ExecutionException e) {
-				result.setException(e);
-			}
-		}, MoreExecutors.directExecutor());
-
-		return result;
+		return recordResult;
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) throws Exception {

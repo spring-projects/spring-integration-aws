@@ -159,7 +159,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	@Override
 	protected void doStart() {
 		super.doStart();
-		this.executor.execute(() -> this.scheduler.run());
+		this.executor.execute(this.scheduler);
 	}
 
 	/**
@@ -272,11 +272,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		}
 
 		/**
-		 * Process records performing retries as needed. Skip "poison pill" records.
+		 * Process records. Skip "poison pill" records.
 		 *
 		 * @param records Data records to be processed.
 		 */
-		private void processRecordsWithRetries(List<KinesisClientRecord> records) {
+		private void processRecords(List<KinesisClientRecord> records) {
 			for (KinesisClientRecord record : records) {
 				try {
 					processSingleRecord(record);
@@ -395,7 +395,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 			}
 
 			// Process records and perform all exception handling.
-			processRecordsWithRetries(records);
+			processRecords(records);
 
 			// Checkpoint once every checkpoint interval.
 			if (System.currentTimeMillis() > nextCheckpointTimeInMillis) {
