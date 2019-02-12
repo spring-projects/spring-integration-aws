@@ -179,6 +179,9 @@
 			<xsd:annotation>
 				<xsd:documentation>
 					Reference to an instance of 'com.amazonaws.services.s3.transfer.internal.S3ProgressListener'.
+					For the request message context propagation into the 'progressChanged' event it is recommended
+					to use a 'org.springframework.integration.aws.outbound.S3MessageHandler.MessageS3ProgressListener'
+					instead.
 				</xsd:documentation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
@@ -460,7 +463,7 @@
 				</xsd:documentation>
 			</xsd:annotation>
 			<xsd:simpleType>
-				<xsd:union memberTypes="xsd:boolean xsd:string" />
+				<xsd:union memberTypes="xsd:boolean xsd:string"/>
 			</xsd:simpleType>
 		</xsd:attribute>
 		<xsd:attribute name="send-timeout">
@@ -485,7 +488,7 @@
 			<xsd:annotation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.integration.support.ErrorMessageStrategy" />
+						<tool:expected-type type="org.springframework.integration.support.ErrorMessageStrategy"/>
 					</tool:annotation>
 				</xsd:appinfo>
 				<xsd:documentation>
@@ -498,7 +501,7 @@
 			<xsd:annotation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+						<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
 					</tool:annotation>
 				</xsd:appinfo>
 				<xsd:documentation>
@@ -510,7 +513,7 @@
 			<xsd:annotation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.messaging.MessageChannel" />
+						<tool:expected-type type="org.springframework.messaging.MessageChannel"/>
 					</tool:annotation>
 				</xsd:appinfo>
 				<xsd:documentation>
@@ -522,7 +525,7 @@
 			<xsd:annotation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="com.amazonaws.handlers.AsyncHandler" />
+						<tool:expected-type type="com.amazonaws.handlers.AsyncHandler"/>
 					</tool:annotation>
 				</xsd:appinfo>
 				<xsd:documentation>
