@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -188,9 +188,13 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 		final AsyncHandler<PutRecordRequest, UserRecordResult> asyncHandler =
 				obtainAsyncHandler(message, putRecordRequest);
 		final FutureCallback<UserRecordResult> callback = new FutureCallback<UserRecordResult>() {
+
 			@Override
-			public void onFailure(Throwable t) {
-				asyncHandler.onError((t instanceof Exception) ? ((Exception) t) : new AwsRequestFailureException(message, putRecordRequest, t));
+			public void onFailure(Throwable ex) {
+				asyncHandler
+						.onError(ex instanceof Exception ?
+								(Exception) ex :
+								new AwsRequestFailureException(message, putRecordRequest, ex));
 			}
 
 			@Override

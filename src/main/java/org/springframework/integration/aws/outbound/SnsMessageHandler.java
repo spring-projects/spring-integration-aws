@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ import com.amazonaws.services.sns.model.PublishResult;
  * the SNS Message is built from there and the {@code messageStructure}
  * of the {@link PublishRequest} is set to {@code json}.
  * For the convenience the package {@code org.springframework.integration.aws.support} is imported
- * to the {@link #evaluationContext} to allow bypass it for the {@link SnsBodyBuilder}
+ * to the {@link #getEvaluationContext()} to allow bypass it for the {@link SnsBodyBuilder}
  * from the {@link #bodyExpression} definition. For example:
  * <pre class="code">
  * {@code
@@ -143,7 +143,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	}
 
 	@Override
-	protected void onInit() throws Exception {
+	protected void onInit() {
 		super.onInit();
 		TypeLocator typeLocator = getEvaluationContext().getTypeLocator();
 		if (typeLocator instanceof StandardTypeLocator) {
