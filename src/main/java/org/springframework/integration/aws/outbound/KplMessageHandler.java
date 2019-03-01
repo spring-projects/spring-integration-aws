@@ -53,8 +53,9 @@ import com.google.common.util.concurrent.MoreExecutors;
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer Library {@code putRecord(s)}.
  *
  * @author Arnaud Lecollaire
+ * @author Artem Bilan
  *
- * @since 2.1.0
+ * @since 2.2.0
  *
  * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
  * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)

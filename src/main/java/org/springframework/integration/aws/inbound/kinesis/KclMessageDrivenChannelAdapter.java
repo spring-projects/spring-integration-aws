@@ -60,8 +60,9 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
  * Kinesis stream(s) using AWS KCL.
  *
  * @author Hervé Fortin
+ * @author Artem Bilan
  *
- * @since 2.1.0
+ * @since 2.2.0
  */
 @ManagedResource
 @IntegrationManagedResource
