@@ -35,7 +35,7 @@ ext {
 	jacksonVersion = '2.9.8'
 	servletApiVersion = '4.0.1'
 	log4jVersion = '2.11.2'
-	springCloudAwsVersion = '2.1.1.BUILD-SNAPSHOT'
+	springCloudAwsVersion = '2.1.1.RELEASE'
 	springIntegrationVersion = '5.1.3.RELEASE'
 
 	idPrefix = 'aws'
