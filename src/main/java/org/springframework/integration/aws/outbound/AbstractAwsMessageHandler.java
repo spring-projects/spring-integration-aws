@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -173,13 +174,18 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	}
 
 	@Override
-	protected void handleMessageInternal(Message<?> message) throws Exception {
+	protected void handleMessageInternal(Message<?> message) {
 		Future<?> resultFuture = handleMessageToAws(message);
 
 		if (this.sync) {
 			Long sendTimeout = this.sendTimeoutExpression.getValue(this.evaluationContext, message, Long.class);
 			if (sendTimeout == null || sendTimeout < 0) {
-				resultFuture.get();
+				try {
+					resultFuture.get();
+				}
+				catch (InterruptedException | ExecutionException ex) {
+					throw new IllegalStateException(ex);
+				}
 			}
 			else {
 				try {
@@ -187,6 +193,9 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 				}
 				catch (TimeoutException te) {
 					throw new MessageTimeoutException(message, "Timeout waiting for response from AmazonKinesis", te);
+				}
+				catch (InterruptedException | ExecutionException ex) {
+					throw new IllegalStateException(ex);
 				}
 			}
 		}
@@ -234,7 +243,7 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 		};
 	}
 
-	protected abstract Future<?> handleMessageToAws(Message<?> message) throws Exception;
+	protected abstract Future<?> handleMessageToAws(Message<?> message);
 
 	protected abstract void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
 			AmazonWebServiceRequest request, Object result);

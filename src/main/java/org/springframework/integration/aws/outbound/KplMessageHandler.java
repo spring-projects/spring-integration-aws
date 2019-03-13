@@ -32,6 +32,7 @@ import org.springframework.integration.support.AbstractIntegrationMessageBuilder
 import org.springframework.integration.support.MutableMessage;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -159,7 +160,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 	}
 
 	@Override
-	protected Future<?> handleMessageToAws(Message<?> message) throws Exception {
+	protected Future<?> handleMessageToAws(Message<?> message) {
 		if (message.getPayload() instanceof PutRecordsRequest) {
 			throw new UnsupportedOperationException("not implemented");
 		}
@@ -208,7 +209,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 		return recordResult;
 	}
 
-	private PutRecordRequest buildPutRecordRequest(Message<?> message) throws Exception {
+	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
 		MessageHeaders messageHeaders = message.getHeaders();
 		String stream = messageHeaders.get(AwsHeaders.STREAM, String.class);
 		if (!StringUtils.hasText(stream) && this.streamExpression != null) {
@@ -253,6 +254,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 					payload instanceof byte[]
 							? (byte[]) payload
 							: this.converter.convert(payload);
+			Assert.notNull(bytes, "payload cannot be null");
 			if (this.embeddedHeadersMapper != null) {
 				messageToEmbed = new MutableMessage<>(bytes, messageHeaders);
 			}
@@ -262,7 +264,14 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 		}
 
 		if (messageToEmbed != null) {
-			data = ByteBuffer.wrap(this.embeddedHeadersMapper.fromMessage(messageToEmbed));
+			try {
+				byte[] bytes = this.embeddedHeadersMapper.fromMessage(messageToEmbed);
+				Assert.notNull(bytes, "payload cannot be null");
+				data = ByteBuffer.wrap(bytes);
+			}
+			catch (Exception ex) {
+				throw new MessageConversionException(message, "Cannot embedded headers to payload", ex);
+			}
 		}
 
 		return new PutRecordRequest()

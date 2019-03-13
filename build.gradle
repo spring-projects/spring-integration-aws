@@ -32,13 +32,13 @@ repositories {
 ext {
 	assertjVersion = '3.12.0'
 	awaitilityVersion = '3.1.6'
-	dynamodbLockClientVersion = '1.0.0'
+	dynamodbLockClientVersion = '1.1.0'
 	jacksonVersion = '2.9.8'
 	servletApiVersion = '4.0.1'
 	log4jVersion = '2.11.2'
-	springCloudAwsVersion = '2.1.1.BUILD-SNAPSHOT'
-	springIntegrationVersion = '5.2.0.BUILD-SNAPSHOT'
-	kinesisClientVersion = '2.0.5'
+	springCloudAwsVersion = '2.1.1.RELEASE'
+	springIntegrationVersion = '5.1.3.RELEASE'
+	kinesisClientVersion = '1.9.3'
 	kinesisProducerVersion = '0.12.11'
 
 	idPrefix = 'aws'
@@ -95,7 +95,7 @@ dependencies {
 	compile('org.springframework.integration:spring-integration-file', optional)
 	compile('org.springframework.integration:spring-integration-http', optional)
 
-	compile("software.amazon.kinesis:amazon-kinesis-client:$kinesisClientVersion", optional)
+	compile("com.amazonaws:amazon-kinesis-client:$kinesisClientVersion", optional)
 	compile("com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion", optional)
 
 	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
@@ -110,7 +110,7 @@ dependencies {
 	testCompile ("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
-	
+
 	testRuntime "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
 	testRuntime "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
 }
