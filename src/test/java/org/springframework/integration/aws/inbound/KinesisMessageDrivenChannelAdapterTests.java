@@ -17,21 +17,18 @@
 package org.springframework.integration.aws.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.springframework.integration.test.matcher.EqualsResultMatcher.equalsResult;
-import static org.springframework.integration.test.matcher.EventuallyMatcher.eventually;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -125,7 +122,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		Map<KinesisShardOffset, ?> shardConsumers =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "shardConsumers", Map.class);
 
-		Assert.assertThat(shardConsumers.keySet(), eventually(100, 50, containsInAnyOrder(testOffset1, testOffset2)));
+		await().untilAsserted(() -> assertThat(shardConsumers.keySet()).contains(testOffset1, testOffset2));
 
 		assertThat(shardConsumers).containsKeys(testOffset1, testOffset2);
 
@@ -161,11 +158,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 						"shardConsumerManager.locks", Map.class);
 
-		Assert.assertThat(0, eventually(100, 100, equalsResult(forLocking::size)));
+		await().untilAsserted(() -> assertThat(forLocking).hasSize(0));
 
-		List consumerInvokers =
+		final List consumerInvokers =
 				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
-		Assert.assertThat(0, eventually(100, 100, equalsResult(consumerInvokers::size)));
+		await().untilAsserted(() -> assertThat(consumerInvokers).hasSize(0));
 
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
@@ -189,13 +186,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(sequenceNumberHeader).isInstanceOf(List.class);
 		assertThat((List<String>) sequenceNumberHeader).contains("2");
 
-		Assert.assertThat("2",
-				eventually(100, 100, equalsResult(() ->
-						this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1"))));
+		await().untilAsserted(() ->
+				assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2"));
 
-		consumerInvokers =
-				TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class);
-		assertThat(consumerInvokers.size()).isEqualTo(2);
+		assertThat(TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter, "consumerInvokers", List.class))
+				.hasSize(2);
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2017-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -167,19 +168,24 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	}
 
 	@Override
-	protected void onInit() throws Exception {
+	protected void onInit() {
 		super.onInit();
 		this.evaluationContext = ExpressionUtils.createStandardEvaluationContext(getBeanFactory());
 	}
 
 	@Override
-	protected void handleMessageInternal(Message<?> message) throws Exception {
+	protected void handleMessageInternal(Message<?> message) {
 		Future<?> resultFuture = handleMessageToAws(message);
 
 		if (this.sync) {
 			Long sendTimeout = this.sendTimeoutExpression.getValue(this.evaluationContext, message, Long.class);
 			if (sendTimeout == null || sendTimeout < 0) {
-				resultFuture.get();
+				try {
+					resultFuture.get();
+				}
+				catch (InterruptedException | ExecutionException ex) {
+					throw new IllegalStateException(ex);
+				}
 			}
 			else {
 				try {
@@ -187,6 +193,9 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 				}
 				catch (TimeoutException te) {
 					throw new MessageTimeoutException(message, "Timeout waiting for response from AmazonKinesis", te);
+				}
+				catch (InterruptedException | ExecutionException ex) {
+					throw new IllegalStateException(ex);
 				}
 			}
 		}
@@ -234,7 +243,7 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 		};
 	}
 
-	protected abstract Future<?> handleMessageToAws(Message<?> message) throws Exception;
+	protected abstract Future<?> handleMessageToAws(Message<?> message);
 
 	protected abstract void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
 			AmazonWebServiceRequest request, Object result);

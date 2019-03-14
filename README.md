@@ -38,6 +38,19 @@ where the topic is an *SQS* Queue.
 
 [Pull requests][] are welcome. Please see the [contributor guidelines][] for details. Additionally, if you are contributing, we recommend following the process for Spring Integration as outlined in the [administrator guidelines][].
 
+# Dependency Management
+
+These dependencies are optional in the project:
+
+* `org.springframework.cloud:spring-cloud-aws-messaging` - for SQS and SNS channel adapters
+* `org.springframework.integration:spring-integration-file` - for S3 channel adapters
+* `org.springframework.integration:spring-integration-http` - for SNS inbound channel adapter
+* `compile('com.amazonaws:aws-java-sdk-kinesis` - for Kinesis channel adapters
+* `com.amazonaws:aws-java-sdk-dynamodb` - for `DynamoDbMetadataStore` and `DynamoDbLockRegistry`
+* `com.amazonaws:dynamodb-lock-client` - for `DynamoDbLockRegistry`
+
+Consider to include an appropriate dependency into your project when you use particular component from this project. 
+
 # Adapters
 
 ## Amazon Simple Storage Service (Amazon S3)
