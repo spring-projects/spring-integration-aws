@@ -99,7 +99,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private int consumerBackoff;
 
-	private long checkpointsInterval = 60_000L;
+	private long checkpointsInterval = 5_000L;
+
+	private CheckpointMode checkpointMode = CheckpointMode.batch;
 
 	public KclMessageDrivenChannelAdapter(String streams) {
 		this(streams, AmazonKinesisClientBuilder.defaultClient(),
@@ -163,11 +165,15 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	/**
 	 * Sets the interval between 2 checkpoints.
-	 *
 	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
 	 */
 	public void setCheckpointsInterval(long checkpointsInterval) {
 		this.checkpointsInterval = checkpointsInterval;
+	}
+
+	public void setCheckpointMode(CheckpointMode checkpointMode) {
+		Assert.notNull(checkpointMode, "'checkpointMode' must not be null");
+		this.checkpointMode = checkpointMode;
 	}
 
 	@Override
@@ -277,7 +283,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			}
 			for (Record record : records) {
 				try {
-					processSingleRecord(record);
+					processSingleRecord(record, checkpointer);
 				}
 				catch (Throwable t) {
 					logger.warn("Caught throwable while processing record " + record, t);
@@ -291,18 +297,37 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 					}
 				}
 			}
+
+			// checkpoint if needed
+			if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				checkpoint(checkpointer);
+			}
+			else if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode) &&
+					System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+
+				checkpoint(checkpointer);
+				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+			}
+
 		}
 
 		/**
 		 * Process a single record.
 		 * @param record The record to be processed.
+		 * @param checkpointer the checkpointer to use if the checkpointMode is record
 		 */
-		private void processSingleRecord(Record record) {
+		private void processSingleRecord(Record record, IRecordProcessorCheckpointer checkpointer) {
 			// Convert AWS Record in Spring Message.
-			performSend(prepareMessageForRecord(record), record);
+			performSend(prepareMessageForRecord(record, checkpointer), record);
+
+			// checkpoint if needed
+			if (CheckpointMode.record.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				checkpoint(checkpointer);
+			}
 		}
 
-		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
+		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record,
+				IRecordProcessorCheckpointer checkpointer) {
 			Object payload = record.getData().array();
 			Message<?> messageToUse = null;
 
@@ -329,6 +354,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 			if (messageToUse != null) {
 				messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
+			}
+
+			if (CheckpointMode.manual.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, checkpointer);
 			}
 
 			return messageBuilder;

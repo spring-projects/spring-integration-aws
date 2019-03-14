@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2017-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,6 +83,7 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  *
  * @author Artem Bilan
  * @author Krzysztof Witkowski
+ * @author Hervé Fortin
  *
  * @since 1.1
  */
@@ -137,6 +138,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	private ListenerMode listenerMode = ListenerMode.record;
 
 	private CheckpointMode checkpointMode = CheckpointMode.batch;
+
+	private long checkpointsInterval = 5_000L;
 
 	private int recordsLimit = 10000;
 
@@ -227,6 +230,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	public void setCheckpointMode(CheckpointMode checkpointMode) {
 		Assert.notNull(checkpointMode, "'checkpointMode' must not be null");
 		this.checkpointMode = checkpointMode;
+	}
+
+	/**
+	 * Sets the interval between 2 checkpoints. Only used when checkpointMode is periodic.
+	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
+	 * @since 2.2.0
+	 */
+	public void setCheckpointsInterval(long checkpointsInterval) {
+		this.checkpointsInterval = checkpointsInterval;
 	}
 
 	/**
@@ -764,6 +776,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private final ShardCheckpointer checkpointer;
 
+		private long nextCheckpointTimeInMillis;
+
 		private final Runnable processTask = processTask();
 
 		private final String key;
@@ -1018,6 +1032,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 			if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 				this.checkpointer.checkpoint();
+			}
+			else if (CheckpointMode.periodic.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
+					System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+					this.checkpointer.checkpoint();
+					this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
 			}
 		}
 
