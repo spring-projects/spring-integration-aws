@@ -138,6 +138,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private CheckpointMode checkpointMode = CheckpointMode.batch;
 
+	private long checkpointsInterval = 5_000L;
+
 	private int recordsLimit = 10000;
 
 	private int idleBetweenPolls = 1000;
@@ -227,6 +229,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	public void setCheckpointMode(CheckpointMode checkpointMode) {
 		Assert.notNull(checkpointMode, "'checkpointMode' must not be null");
 		this.checkpointMode = checkpointMode;
+	}
+
+	/**
+	 * Sets the interval between 2 checkpoints. Only used when checkpointMode is periodic.
+	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
+	 * @since 2.2.0
+	 */
+	public void setCheckpointsInterval(long checkpointsInterval) {
+		this.checkpointsInterval = checkpointsInterval;
 	}
 
 	/**
@@ -764,6 +775,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 		private final ShardCheckpointer checkpointer;
 
+		private long nextCheckpointTimeInMillis;
+
 		private final Runnable processTask = processTask();
 
 		private final String key;
@@ -1018,6 +1031,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 			if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 				this.checkpointer.checkpoint();
+			}
+			else if (CheckpointMode.periodic.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+				// Checkpoint once every checkpoint interval.
+				if (System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+					this.checkpointer.checkpoint();
+					this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+				}
 			}
 		}
 

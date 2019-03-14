@@ -39,6 +39,12 @@ public enum CheckpointMode {
 	/**
 	 * Checkpoint on demand via provided to the message {@link Checkpointer} callback.
 	 */
-	manual
+	manual,
+
+	/**
+	 * Checkpoint at fixed time intervals.
+	 * @since 2.2.0
+	 */
+	periodic
 
 }
