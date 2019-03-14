@@ -112,7 +112,7 @@ public class KinesisIntegrationTests {
 		assertThat(errorMessage).isNotNull();
 		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
-				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types " +
+				.contains("Channel 'kinesisReceiveChannel' expected one of the following datataypes " +
 						"[class java.util.Date], but received [class java.lang.String]");
 
 

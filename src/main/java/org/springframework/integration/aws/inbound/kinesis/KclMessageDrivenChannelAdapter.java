@@ -16,12 +16,12 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
-import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.AttributeAccessor;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.support.ExecutorServiceAdapter;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -36,6 +36,8 @@ import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
@@ -69,25 +71,27 @@ import com.amazonaws.services.kinesis.model.Record;
  */
 @ManagedResource
 @IntegrationManagedResource
-public class KclMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
+public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
 	private final String stream;
+
+	private final AmazonKinesis kinesisClient;
+
+	private final AWSCredentialsProvider kinesisProxyCredentialsProvider;
+
+	private final AmazonCloudWatch cloudWatchClient;
+
+	private final AmazonDynamoDB dynamoDBClient;
+
+	private TaskExecutor executor = new SimpleAsyncTaskExecutor();
 
 	private String consumerGroup = "SpringIntegration";
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
 	private Worker scheduler;
-
-	private final TaskExecutor executor;
-
-	private final AmazonKinesis kinesisClient;
-
-	private final AmazonCloudWatch cloudWatchClient;
-
-	private final AmazonDynamoDB dynamoDBClient;
 
 	private InitialPositionInStream streamInitialSequence = InitialPositionInStream.LATEST;
 
@@ -97,31 +101,37 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	private long checkpointsInterval = 60_000L;
 
-	public KclMessageDrivenChannelAdapter(String streams, TaskExecutor executor) {
-		this(streams, executor, AmazonKinesisClientBuilder.defaultClient(),
-				AmazonCloudWatchClientBuilder.defaultClient(), AmazonDynamoDBClientBuilder.defaultClient());
+	public KclMessageDrivenChannelAdapter(String streams) {
+		this(streams, AmazonKinesisClientBuilder.defaultClient(),
+				AmazonCloudWatchClientBuilder.defaultClient(), AmazonDynamoDBClientBuilder.defaultClient(),
+				new DefaultAWSCredentialsProviderChain());
 	}
 
-	public KclMessageDrivenChannelAdapter(String streams, TaskExecutor executor, Regions region) {
-		this(streams, executor, AmazonKinesisClient.builder().withRegion(region).build(),
+	public KclMessageDrivenChannelAdapter(String streams, Regions region) {
+		this(streams, AmazonKinesisClient.builder().withRegion(region).build(),
 				AmazonCloudWatchClient.builder().withRegion(region).build(),
-				AmazonDynamoDBClient.builder().withRegion(region).build());
+				AmazonDynamoDBClient.builder().withRegion(region).build(), new DefaultAWSCredentialsProviderChain());
 	}
 
-	public KclMessageDrivenChannelAdapter(String stream, TaskExecutor executor,
+	public KclMessageDrivenChannelAdapter(String stream,
 			AmazonKinesis kinesisClient, AmazonCloudWatch cloudWatchClient,
-			AmazonDynamoDB dynamoDBClient) {
+			AmazonDynamoDB dynamoDBClient, AWSCredentialsProvider kinesisProxyCredentialsProvider) {
 
 		Assert.notNull(stream, "'stream' must not be null.");
-		Assert.notNull(executor, "'executor' must not be null.");
 		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
 		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
 		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
+		Assert.notNull(kinesisProxyCredentialsProvider, "'kinesisProxyCredentialsProvider' must not be null.");
 		this.stream = stream;
-		this.executor = executor;
 		this.kinesisClient = kinesisClient;
 		this.cloudWatchClient = cloudWatchClient;
 		this.dynamoDBClient = dynamoDBClient;
+		this.kinesisProxyCredentialsProvider = kinesisProxyCredentialsProvider;
+	}
+
+	public void setExecutor(TaskExecutor executor) {
+		Assert.notNull(executor, "'executor' must not be null.");
+		this.executor = executor;
 	}
 
 	public void setConsumerGroup(String consumerGroup) {
@@ -132,9 +142,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	/**
 	 * Specify an {@link InboundMessageMapper} to extract message headers embedded
 	 * into the record data.
-	 *
 	 * @param embeddedHeadersMapper the {@link InboundMessageMapper} to use.
-	 * @since 2.0
 	 */
 	public void setEmbeddedHeadersMapper(InboundMessageMapper<byte[]> embeddedHeadersMapper) {
 		this.embeddedHeadersMapper = embeddedHeadersMapper;
@@ -172,7 +180,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 						this.stream,
 						null,
 						this.streamInitialSequence,
-						null, null, null,
+						this.kinesisProxyCredentialsProvider,
+						null, null,
 						KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
 						UUID.randomUUID().toString(),
 						KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
@@ -213,7 +222,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 	 */
 	@Override
 	protected void doStop() {
-
 		super.doStop();
 		this.scheduler.shutdown();
 
@@ -232,7 +240,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	@Override
 	public String toString() {
-		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' + ", stream='" + this.stream + "'}";
+		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' +
+				", stream='" + this.stream + "'}";
 	}
 
 	private class RecordProcessorFactory implements IRecordProcessorFactory {
@@ -294,17 +303,17 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		}
 
 		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
-			ByteBuffer data = record.getData();
-			byte[] dataArray = new byte[data.remaining()];
-			Object payload = dataArray;
-			data.get(dataArray);
+			Object payload = record.getData().array();
 			Message<?> messageToUse = null;
 
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
 				try {
 					messageToUse =
 							KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper.toMessage((byte[]) payload);
-
+					if (messageToUse == null) {
+						throw new IllegalStateException("The 'embeddedHeadersMapper' returned null for payload: " +
+								Arrays.toString((byte[]) payload));
+					}
 					payload = messageToUse.getPayload();
 				}
 				catch (Exception e) {
