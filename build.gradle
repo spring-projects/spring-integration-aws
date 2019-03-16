@@ -1,6 +1,6 @@
 buildscript {
 	repositories {
-		maven { url 'http://repo.spring.io/plugins-release' }
+		maven { url 'https://repo.spring.io/plugins-release' }
 	}
 	dependencies {
 		classpath 'io.spring.gradle:spring-io-plugin:0.0.5.RELEASE'
@@ -26,7 +26,7 @@ repositories {
 	if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
 		maven { url 'https://repo.spring.io/libs-snapshot' }
 	}
-	maven { url 'http://repo.spring.io/libs-milestone' }
+	maven { url 'https://repo.spring.io/libs-milestone' }
 }
 
 compileJava {
@@ -69,7 +69,7 @@ ext {
 }
 
 ext.javadocLinks = [
-		"http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/"
+		"https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/"
 ] as String[]
 
 jacoco {
