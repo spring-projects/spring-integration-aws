@@ -655,7 +655,7 @@ The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `D
 [https://aws.amazon.com/ses/]: https://aws.amazon.com/ses/
 [https://aws.amazon.com/documentation/ses/]: https://aws.amazon.com/documentation/ses/
 [FTP/FTPS Adapters Chapter]: https://docs.spring.io/spring-integration/reference/html/ftp.html
-[Pull requests]: https://help.github.com/send-pull-requests
+[Pull requests]: https://help.github.com/en/articles/creating-a-pull-request
 [contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc
 [administrator guidelines]: https://github.com/spring-projects/spring-integration/wiki/Administrator-Guidelines
 [Dynalite]: https://github.com/mhart/dynalite
