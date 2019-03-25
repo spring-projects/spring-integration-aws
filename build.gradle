@@ -14,6 +14,7 @@ plugins {
 	id 'jacoco'
 	id 'org.sonarqube' version '2.7'
 	id 'checkstyle'
+	id 'org.ajoberstar.grgit' version '3.0.0'
 }
 description = 'Spring Integration AWS Support'
 
@@ -49,6 +50,9 @@ ext {
 	linkScmUrl = 'https://github.com/spring-projects/spring-integration-aws'
 	linkScmConnection = 'https://github.com/spring-projects/spring-integration-aws.git'
 	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
+
+	modifiedFiles =
+			files(grgit.status().unstaged.modified).filter{ f -> f.name.endsWith('.java') }
 }
 
 ext.javadocLinks = [
@@ -167,6 +171,38 @@ jacocoTestReport {
 
 check.dependsOn javadoc
 build.dependsOn jacocoTestReport
+
+
+task updateCopyrights {
+	onlyIf { !System.getenv('TRAVIS') && !System.getenv('bamboo_buildKey') }
+	inputs.files(modifiedFiles)
+	outputs.dir('build/classes')
+
+	doLast {
+		def now = Calendar.instance.get(Calendar.YEAR) as String
+		inputs.files.each { file ->
+			def line
+			file.withReader { reader ->
+				while (line = reader.readLine()) {
+					def matcher = line =~ /Copyright (20\d\d)-?(20\d\d)?/
+					if (matcher.count) {
+						def beginningYear = matcher[0][1]
+						if (now != beginningYear && now != matcher[0][2]) {
+							def years = "$beginningYear-$now"
+							def sourceCode = file.text
+							sourceCode = sourceCode.replaceFirst(/20\d\d(-20\d\d)?/, years)
+							file.text = sourceCode
+							println "Copyright updated for file: $file"
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
+compileJava.dependsOn updateCopyrights
 
 task sourcesJar(type: Jar) {
 	classifier = 'sources'
