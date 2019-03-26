@@ -10,7 +10,7 @@
 	<xsd:import namespace="http://www.springframework.org/schema/beans"/>
 	<xsd:import namespace="http://www.springframework.org/schema/tool"/>
 	<xsd:import namespace="http://www.springframework.org/schema/integration"
-				schemaLocation="http://www.springframework.org/schema/integration/spring-integration.xsd"/>
+				schemaLocation="https://www.springframework.org/schema/integration/spring-integration.xsd"/>
 
 
 	<xsd:annotation>
@@ -745,7 +745,7 @@
 								to arrive if the are currently no messages on the queue.
 								Higher values will reduce poll request to the system significantly. The value should
 								be between 1 and 20. For more information read the
-								http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html
+								https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html
 								]]>
 							</xsd:documentation>
 						</xsd:annotation>
