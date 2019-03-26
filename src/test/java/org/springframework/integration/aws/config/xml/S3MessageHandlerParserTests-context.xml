@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<beans xmlns="http://www.springframework.org/schema/beans"
-	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	   xmlns:int-aws="http://www.springframework.org/schema/integration/aws"
-	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-	   http://www.springframework.org/schema/integration/aws http://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd">
+<beans xmlns="https://www.springframework.org/schema/beans"
+	   xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:int-aws="https://www.springframework.org/schema/integration/aws"
+	   xsi:schemaLocation="https://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+	   https://www.springframework.org/schema/integration/aws https://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd">
 
 	<bean id="s3" class="org.mockito.Mockito" factory-method="mock">
 		<constructor-arg value="com.amazonaws.services.s3.AmazonS3"/>
