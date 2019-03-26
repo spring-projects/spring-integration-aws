@@ -35,7 +35,7 @@ ext {
 	servletApiVersion = '3.1.0'
 	slf4jVersion = '1.7.25'
 	springCloudAwsVersion = '1.2.2.RELEASE'
-	springIntegrationVersion = '4.3.12.RELEASE'
+	springIntegrationVersion = '4.3.13.BUILD-SNAPSHOT'
 
 	idPrefix = 'aws'
 
