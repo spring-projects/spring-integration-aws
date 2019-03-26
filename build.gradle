@@ -37,7 +37,7 @@ ext {
 	servletApiVersion = '3.1.0'
 	log4jVersion = '2.11.2'
 	springCloudAwsVersion = '2.0.1.RELEASE'
-	springIntegrationVersion = '5.0.12.RELEASE'
+	springIntegrationVersion = '5.0.13.BUILD-SNAPSHOT'
 
 	idPrefix = 'aws'
 
@@ -93,7 +93,7 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "8.11"
+	toolVersion = "8.18"
 }
 
 dependencies {
