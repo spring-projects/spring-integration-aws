@@ -103,7 +103,7 @@ public class SqsMessageHandlerTests {
 		verify(this.amazonSqs)
 				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("http://queue-url.com/foo");
+				.isEqualTo("https://queue-url.com/foo");
 
 		message = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
 		this.sqsSendChannel.send(message);
@@ -111,7 +111,7 @@ public class SqsMessageHandlerTests {
 				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("http://queue-url.com/bar");
+				.isEqualTo("https://queue-url.com/bar");
 
 		SpelExpressionParser spelExpressionParser = new SpelExpressionParser();
 		Expression expression = spelExpressionParser.parseExpression("headers.foo");
@@ -123,7 +123,7 @@ public class SqsMessageHandlerTests {
 
 		SendMessageRequest sendMessageRequestArgumentCaptorValue = sendMessageRequestArgumentCaptor.getValue();
 		assertThat(sendMessageRequestArgumentCaptorValue.getQueueUrl())
-				.isEqualTo("http://queue-url.com/baz");
+				.isEqualTo("https://queue-url.com/baz");
 
 		Map<String, MessageAttributeValue> messageAttributes =
 				sendMessageRequestArgumentCaptorValue.getMessageAttributes();
@@ -152,7 +152,7 @@ public class SqsMessageHandlerTests {
 		verify(this.amazonSqs)
 				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("http://queue-url.com/foo");
+				.isEqualTo("https://queue-url.com/foo");
 	}
 
 	@Configuration
@@ -166,7 +166,7 @@ public class SqsMessageHandlerTests {
 			willAnswer(invocation -> {
 				GetQueueUrlRequest getQueueUrlRequest = (GetQueueUrlRequest) invocation.getArguments()[0];
 				GetQueueUrlResult queueUrl = new GetQueueUrlResult();
-				queueUrl.setQueueUrl("http://queue-url.com/" + getQueueUrlRequest.getQueueName());
+				queueUrl.setQueueUrl("https://queue-url.com/" + getQueueUrlRequest.getQueueName());
 				return queueUrl;
 			})
 					.given(amazonSqs)
@@ -175,7 +175,7 @@ public class SqsMessageHandlerTests {
 			willAnswer(invocation -> {
 				CreateQueueRequest createQueueRequest = (CreateQueueRequest) invocation.getArguments()[0];
 				CreateQueueResult queueUrl = new CreateQueueResult();
-				queueUrl.setQueueUrl("http://queue-url.com/" + createQueueRequest.getQueueName());
+				queueUrl.setQueueUrl("https://queue-url.com/" + createQueueRequest.getQueueName());
 				return queueUrl;
 			})
 					.given(amazonSqs)
