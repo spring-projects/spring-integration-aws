@@ -56,7 +56,7 @@ public class SqsMessageHandlerTests extends AbstractSqsMessageHandlerTests {
 			willAnswer(invocation -> {
 				GetQueueUrlRequest getQueueUrlRequest = (GetQueueUrlRequest) invocation.getArguments()[0];
 				GetQueueUrlResult queueUrl = new GetQueueUrlResult();
-				queueUrl.setQueueUrl("http://queue-url.com/" + getQueueUrlRequest.getQueueName());
+				queueUrl.setQueueUrl("https://queue-url.com/" + getQueueUrlRequest.getQueueName());
 				return queueUrl;
 			})
 					.given(amazonSqs)
