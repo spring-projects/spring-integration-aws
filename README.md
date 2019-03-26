@@ -8,7 +8,7 @@ Spring Integration Extension for Amazon Web Services (AWS)
 Launched in 2006, [Amazon Web Services][] (AWS) provides key infrastructure services for business through
 its cloud computing platform. Using cloud computing businesses can adopt a new business model whereby they
 do not have to plan and invest in procuring their own IT infrastructure. They can use the infrastructure and services
-provided by the cloud service provider and pay as they use the services. Visit [http://aws.amazon.com/products/]
+provided by the cloud service provider and pay as they use the services. Visit [https://aws.amazon.com/products/]
 for more details about various products offered by Amazon as a part their cloud computing services.
 
 *Spring Integration Extension for Amazon Web Services* provides Spring Integration adapters for the various services
@@ -422,11 +422,11 @@ By default the `SnsMessageHandler` is one-way `MessageHandler`.
 
 
 [Spring Cloud AWS]: https://github.com/spring-cloud/spring-cloud-aws
-[AWS SDK for Java]: http://aws.amazon.com/sdkforjava/
-[Amazon Web Services]: http://aws.amazon.com/
-[http://aws.amazon.com/products/]: http://aws.amazon.com/products/
-[http://aws.amazon.com/ses/]: http://aws.amazon.com/ses/
-[http://aws.amazon.com/documentation/ses/]: http://aws.amazon.com/documentation/ses/
-[Reference Manual]: http://docs.spring.io/spring-integration/reference/html/ftp.html
-[Pull requests]: http://help.github.com/send-pull-requests
+[AWS SDK for Java]: https://aws.amazon.com/sdkforjava/
+[Amazon Web Services]: https://aws.amazon.com/
+[https://aws.amazon.com/products/]: https://aws.amazon.com/products/
+[https://aws.amazon.com/ses/]: https://aws.amazon.com/ses/
+[https://aws.amazon.com/documentation/ses/]: https://aws.amazon.com/documentation/ses/
+[Reference Manual]: https://docs.spring.io/spring-integration/reference/html/ftp.html
+[Pull requests]: https://help.github.com/send-pull-requests
 [contributor guidelines]: https://github.com/spring-projects/spring-integration/blob/master/CONTRIBUTING.adoc

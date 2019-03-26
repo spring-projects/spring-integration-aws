@@ -71,13 +71,13 @@ public abstract class AbstractSqsMessageHandlerTests {
 				ArgumentCaptor.forClass(SendMessageRequest.class);
 		verify(this.amazonSqs).sendMessage(sendMessageRequestArgumentCaptor.capture());
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("http://queue-url.com/foo");
+				.isEqualTo("https://queue-url.com/foo");
 
 		message = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
 		this.sqsSendChannel.send(message);
 		verify(this.amazonSqs, times(2)).sendMessage(sendMessageRequestArgumentCaptor.capture());
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("http://queue-url.com/bar");
+				.isEqualTo("https://queue-url.com/bar");
 
 		SpelExpressionParser spelExpressionParser = new SpelExpressionParser();
 		Expression expression = spelExpressionParser.parseExpression("headers.foo");
@@ -86,7 +86,7 @@ public abstract class AbstractSqsMessageHandlerTests {
 		this.sqsSendChannel.send(message);
 		verify(this.amazonSqs, times(3)).sendMessage(sendMessageRequestArgumentCaptor.capture());
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("http://queue-url.com/baz");
+				.isEqualTo("https://queue-url.com/baz");
 	}
 
 }
