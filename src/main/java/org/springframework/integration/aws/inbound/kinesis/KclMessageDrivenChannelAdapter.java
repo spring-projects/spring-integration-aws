@@ -103,7 +103,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private CheckpointMode checkpointMode = CheckpointMode.batch;
 
-	private String workerId;
+	private String workerId = UUID.randomUUID().toString();
 
 	public KclMessageDrivenChannelAdapter(String streams) {
 		this(streams, AmazonKinesisClientBuilder.defaultClient(),
@@ -180,11 +180,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	/**
 	 * Sets the worker identifier used to distinguish different
-	 * workers/processes of a Kinesis application. If null,
-	 * {@code UUID.randomUUID().toString()} will be used.
+	 * workers/processes of a Kinesis application.
 	 * @param workerId the worker identifier to use
 	 */
 	public void setWorkerId(String workerId) {
+		Assert.hasText(workerId, "'workerId' must not be null or empty");
 		this.workerId = workerId;
 	}
 
@@ -201,7 +201,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 						this.kinesisProxyCredentialsProvider,
 						null, null,
 						KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
-						(this.workerId == null) ? UUID.randomUUID().toString() : this.workerId,
+						this.workerId,
 						KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
 						this.idleBetweenPolls,
 						false,
