@@ -178,14 +178,14 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		this.checkpointMode = checkpointMode;
 	}
 
-    /**
-     * Sets the worker identifier used to distinguish different
-     * workers/processes of a Kinesis application. If null,
-     * {@code UUID.randomUUID().toString()} will be used.
-     * @param workerId the worker identifier to use
-     */
+	/**
+	 * Sets the worker identifier used to distinguish different
+	 * workers/processes of a Kinesis application. If null,
+	 * {@code UUID.randomUUID().toString()} will be used.
+	 * @param workerId the worker identifier to use
+	 */
 	public void setWorkerId(String workerId) {
-	    this.workerId = workerId;
+		this.workerId = workerId;
 	}
 
 	@Override
