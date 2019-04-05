@@ -356,10 +356,17 @@ An XML variant may look like:
 ````
 
 The `SqsMessageDrivenChannelAdapter` exposes all `SimpleMessageListenerContainer` attributes to configure and one an
-important of them is `deleteMessageOnException`, which is `true` by default. Having that to `false`, it is a
-responsibility of end-application to delete message or not on exceptions. E.g. in the error flow on the
-`error-channel` of this channel adapter. For this purpose a `AwsHeaders.RECEIPT_HANDLE` message header must be used
-for the message deletion:
+important of them is `messageDeletionPolicy`, which is set to `NO_REDRIVE` by default. 
+
+Possible values are:
+
+- `ALWAYS` - Always deletes message automatically.
+- `NEVER` - Never deletes message automatically.
+- `NO_REDRIVE` - Deletes message if no redrive policy is defined.
+- `ON_SUCCESS` - Deletes message when successfully executed by the listener method (no exception is thrown).
+
+
+Having that to `NEVER`, it is a responsibility of end-application to delete message. For this purpose a `AwsHeaders.RECEIPT_HANDLE` message header must be used for the message deletion:
 
 ````java
 MessageHeaders headers = message.getHeaders();
