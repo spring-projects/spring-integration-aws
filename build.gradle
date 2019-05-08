@@ -14,7 +14,7 @@ plugins {
 	id 'jacoco'
 	id 'org.sonarqube' version '2.7'
 	id 'checkstyle'
-	id 'org.ajoberstar.grgit' version '3.0.0'
+	id 'org.ajoberstar.grgit' version '3.1.1'
 }
 description = 'Spring Integration AWS Support'
 
@@ -31,15 +31,15 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.12.0'
+	assertjVersion = '3.12.2'
 	awaitilityVersion = '3.1.6'
 	dynamodbLockClientVersion = '1.1.0'
 	jacksonVersion = '2.9.8'
 	servletApiVersion = '4.0.1'
 	log4jVersion = '2.11.2'
 	springCloudAwsVersion = '2.1.1.RELEASE'
-	springIntegrationVersion = '5.1.4.BUILD-SNAPSHOT'
-	kinesisClientVersion = '1.9.3'
+	springIntegrationVersion = '5.1.4.RELEASE'
+	kinesisClientVersion = '1.10.0'
 	kinesisProducerVersion = '0.12.11'
 
 	idPrefix = 'aws'
@@ -87,7 +87,7 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "8.18"
+	toolVersion = "8.20"
 }
 
 dependencies {
