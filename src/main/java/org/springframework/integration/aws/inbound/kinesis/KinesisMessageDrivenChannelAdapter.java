@@ -825,9 +825,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					case EXPIRED:
 						this.task = () -> {
 							try {
-								if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
-									logger.info("The [" + this + "] has been started.");
-								}
 								if (this.shardOffset.isReset()) {
 									this.checkpointer.remove();
 								}
@@ -838,7 +835,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 										this.shardOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
 									}
 								}
-
+								if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
+									logger.info("The [" + this + "] has been started.");
+								}
 								GetShardIteratorRequest shardIteratorRequest = this.shardOffset.toShardIteratorRequest();
 								this.shardIterator =
 										KinesisMessageDrivenChannelAdapter.this.amazonKinesis
