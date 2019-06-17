@@ -33,6 +33,7 @@ import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.KinesisLocalRunning;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
@@ -90,7 +91,7 @@ public class KinesisIntegrationTests {
 	}
 
 	@Test
-	public void testKinesisInboundOutbound() throws InterruptedException {
+	public void testKinesisInboundOutbound() {
 		this.kinesisSendChannel.send(
 				MessageBuilder.withPayload("foo")
 						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
@@ -107,12 +108,13 @@ public class KinesisIntegrationTests {
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
 		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));
+		assertThat(receive.getHeaders()).containsKey(IntegrationMessageHeaderAccessor.SOURCE_DATA);
 
 		Message<?> errorMessage = this.errorChannel.receive(10_000);
 		assertThat(errorMessage).isNotNull();
 		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
-				.contains("Channel 'kinesisReceiveChannel' expected one of the following datataypes " +
+				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types " +
 						"[class java.util.Date], but received [class java.lang.String]");
 
 
@@ -171,6 +173,7 @@ public class KinesisIntegrationTests {
 			adapter.setCheckpointStore(checkpointStore());
 			adapter.setLockRegistry(lockRegistry());
 			adapter.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
+			adapter.setBindSourceRecord(true);
 
 			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
 			dfa.setPropertyValue("describeStreamBackoff", 10);

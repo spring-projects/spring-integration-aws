@@ -24,6 +24,7 @@ import org.springframework.core.AttributeAccessor;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.support.ExecutorServiceAdapter;
+import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.mapping.InboundMessageMapper;
@@ -104,6 +105,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	private CheckpointMode checkpointMode = CheckpointMode.batch;
 
 	private String workerId = UUID.randomUUID().toString();
+
+	private boolean bindSourceRecord;
 
 	public KclMessageDrivenChannelAdapter(String streams) {
 		this(streams, AmazonKinesisClientBuilder.defaultClient(),
@@ -186,6 +189,17 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	public void setWorkerId(String workerId) {
 		Assert.hasText(workerId, "'workerId' must not be null or empty");
 		this.workerId = workerId;
+	}
+
+	/**
+	 * Set to true to bind the source consumer record in the header named
+	 * {@link IntegrationMessageHeaderAccessor#SOURCE_DATA}.
+	 * Does not apply to batch listeners.
+	 * @param bindSourceRecord true to bind.
+	 * @since 2.2
+	 */
+	public void setBindSourceRecord(boolean bindSourceRecord) {
+		this.bindSourceRecord = bindSourceRecord;
 	}
 
 	@Override
@@ -363,6 +377,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber())
 					.setHeader(AwsHeaders.RECEIVED_STREAM, KclMessageDrivenChannelAdapter.this.stream)
 					.setHeader(AwsHeaders.SHARD, this.shardId);
+
+			if (KclMessageDrivenChannelAdapter.this.bindSourceRecord) {
+				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
+			}
 
 			if (messageToUse != null) {
 				messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());

@@ -46,6 +46,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.DeserializingConverter;
+import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.mapping.InboundMessageMapper;
@@ -159,6 +160,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private LockRegistry lockRegistry;
 
+	private boolean bindSourceRecord;
+
 	private volatile boolean active;
 
 	private volatile int consumerInvokerMaxCapacity;
@@ -235,7 +238,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	/**
 	 * Sets the interval between 2 checkpoints. Only used when checkpointMode is periodic.
 	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
-	 * @since 2.2.0
+	 * @since 2.2
 	 */
 	public void setCheckpointsInterval(long checkpointsInterval) {
 		this.checkpointsInterval = checkpointsInterval;
@@ -309,6 +312,17 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 	 */
 	public void setLockRegistry(LockRegistry lockRegistry) {
 		this.lockRegistry = lockRegistry;
+	}
+
+	/**
+	 * Set to true to bind the source consumer record in the header named
+	 * {@link IntegrationMessageHeaderAccessor#SOURCE_DATA}.
+	 * Does not apply to batch listeners.
+	 * @param bindSourceRecord true to bind.
+	 * @since 2.2
+	 */
+	public void setBindSourceRecord(boolean bindSourceRecord) {
+		this.bindSourceRecord = bindSourceRecord;
 	}
 
 	@Override
@@ -527,7 +541,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					}
 
 					if (describeStreamResult == null ||
-							!StreamStatus.ACTIVE.toString().equals(describeStreamResult.getStreamDescription().getStreamStatus())) {
+							!StreamStatus.ACTIVE.toString().equals(
+									describeStreamResult.getStreamDescription().getStreamStatus())) {
 
 						if (describeStreamRetries++ > this.describeStreamRetries) {
 							ResourceNotFoundException resourceNotFoundException =
@@ -541,7 +556,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							continue;
 						}
 						catch (InterruptedException e) {
-							Thread.interrupted();
+							Thread.currentThread().interrupt();
 							throw new IllegalStateException("The [describeStream] thread for the stream ["
 									+ stream + "] has been interrupted.", e);
 						}
@@ -729,10 +744,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					}
 				}
 
-				for (Iterator<ShardConsumer> iterator =
+				Iterator<ShardConsumer> iterator =
 						KinesisMessageDrivenChannelAdapter.this.shardConsumers.values().iterator();
-						iterator.hasNext(); ) {
-
+				while (iterator.hasNext()) {
 					ShardConsumer shardConsumer = iterator.next();
 					shardConsumer.execute();
 					if (ConsumerState.STOP == shardConsumer.state) {
@@ -795,7 +809,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		ShardConsumer(KinesisShardOffset shardOffset) {
 			this.shardOffset = new KinesisShardOffset(shardOffset);
 			this.key = buildCheckpointKeyForShard(shardOffset.getStream(), shardOffset.getShard());
-			this.checkpointer = new ShardCheckpointer(KinesisMessageDrivenChannelAdapter.this.checkpointStore, this.key);
+			this.checkpointer = new ShardCheckpointer(KinesisMessageDrivenChannelAdapter.this.checkpointStore,
+					this.key);
 		}
 
 		void setNotifier(Runnable notifier) {
@@ -838,7 +853,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
 									logger.info("The [" + this + "] has been started.");
 								}
-								GetShardIteratorRequest shardIteratorRequest = this.shardOffset.toShardIteratorRequest();
+								GetShardIteratorRequest shardIteratorRequest =
+										this.shardOffset.toShardIteratorRequest();
 								this.shardIterator =
 										KinesisMessageDrivenChannelAdapter.this.amazonKinesis
 												.getShardIterator(shardIteratorRequest)
@@ -1034,8 +1050,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			}
 			else if (CheckpointMode.periodic.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
 					System.currentTimeMillis() > nextCheckpointTimeInMillis) {
-					this.checkpointer.checkpoint();
-					this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+				this.checkpointer.checkpoint();
+				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
 			}
 		}
 
@@ -1067,6 +1083,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 							.withPayload(payload)
 							.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.getPartitionKey())
 							.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
+
+			if (KinesisMessageDrivenChannelAdapter.this.bindSourceRecord) {
+				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
+			}
 
 			if (messageToUse != null) {
 				messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
@@ -1157,8 +1177,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 								shardConsumer.task.run();
 							}
 							catch (Exception e) {
-								logger.info("Got an exception " + e + " during [" + shardConsumer + "] task invocation.\n" +
-										"Process will be retried on the next iteration.");
+								logger.info("Got an exception " + e + " during [" + shardConsumer + "] task invocation"
+										+ ".\nProcess will be retried on the next iteration.");
 							}
 						}
 					}
