@@ -67,6 +67,7 @@ import com.amazonaws.services.kinesis.model.Record;
  *
  * @author Hervé Fortin
  * @author Artem Bilan
+ * @author Dirk Bonhomme
  *
  * @since 2.2.0
  */
@@ -317,7 +318,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				finally {
 					attributesHolder.remove();
 					// Checkpoint once every checkpoint interval.
-					if (System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+					if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode) &&
+							System.currentTimeMillis() > nextCheckpointTimeInMillis) {
 						checkpoint(checkpointer);
 						this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
 					}
@@ -328,13 +330,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
 				checkpoint(checkpointer);
 			}
-			else if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode) &&
-					System.currentTimeMillis() > nextCheckpointTimeInMillis) {
-
-				checkpoint(checkpointer);
-				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
-			}
-
 		}
 
 		/**
