@@ -40,7 +40,6 @@ import com.amazonaws.waiters.WaiterParameters;
 
 /**
  * @author Artem Bilan
- *
  * @since 1.1
  *
  */
@@ -64,13 +63,10 @@ public class DynamoDbMetadataStoreTests {
 		try {
 			dynamoDB.deleteTableAsync(TEST_TABLE);
 
-			Waiter<DescribeTableRequest> waiter =
-					dynamoDB.waiters()
-							.tableNotExists();
+			Waiter<DescribeTableRequest> waiter = dynamoDB.waiters().tableNotExists();
 
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(TEST_TABLE))
-					.withPollingStrategy(new PollingStrategy(new MaxAttemptsRetryStrategy(25),
-							new FixedDelayStrategy(1))));
+			waiter.run(new WaiterParameters<>(new DescribeTableRequest(TEST_TABLE)).withPollingStrategy(
+					new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
 		catch (Exception e) {
 
@@ -87,11 +83,8 @@ public class DynamoDbMetadataStoreTests {
 
 		createTableLatch.await();
 
-		DYNAMO_DB_RUNNING.getDynamoDB()
-				.deleteItem(TEST_TABLE,
-						Collections.singletonMap("KEY",
-								new AttributeValue()
-										.withS(this.file1)));
+		DYNAMO_DB_RUNNING.getDynamoDB().deleteItem(TEST_TABLE,
+				Collections.singletonMap("KEY", new AttributeValue().withS(this.file1)));
 	}
 
 	@Test

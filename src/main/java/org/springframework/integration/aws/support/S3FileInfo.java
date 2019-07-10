@@ -24,10 +24,10 @@ import org.springframework.util.Assert;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
- * An Amazon S3 {@link org.springframework.integration.file.remote.FileInfo} implementation.
+ * An Amazon S3 {@link org.springframework.integration.file.remote.FileInfo}
+ * implementation.
  *
  * @author Christian Tzolov
- *
  * @since 1.1
  */
 public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
@@ -65,9 +65,8 @@ public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
 	}
 
 	/**
-	 * A permissions representation string.
-	 * Throws {@link UnsupportedOperationException} to avoid extra
-	 * {@link com.amazonaws.services.s3.AmazonS3#getObjectAcl} REST call.
+	 * A permissions representation string. Throws {@link UnsupportedOperationException}
+	 * to avoid extra {@link com.amazonaws.services.s3.AmazonS3#getObjectAcl} REST call.
 	 * The target application amy choose to do that by its logic.
 	 * @return the permissions representation string.
 	 */
@@ -83,10 +82,9 @@ public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
 
 	@Override
 	public String toString() {
-		return "FileInfo [isDirectory=" + isDirectory() + ", isLink=" + isLink()
-				+ ", Size=" + getSize() + ", ModifiedTime="
-				+ new Date(getModified()) + ", Filename=" + getFilename()
-				+ ", RemoteDirectory=" + getRemoteDirectory() + "]";
+		return "FileInfo [isDirectory=" + isDirectory() + ", isLink=" + isLink() + ", Size=" + getSize()
+				+ ", ModifiedTime=" + new Date(getModified()) + ", Filename=" + getFilename() + ", RemoteDirectory="
+				+ getRemoteDirectory() + "]";
 	}
 
 }

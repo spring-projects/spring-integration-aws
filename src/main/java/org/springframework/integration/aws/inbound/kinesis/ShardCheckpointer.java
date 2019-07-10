@@ -25,14 +25,13 @@ import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.MetadataStore;
 
 /**
- * An internal {@link Checkpointer} implementation based on
- * provided {@link MetadataStore} and {@code key} for shard.
+ * An internal {@link Checkpointer} implementation based on provided {@link MetadataStore}
+ * and {@code key} for shard.
  * <p>
- * The instances of this class is created by the {@link KinesisMessageDrivenChannelAdapter}
- * for each {@code ShardConsumer}.
+ * The instances of this class is created by the
+ * {@link KinesisMessageDrivenChannelAdapter} for each {@code ShardConsumer}.
  *
  * @author Artem Bilan
- *
  * @since 1.1
  */
 class ShardCheckpointer implements Checkpointer {
@@ -61,8 +60,8 @@ class ShardCheckpointer implements Checkpointer {
 	public boolean checkpoint(String sequenceNumber) {
 		if (this.active) {
 			String existingSequence = getCheckpoint();
-			if (existingSequence == null ||
-					new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) < 0) {
+			if (existingSequence == null
+					|| new BigInteger(existingSequence).compareTo(new BigInteger(sequenceNumber)) < 0) {
 				if (existingSequence != null) {
 					return this.checkpointStore.replace(this.key, existingSequence, sequenceNumber);
 				}
@@ -102,10 +101,8 @@ class ShardCheckpointer implements Checkpointer {
 
 	@Override
 	public String toString() {
-		return "ShardCheckpointer{" +
-				"key='" + this.key + '\'' +
-				", lastCheckpointValue='" + this.lastCheckpointValue + '\'' +
-				'}';
+		return "ShardCheckpointer{" + "key='" + this.key + '\'' + ", lastCheckpointValue='" + this.lastCheckpointValue
+				+ '\'' + '}';
 	}
 
 }

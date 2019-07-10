@@ -147,19 +147,16 @@ public class S3MessageHandlerTests {
 	@Qualifier("s3MessageHandler")
 	private S3MessageHandler s3MessageHandler;
 
-
-
 	@Test
 	public void testUploadFile() throws IOException, InterruptedException {
 		File file = this.temporaryFolder.newFile("foo.mp3");
 		Message<?> message = MessageBuilder.withPayload(file)
-				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
-				.build();
+				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).build();
 
 		this.s3SendChannel.send(message);
 
-		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutObjectRequest.class);
+		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor = ArgumentCaptor
+				.forClass(PutObjectRequest.class);
 		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
 
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
@@ -179,8 +176,8 @@ public class S3MessageHandlerTests {
 		assertThat(this.transferCompletedLatch.await(10, TimeUnit.SECONDS)).isTrue();
 		assertThat(this.aclLatch.await(10, TimeUnit.SECONDS)).isTrue();
 
-		ArgumentCaptor<SetObjectAclRequest> setObjectAclRequestArgumentCaptor =
-				ArgumentCaptor.forClass(SetObjectAclRequest.class);
+		ArgumentCaptor<SetObjectAclRequest> setObjectAclRequestArgumentCaptor = ArgumentCaptor
+				.forClass(SetObjectAclRequest.class);
 		verify(this.amazonS3).setObjectAcl(setObjectAclRequestArgumentCaptor.capture());
 
 		SetObjectAclRequest setObjectAclRequest = setObjectAclRequestArgumentCaptor.getValue();
@@ -200,9 +197,7 @@ public class S3MessageHandlerTests {
 
 		InputStream payload = new StringInputStream("a");
 		Message<?> message = MessageBuilder.withPayload(payload)
-				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
-				.setHeader("key", "myStream")
-				.build();
+				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).setHeader("key", "myStream").build();
 
 		assertThatThrownBy(() -> this.s3SendChannel.send(message))
 				.hasCauseExactlyInstanceOf(IllegalStateException.class)
@@ -212,8 +207,8 @@ public class S3MessageHandlerTests {
 
 		this.s3SendChannel.send(message);
 
-		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutObjectRequest.class);
+		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor = ArgumentCaptor
+				.forClass(PutObjectRequest.class);
 		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
 
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
@@ -234,9 +229,7 @@ public class S3MessageHandlerTests {
 		File file = this.temporaryFolder.newFile("foo.mp3");
 		FileInputStream fileInputStream = new FileInputStream(file);
 		Message<?> message = MessageBuilder.withPayload(fileInputStream)
-				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
-				.setHeader("key", "myStream")
-				.build();
+				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).setHeader("key", "myStream").build();
 
 		try {
 			this.s3SendChannel.send(message);
@@ -252,14 +245,12 @@ public class S3MessageHandlerTests {
 	public void testUploadByteArray() throws IOException {
 		byte[] payload = "b".getBytes("UTF-8");
 		Message<?> message = MessageBuilder.withPayload(payload)
-				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name())
-				.setHeader("key", "myStream")
-				.build();
+				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).setHeader("key", "myStream").build();
 
 		this.s3SendChannel.send(message);
 
-		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutObjectRequest.class);
+		ArgumentCaptor<PutObjectRequest> putObjectRequestArgumentCaptor = ArgumentCaptor
+				.forClass(PutObjectRequest.class);
 		verify(this.amazonS3, atLeastOnce()).putObject(putObjectRequestArgumentCaptor.capture());
 
 		PutObjectRequest putObjectRequest = putObjectRequestArgumentCaptor.getValue();
@@ -279,8 +270,7 @@ public class S3MessageHandlerTests {
 	public void testDownloadDirectory() throws IOException {
 		File directoryForDownload = this.temporaryFolder.newFolder("myFolder");
 		Message<?> message = MessageBuilder.withPayload(directoryForDownload)
-				.setHeader("s3Command", S3MessageHandler.Command.DOWNLOAD)
-				.build();
+				.setHeader("s3Command", S3MessageHandler.Command.DOWNLOAD).build();
 
 		this.s3SendChannel.send(message);
 
@@ -404,20 +394,15 @@ public class S3MessageHandlerTests {
 				else {
 					return invocation.callRealMethod();
 				}
-			})
-					.given(amazonS3)
-					.getObject(any(GetObjectRequest.class));
+			}).given(amazonS3).getObject(any(GetObjectRequest.class));
 
 			willAnswer(invocation -> {
 				aclLatch().countDown();
 				return null;
-			})
-					.given(amazonS3)
-					.setObjectAcl(any(SetObjectAclRequest.class));
+			}).given(amazonS3).setObjectAcl(any(SetObjectAclRequest.class));
 
 			return amazonS3;
 		}
-
 
 		@Bean
 		public CountDownLatch aclLatch() {
@@ -453,8 +438,8 @@ public class S3MessageHandlerTests {
 		public MessageHandler s3MessageHandler() {
 			S3MessageHandler s3MessageHandler = new S3MessageHandler(amazonS3(), S3_BUCKET_NAME);
 			s3MessageHandler.setCommandExpression(PARSER.parseExpression("headers.s3Command"));
-			Expression keyExpression =
-					PARSER.parseExpression("payload instanceof T(java.io.File) ? payload.name : headers.key");
+			Expression keyExpression = PARSER
+					.parseExpression("payload instanceof T(java.io.File) ? payload.name : headers.key");
 			s3MessageHandler.setKeyExpression(keyExpression);
 			s3MessageHandler.setObjectAclExpression(new ValueExpression<>(CannedAccessControlList.PublicReadWrite));
 			s3MessageHandler.setUploadMetadataProvider((metadata, message) -> {

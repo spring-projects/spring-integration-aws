@@ -91,20 +91,16 @@ public class S3MessageHandlerParserTests {
 	public void testS3OutboundChannelAdapterParser() {
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "transferManager.s3"))
 				.isSameAs(this.amazonS3);
-		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"bucketExpression.literalValue"))
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "bucketExpression.literalValue"))
 				.isEqualTo("foo");
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"destinationBucketExpression.expression"))
-				.isEqualTo("'bar'");
-		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"destinationKeyExpression.expression"))
-				.isEqualTo("'baz'");
-		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"keyExpression.expression"))
+				"destinationBucketExpression.expression")).isEqualTo("'bar'");
+		assertThat(
+				TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "destinationKeyExpression.expression"))
+						.isEqualTo("'baz'");
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "keyExpression.expression"))
 				.isEqualTo("payload.name");
-		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler,
-				"objectAclExpression.expression"))
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "objectAclExpression.expression"))
 				.isEqualTo("'qux'");
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "commandExpression.literalValue"))
 				.isEqualTo(S3MessageHandler.Command.COPY.name());
@@ -132,17 +128,16 @@ public class S3MessageHandlerParserTests {
 	public void testS3OutboundGatewayParser() {
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "transferManager"))
 				.isSameAs(this.transferManager);
-		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler,
-				"bucketExpression.expression"))
+		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "bucketExpression.expression"))
 				.isEqualTo("'FOO'");
-		Expression commandExpression =
-				TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "commandExpression", Expression.class);
+		Expression commandExpression = TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "commandExpression",
+				Expression.class);
 		assertThat(TestUtils.getPropertyValue(commandExpression, "expression"))
 				.isEqualTo("'" + S3MessageHandler.Command.DOWNLOAD.name() + "'");
 
 		StandardEvaluationContext evaluationContext = ExpressionUtils.createStandardEvaluationContext(this.beanFactory);
-		S3MessageHandler.Command command =
-				commandExpression.getValue(evaluationContext, S3MessageHandler.Command.class);
+		S3MessageHandler.Command command = commandExpression.getValue(evaluationContext,
+				S3MessageHandler.Command.class);
 
 		assertThat(command).isEqualTo(S3MessageHandler.Command.DOWNLOAD);
 

@@ -33,38 +33,31 @@ import org.springframework.util.MimeType;
 import org.springframework.util.NumberUtils;
 
 /**
- * Base {@link HeaderMapper} implementation for common logic in SQS and SNS
- * around message attributes mapping.
+ * Base {@link HeaderMapper} implementation for common logic in SQS and SNS around message
+ * attributes mapping.
  *
  * The {@link #toHeaders(Map)} is not supported.
  *
  * @param <A> the target message attribute type.
- *
  * @author Artem Bilan
- *
  * @since 2.0
  */
 public abstract class AbstractMessageAttributesHeaderMapper<A> implements HeaderMapper<Map<String, A>> {
 
 	private static final Log logger = LogFactory.getLog(SqsHeaderMapper.class);
 
-	private volatile String[] outboundHeaderNames = {
-			"!" + MessageHeaders.ID,
-			"!" + MessageHeaders.TIMESTAMP,
-			"!" + AwsHeaders.MESSAGE_ID,
-			"!" + AwsHeaders.QUEUE,
-			"!" + AwsHeaders.TOPIC,
-			"*" };
+	private volatile String[] outboundHeaderNames = { "!" + MessageHeaders.ID, "!" + MessageHeaders.TIMESTAMP,
+			"!" + AwsHeaders.MESSAGE_ID, "!" + AwsHeaders.QUEUE, "!" + AwsHeaders.TOPIC, "*" };
 
 	/**
 	 * Provide the header names that should be mapped to a AWS request object attributes
-	 * (for outbound adapters) from a Spring Integration Message's headers.
-	 * The values can also contain simple wildcard patterns (e.g. "foo*" or "*foo") to be matched.
-	 * Also supports negated ('!') patterns. First match wins (positive or negative).
-	 * To match the names starting with {@code !} symbol,
-	 * you have to escape it prepending with the {@code \} symbol in the pattern definition.
-	 * Defaults to map all ({@code *}) if the type is supported by SQS.
-	 * The {@link MessageHeaders#ID}, {@link MessageHeaders#TIMESTAMP},  {@link AwsHeaders#MESSAGE_ID},
+	 * (for outbound adapters) from a Spring Integration Message's headers. The values can
+	 * also contain simple wildcard patterns (e.g. "foo*" or "*foo") to be matched. Also
+	 * supports negated ('!') patterns. First match wins (positive or negative). To match
+	 * the names starting with {@code !} symbol, you have to escape it prepending with the
+	 * {@code \} symbol in the pattern definition. Defaults to map all ({@code *}) if the
+	 * type is supported by SQS. The {@link MessageHeaders#ID},
+	 * {@link MessageHeaders#TIMESTAMP}, {@link AwsHeaders#MESSAGE_ID},
 	 * {@link AwsHeaders#QUEUE} and {@link AwsHeaders#TOPIC} are ignored by default.
 	 * @param outboundHeaderNames The inbound header names.
 	 */
@@ -83,10 +76,8 @@ public abstract class AbstractMessageAttributesHeaderMapper<A> implements Header
 
 			if (Boolean.TRUE.equals(PatternMatchUtils.smartMatch(messageHeaderName, this.outboundHeaderNames))) {
 
-				if (messageHeaderValue instanceof UUID
-						|| messageHeaderValue instanceof MimeType
-						|| messageHeaderValue instanceof Boolean
-						|| messageHeaderValue instanceof String) {
+				if (messageHeaderValue instanceof UUID || messageHeaderValue instanceof MimeType
+						|| messageHeaderValue instanceof Boolean || messageHeaderValue instanceof String) {
 
 					target.put(messageHeaderName, getStringMessageAttribute(messageHeaderValue.toString()));
 				}
@@ -102,11 +93,10 @@ public abstract class AbstractMessageAttributesHeaderMapper<A> implements Header
 				}
 				else {
 					if (logger.isWarnEnabled()) {
-						logger.warn(
-								String.format("Message header with name '%s' and type '%s' cannot be sent as" +
-												" message attribute because it is not supported by SQS.",
-										messageHeaderName,
-										messageHeaderValue.getClass().getName()));
+						logger.warn(String.format(
+								"Message header with name '%s' and type '%s' cannot be sent as"
+										+ " message attribute because it is not supported by SQS.",
+								messageHeaderName, messageHeaderValue.getClass().getName()));
 					}
 				}
 

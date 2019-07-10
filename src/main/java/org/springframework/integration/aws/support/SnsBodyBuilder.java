@@ -22,10 +22,9 @@ import java.util.Map;
 import org.springframework.util.Assert;
 
 /**
- * An utility class to simplify an SNS Message body building.
- * Can be used from the {@code SnsMessageHandler#bodyExpression} definition or
- * directly in case of manual {@link com.amazonaws.services.sns.model.PublishRequest}
- * building.
+ * An utility class to simplify an SNS Message body building. Can be used from the
+ * {@code SnsMessageHandler#bodyExpression} definition or directly in case of manual
+ * {@link com.amazonaws.services.sns.model.PublishRequest} building.
  *
  * @author Artem Bilan
  */
@@ -51,11 +50,8 @@ public final class SnsBodyBuilder {
 	public String build() {
 		StringBuilder stringBuilder = new StringBuilder("{");
 		for (Map.Entry<String, String> entry : this.snsMessage.entrySet()) {
-			stringBuilder.append("\"")
-					.append(entry.getKey())
-					.append("\":\"")
-					.append(entry.getValue().replaceAll("\"", "\\\\\""))
-					.append("\",");
+			stringBuilder.append("\"").append(entry.getKey()).append("\":\"")
+					.append(entry.getValue().replaceAll("\"", "\\\\\"")).append("\",");
 		}
 		return stringBuilder.substring(0, stringBuilder.length() - 1) + "}";
 	}

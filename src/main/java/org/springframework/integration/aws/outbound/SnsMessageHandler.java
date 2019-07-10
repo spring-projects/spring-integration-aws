@@ -49,36 +49,28 @@ import com.amazonaws.services.sns.model.PublishResult;
  * <p>
  * The algorithm to populate SNS Message body is like:
  * <ul>
- * <li>
- * If the {@code payload instanceof PublishRequest} it is used as is for publishing.
+ * <li>If the {@code payload instanceof PublishRequest} it is used as is for publishing.
  * </li>
- * <li>
- * If the {@link #bodyExpression} is specified, it is used to be evaluated
- * against {@code requestMessage}.
- * </li>
- * <li>
- * If the evaluation result (or {@code payload}) is instance of {@link SnsBodyBuilder},
- * the SNS Message is built from there and the {@code messageStructure}
- * of the {@link PublishRequest} is set to {@code json}.
- * For the convenience the package {@code org.springframework.integration.aws.support} is imported
- * to the {@link #getEvaluationContext()} to allow bypass it for the {@link SnsBodyBuilder}
- * from the {@link #bodyExpression} definition. For example:
+ * <li>If the {@link #bodyExpression} is specified, it is used to be evaluated against
+ * {@code requestMessage}.</li>
+ * <li>If the evaluation result (or {@code payload}) is instance of
+ * {@link SnsBodyBuilder}, the SNS Message is built from there and the
+ * {@code messageStructure} of the {@link PublishRequest} is set to {@code json}. For the
+ * convenience the package {@code org.springframework.integration.aws.support} is imported
+ * to the {@link #getEvaluationContext()} to allow bypass it for the
+ * {@link SnsBodyBuilder} from the {@link #bodyExpression} definition. For example:
  * <pre class="code">
  * {@code
  * String bodyExpression =
  * "SnsBodyBuilder.withDefault(payload).forProtocols(payload.substring(0, 140), 'sms')";
  * snsMessageHandler.setBodyExpression(spelExpressionParser.parseExpression(bodyExpression));
  * }
- * </pre>
- * </li>
- * <li>
- * Otherwise the {@code payload} (or the {@link #bodyExpression} evaluation result) is converted
- * to the {@link String} using {@link #getConversionService()}.
- * </li>
+ * </pre></li>
+ * <li>Otherwise the {@code payload} (or the {@link #bodyExpression} evaluation result) is
+ * converted to the {@link String} using {@link #getConversionService()}.</li>
  * </ul>
  *
  * @author Artem Bilan
- *
  * @see AmazonSNSAsync
  * @see PublishRequest
  * @see SnsBodyBuilder
@@ -122,12 +114,13 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	}
 
 	/**
-	 * The {@link Expression} to produce the SNS notification message.
-	 * If it evaluates to the {@link SnsBodyBuilder} the {@code messageStructure}
-	 * of the {@link PublishRequest} is set to {@code json}.
-	 * Otherwise the {@link #getConversionService()} is used to convert the evaluation result
-	 * to the {@link String} without setting the {@code messageStructure}.
-	 * @param bodyExpression the {@link Expression} to produce the SNS notification message.
+	 * The {@link Expression} to produce the SNS notification message. If it evaluates to
+	 * the {@link SnsBodyBuilder} the {@code messageStructure} of the
+	 * {@link PublishRequest} is set to {@code json}. Otherwise the
+	 * {@link #getConversionService()} is used to convert the evaluation result to the
+	 * {@link String} without setting the {@code messageStructure}.
+	 * @param bodyExpression the {@link Expression} to produce the SNS notification
+	 * message.
 	 */
 	public void setBodyExpression(Expression bodyExpression) {
 		Assert.notNull(bodyExpression, "bodyExpression must not be null.");
@@ -135,7 +128,8 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	}
 
 	/**
-	 * Specify a {@link ResourceIdResolver} to resolve logical topic names to physical resource ids.
+	 * Specify a {@link ResourceIdResolver} to resolve logical topic names to physical
+	 * resource ids.
 	 * @param resourceIdResolver the {@link ResourceIdResolver} to use.
 	 */
 	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
@@ -148,8 +142,8 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		TypeLocator typeLocator = getEvaluationContext().getTypeLocator();
 		if (typeLocator instanceof StandardTypeLocator) {
 			/*
-			 * Register the 'org.springframework.integration.aws.support' package
-			 * you don't need a FQCN for the 'SnsMessageBuilder'.
+			 * Register the 'org.springframework.integration.aws.support' package you
+			 * don't need a FQCN for the 'SnsMessageBuilder'.
 			 */
 			((StandardTypeLocator) typeLocator).registerImport("org.springframework.integration.aws.support");
 		}
@@ -185,8 +179,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 			}
 
 			if (snsMessage instanceof SnsBodyBuilder) {
-				publishRequest.withMessageStructure("json")
-						.setMessage(((SnsBodyBuilder) snsMessage).build());
+				publishRequest.withMessageStructure("json").setMessage(((SnsBodyBuilder) snsMessage).build());
 			}
 			else {
 				publishRequest.setMessage(getConversionService().convert(snsMessage, String.class));

@@ -43,9 +43,7 @@ public class SnsMessageBuilderTests {
 		assertThat(message).isEqualTo("{\"default\":\"foo\"}");
 
 		try {
-			SnsBodyBuilder.withDefault("foo")
-					.forProtocols("{\"foo\" : \"bar\"}")
-					.build();
+			SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}").build();
 			fail("IllegalArgumentException expected");
 		}
 		catch (Exception e) {
@@ -53,9 +51,7 @@ public class SnsMessageBuilderTests {
 			assertThat(e.getMessage()).contains("protocols must not be empty.");
 		}
 		try {
-			SnsBodyBuilder.withDefault("foo")
-					.forProtocols("{\"foo\" : \"bar\"}", "")
-					.build();
+			SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "").build();
 			fail("IllegalArgumentException expected");
 		}
 		catch (Exception e) {
@@ -63,9 +59,7 @@ public class SnsMessageBuilderTests {
 			assertThat(e.getMessage()).contains("protocols must not contain empty elements.");
 		}
 
-		message = SnsBodyBuilder.withDefault("foo")
-				.forProtocols("{\"foo\" : \"bar\"}", "sms")
-				.build();
+		message = SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "sms").build();
 
 		assertThat(message).isEqualTo("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}");
 	}

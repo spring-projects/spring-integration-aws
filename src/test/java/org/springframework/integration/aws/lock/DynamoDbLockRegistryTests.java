@@ -51,7 +51,6 @@ import com.amazonaws.waiters.WaiterParameters;
 
 /**
  * @author Artem Bilan
- *
  * @since 2.0
  */
 @RunWith(SpringRunner.class)
@@ -73,13 +72,11 @@ public class DynamoDbLockRegistryTests {
 		try {
 			dynamoDB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 
-			Waiter<DescribeTableRequest> waiter =
-					dynamoDB.waiters()
-							.tableNotExists();
+			Waiter<DescribeTableRequest> waiter = dynamoDB.waiters().tableNotExists();
 
 			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRegistry.DEFAULT_TABLE_NAME))
-					.withPollingStrategy(new PollingStrategy(new MaxAttemptsRetryStrategy(25),
-							new FixedDelayStrategy(1))));
+					.withPollingStrategy(
+							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
 		catch (Exception e) {
 
@@ -303,17 +300,16 @@ public class DynamoDbLockRegistryTests {
 		lock.lockInterruptibly();
 		final AtomicBoolean locked = new AtomicBoolean();
 		final CountDownLatch latch = new CountDownLatch(1);
-		Future<Object> result =
-				this.taskExecutor.submit(() -> {
-					try {
-						lock.unlock();
-					}
-					catch (Exception e) {
-						latch.countDown();
-						return e;
-					}
-					return null;
-				});
+		Future<Object> result = this.taskExecutor.submit(() -> {
+			try {
+				lock.unlock();
+			}
+			catch (Exception e) {
+				latch.countDown();
+				return e;
+			}
+			return null;
+		});
 
 		assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
 		assertThat(locked.get()).isFalse();
@@ -323,7 +319,6 @@ public class DynamoDbLockRegistryTests {
 		assertThat(imse).isInstanceOf(IllegalMonitorStateException.class);
 		assertThat(((Exception) imse).getMessage()).contains("You do not own");
 	}
-
 
 	@Configuration
 	public static class ContextConfiguration {

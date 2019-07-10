@@ -39,11 +39,10 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
 
 /**
- * The {@link TestWatcher} implementation for local Amazon Kinesis service.
- * See https://github.com/mhart/kinesalite.
+ * The {@link TestWatcher} implementation for local Amazon Kinesis service. See
+ * https://github.com/mhart/kinesalite.
  *
  * @author Artem Bilan
- *
  * @since 1.1
  */
 public final class KinesisLocalRunning extends TestWatcher {
@@ -79,10 +78,7 @@ public final class KinesisLocalRunning extends TestWatcher {
 
 		this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
 				.withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("", "")))
-				.withClientConfiguration(
-						new ClientConfiguration()
-								.withMaxErrorRetry(0)
-								.withConnectionTimeout(1000))
+				.withClientConfiguration(new ClientConfiguration().withMaxErrorRetry(0).withConnectionTimeout(1000))
 				.withEndpointConfiguration(
 						new AwsClientBuilder.EndpointConfiguration(url, Regions.DEFAULT_REGION.getName()))
 				.build();
@@ -94,7 +90,6 @@ public final class KinesisLocalRunning extends TestWatcher {
 			logger.warn("Tests not running because no Kinesis on " + url, e);
 			assumeNoException(e);
 		}
-
 
 		return new Statement() {
 

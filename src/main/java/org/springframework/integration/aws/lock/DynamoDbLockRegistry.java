@@ -54,14 +54,14 @@ import com.amazonaws.services.dynamodbv2.model.LockTableDoesNotExistException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 
 /**
- * An {@link ExpirableLockRegistry} implementation for the AWS DynamoDB.
- * The algorithm is based on the {@link AmazonDynamoDBLockClient}.
+ * An {@link ExpirableLockRegistry} implementation for the AWS DynamoDB. The algorithm is
+ * based on the {@link AmazonDynamoDBLockClient}.
  * <p>
- * Can create table in DynamoDB if an external {@link AmazonDynamoDBLockClient} is not provided.
+ * Can create table in DynamoDB if an external {@link AmazonDynamoDBLockClient} is not
+ * provided.
  *
  * @author Artem Bilan
  * @author Karl Lessard
- *
  * @since 2.0
  */
 public class DynamoDbLockRegistry implements ExpirableLockRegistry, InitializingBean, DisposableBean {
@@ -72,7 +72,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	public static final String DEFAULT_TABLE_NAME = "SpringIntegrationLockRegistry";
 
 	/**
-	 * The {@value DEFAULT_PARTITION_KEY_NAME} default name for the partition key in the table.
+	 * The {@value DEFAULT_PARTITION_KEY_NAME} default name for the partition key in the
+	 * table.
 	 */
 	public static final String DEFAULT_PARTITION_KEY_NAME = "lockKey";
 
@@ -87,7 +88,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	public static final String DEFAULT_SORT_KEY = "SpringIntegrationLocks";
 
 	/**
-	 * The {@value DEFAULT_REFRESH_PERIOD_MS} default period in milliseconds between DB polling requests.
+	 * The {@value DEFAULT_REFRESH_PERIOD_MS} default period in milliseconds between DB
+	 * polling requests.
 	 */
 	public static final long DEFAULT_REFRESH_PERIOD_MS = 1000L;
 
@@ -124,11 +126,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	private long heartbeatPeriod = 5L;
 
 	/**
-	 * An {@link ExecutorService} to call {@link AmazonDynamoDBLockClient#releaseLock(LockItem)}
-	 * in the separate thread when the current one is interrupted.
+	 * An {@link ExecutorService} to call
+	 * {@link AmazonDynamoDBLockClient#releaseLock(LockItem)} in the separate thread when
+	 * the current one is interrupted.
 	 */
-	private Executor executor =
-			Executors.newCachedThreadPool(new CustomizableThreadFactory("dynamodb-lock-registry-"));
+	private Executor executor = Executors.newCachedThreadPool(new CustomizableThreadFactory("dynamodb-lock-registry-"));
 
 	/**
 	 * Flag to denote whether the {@link ExecutorService} was provided via the setter and
@@ -137,7 +139,6 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	private boolean executorExplicitlySet;
 
 	private volatile boolean initialized;
-
 
 	public DynamoDbLockRegistry(AmazonDynamoDB dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
@@ -202,8 +203,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	}
 
 	/**
-	 * Set the {@link Executor}, where is not provided then a default of
-	 * cached thread pool Executor will be used.
+	 * Set the {@link Executor}, where is not provided then a default of cached thread
+	 * pool Executor will be used.
 	 * @param executor the executor service
 	 */
 	public void setExecutor(Executor executor) {
@@ -214,22 +215,16 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	@Override
 	public void afterPropertiesSet() {
 		if (!this.dynamoDBLockClientExplicitlySet) {
-			AmazonDynamoDBLockClientOptions dynamoDBLockClientOptions =
-					AmazonDynamoDBLockClientOptions
-							.builder(this.dynamoDB, this.tableName)
-							.withPartitionKeyName(this.partitionKey)
-							.withSortKeyName(this.sortKeyName)
-							.withHeartbeatPeriod(this.heartbeatPeriod)
-							.withLeaseDuration(this.leaseDuration)
-							.build();
+			AmazonDynamoDBLockClientOptions dynamoDBLockClientOptions = AmazonDynamoDBLockClientOptions
+					.builder(this.dynamoDB, this.tableName).withPartitionKeyName(this.partitionKey)
+					.withSortKeyName(this.sortKeyName).withHeartbeatPeriod(this.heartbeatPeriod)
+					.withLeaseDuration(this.leaseDuration).build();
 
 			this.dynamoDBLockClient = new AmazonDynamoDBLockClient(dynamoDBLockClientOptions);
 		}
 
-		this.leaseDuration =
-				(long) new DirectFieldAccessor(this.dynamoDBLockClient)
-						.getPropertyValue("leaseDurationInMilliseconds");
-
+		this.leaseDuration = (long) new DirectFieldAccessor(this.dynamoDBLockClient)
+				.getPropertyValue("leaseDurationInMilliseconds");
 
 		this.executor.execute(() -> {
 			try {
@@ -244,14 +239,10 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 						}
 					}
 
-					CreateDynamoDBTableOptions createDynamoDBTableOptions =
-							CreateDynamoDBTableOptions
-									.builder(this.dynamoDB,
-											new ProvisionedThroughput(this.readCapacity, this.writeCapacity),
-											this.tableName)
-									.withPartitionKeyName(this.partitionKey)
-									.withSortKeyName(this.sortKeyName)
-									.build();
+					CreateDynamoDBTableOptions createDynamoDBTableOptions = CreateDynamoDBTableOptions
+							.builder(this.dynamoDB, new ProvisionedThroughput(this.readCapacity, this.writeCapacity),
+									this.tableName)
+							.withPartitionKeyName(this.partitionKey).withSortKeyName(this.sortKeyName).build();
 
 					AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
 				}
@@ -278,7 +269,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 			finally {
 				// Release create table barrier either way.
 				// If there is an error during creation/description,
-				// we deffer the actual ResourceNotFoundException to the end-user active calls.
+				// we deffer the actual ResourceNotFoundException to the end-user active
+				// calls.
 				this.createTableLatch.countDown();
 			}
 		});
@@ -287,12 +279,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	}
 
 	private void awaitForActive() {
-		Assert.state(this.initialized, () -> "The component has not been initialized: " + this +
-				".\n Is it declared as a bean?");
+		Assert.state(this.initialized,
+				() -> "The component has not been initialized: " + this + ".\n Is it declared as a bean?");
 
-		IllegalStateException illegalStateException =
-				new IllegalStateException(
-						"The DynamoDb table " + this.tableName + " has not been created during " + 60 + " seconds");
+		IllegalStateException illegalStateException = new IllegalStateException(
+				"The DynamoDb table " + this.tableName + " has not been created during " + 60 + " seconds");
 		try {
 			if (!this.createTableLatch.await(60, TimeUnit.SECONDS)) {
 				throw illegalStateException;
@@ -336,16 +327,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	@Override
 	public String toString() {
-		return "DynamoDbLockRegistry{" + "tableName='" + this.tableName + '\'' +
-				", readCapacity=" + this.readCapacity +
-				", writeCapacity=" + this.writeCapacity +
-				", partitionKey='" + this.partitionKey + '\'' +
-				", sortKeyName='" + this.sortKeyName + '\'' +
-				", sortKey='" + this.sortKey + '\'' +
-				", refreshPeriod=" + this.refreshPeriod +
-				", leaseDuration=" + this.leaseDuration +
-				", heartbeatPeriod=" + this.heartbeatPeriod +
-				'}';
+		return "DynamoDbLockRegistry{" + "tableName='" + this.tableName + '\'' + ", readCapacity=" + this.readCapacity
+				+ ", writeCapacity=" + this.writeCapacity + ", partitionKey='" + this.partitionKey + '\''
+				+ ", sortKeyName='" + this.sortKeyName + '\'' + ", sortKey='" + this.sortKey + '\'' + ", refreshPeriod="
+				+ this.refreshPeriod + ", leaseDuration=" + this.leaseDuration + ", heartbeatPeriod="
+				+ this.heartbeatPeriod + '}';
 	}
 
 	private final class DynamoDbLock implements Lock {
@@ -354,7 +340,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 		private final String key;
 
-		// It is safe to use a shared instance - access is guaranteed by the delegate lock.
+		// It is safe to use a shared instance - access is guaranteed by the delegate
+		// lock.
 		private final AcquireLockOptions.AcquireLockOptionsBuilder acquireLockOptionsBuilder;
 
 		private LockItem lockItem;
@@ -363,11 +350,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 		private DynamoDbLock(String key) {
 			this.key = key;
-			this.acquireLockOptionsBuilder =
-					AcquireLockOptions.builder(this.key)
-							.withReplaceData(false)
-							.withSortKey(DynamoDbLockRegistry.this.sortKey)
-							.withTimeUnit(TimeUnit.MILLISECONDS);
+			this.acquireLockOptionsBuilder = AcquireLockOptions.builder(this.key).withReplaceData(false)
+					.withSortKey(DynamoDbLockRegistry.this.sortKey).withTimeUnit(TimeUnit.MILLISECONDS);
 		}
 
 		private void rethrowAsLockException(Exception e) {
@@ -388,15 +372,15 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				while (true) {
 					try {
 						while (!doLock()) {
-							Thread.sleep(100); //NOSONAR
+							Thread.sleep(100); // NOSONAR
 						}
 						break;
 					}
 					catch (InterruptedException e) {
 						/*
 						 * This method must be uninterruptible so catch and ignore
-						 * interrupts and only break out of the while loop when
-						 * we get the lock.
+						 * interrupts and only break out of the while loop when we get the
+						 * lock.
 						 */
 						wasInterruptedWhileUninterruptible = true;
 					}
@@ -430,7 +414,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 			try {
 				while (!doLock()) {
-					Thread.sleep(100); //NOSONAR
+					Thread.sleep(100); // NOSONAR
 					if (Thread.currentThread().isInterrupted()) {
 						throw new InterruptedException();
 					}
@@ -468,10 +452,10 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				return false;
 			}
 
-			long additionalTimeToWait = Math.max(TimeUnit.MILLISECONDS.convert(time, unit) - System.currentTimeMillis() + start, 0L);
+			long additionalTimeToWait = Math
+					.max(TimeUnit.MILLISECONDS.convert(time, unit) - System.currentTimeMillis() + start, 0L);
 
-			this.acquireLockOptionsBuilder
-					.withAdditionalTimeToWaitForLock(additionalTimeToWait)
+			this.acquireLockOptionsBuilder.withAdditionalTimeToWaitForLock(additionalTimeToWait)
 					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
 
 			boolean acquired = false;
@@ -500,10 +484,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				acquired = true;
 			}
 			else {
-				this.lockItem =
-						DynamoDbLockRegistry.this.dynamoDBLockClient
-								.tryAcquireLock(this.acquireLockOptionsBuilder.build())
-								.orElse(null);
+				this.lockItem = DynamoDbLockRegistry.this.dynamoDBLockClient
+						.tryAcquireLock(this.acquireLockOptionsBuilder.build()).orElse(null);
 
 				acquired = this.lockItem != null;
 			}
@@ -527,9 +509,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 			try {
 				if (Thread.currentThread().isInterrupted()) {
 					LockItem lockItemToRelease = this.lockItem;
-					DynamoDbLockRegistry.this.executor.execute(() ->
-							DynamoDbLockRegistry.this.dynamoDBLockClient.releaseLock(lockItemToRelease)
-					);
+					DynamoDbLockRegistry.this.executor
+							.execute(() -> DynamoDbLockRegistry.this.dynamoDBLockClient.releaseLock(lockItemToRelease));
 				}
 				else {
 					DynamoDbLockRegistry.this.dynamoDBLockClient.releaseLock(this.lockItem);
@@ -552,10 +533,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		@Override
 		public String toString() {
 			SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-dd@HH:mm:ss.SSS");
-			return "DynamoDbLock [lockKey=" + this.key
-					+ ",lockedAt=" + dateFormat.format(new Date(this.lastUsed))
-					+ ", lockItem=" + this.lockItem
-					+ "]";
+			return "DynamoDbLock [lockKey=" + this.key + ",lockedAt=" + dateFormat.format(new Date(this.lastUsed))
+					+ ", lockItem=" + this.lockItem + "]";
 		}
 
 	}

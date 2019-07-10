@@ -25,7 +25,8 @@ import org.springframework.integration.file.remote.synchronizer.AbstractInboundF
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
- * A {@link org.springframework.integration.core.MessageSource} implementation for the Amazon S3.
+ * A {@link org.springframework.integration.core.MessageSource} implementation for the
+ * Amazon S3.
  *
  * @author Artem Bilan
  */
@@ -40,7 +41,6 @@ public class S3InboundFileSynchronizingMessageSource
 			Comparator<File> comparator) {
 		super(synchronizer, comparator);
 	}
-
 
 	public String getComponentType() {
 		return "aws:s3-inbound-channel-adapter";

@@ -58,12 +58,11 @@ public final class AwsParserUtils {
 		super();
 	}
 
-	static void populateExpressionAttribute(String attributeName, BeanDefinitionBuilder builder,
-			Element element, ParserContext parserContext) {
+	static void populateExpressionAttribute(String attributeName, BeanDefinitionBuilder builder, Element element,
+			ParserContext parserContext) {
 
-		BeanDefinition beanDefinition =
-				IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression(attributeName,
-						attributeName + "-expression", parserContext, element, false);
+		BeanDefinition beanDefinition = IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression(
+				attributeName, attributeName + "-expression", parserContext, element, false);
 		if (beanDefinition != null) {
 			builder.addPropertyValue(Conventions.attributeNameToPropertyName(attributeName) + "Expression",
 					beanDefinition);

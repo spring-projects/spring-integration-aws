@@ -89,9 +89,9 @@ public class S3InboundChannelAdapterParserTests {
 
 		S3InboundFileSynchronizer fisync = TestUtils.getPropertyValue(inbound, "synchronizer",
 				S3InboundFileSynchronizer.class);
-		assertThat(TestUtils.getPropertyValue(fisync, "remoteDirectoryExpression", Expression.class)
-				.getExpressionString())
-				.isEqualTo("'foo/bar'");
+		assertThat(
+				TestUtils.getPropertyValue(fisync, "remoteDirectoryExpression", Expression.class).getExpressionString())
+						.isEqualTo("'foo/bar'");
 		assertThat(TestUtils.getPropertyValue(fisync, "localFilenameGeneratorExpression")).isNotNull();
 		assertThat(TestUtils.getPropertyValue(fisync, "preserveTimestamp", Boolean.class)).isTrue();
 		assertThat(TestUtils.getPropertyValue(fisync, "temporaryFileSuffix", String.class)).isEqualTo(".foo");
@@ -111,8 +111,7 @@ public class S3InboundChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(fisync, "remoteFileTemplate.sessionFactory"))
 				.isSameAs(this.s3SessionFactory);
 		assertThat(TestUtils.getPropertyValue(inbound, "fileSource.scanner.filter.fileFilters", Collection.class)
-				.contains(this.acceptAllFilter))
-				.isTrue();
+				.contains(this.acceptAllFilter)).isTrue();
 		final AtomicReference<Method> genMethod = new AtomicReference<Method>();
 		ReflectionUtils.doWithMethods(AbstractInboundFileSynchronizer.class, new ReflectionUtils.MethodCallback() {
 

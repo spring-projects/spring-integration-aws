@@ -59,7 +59,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author Artem Bilan
- *
  * @since 1.1
  */
 @RunWith(SpringRunner.class)
@@ -92,17 +91,12 @@ public class KinesisIntegrationTests {
 
 	@Test
 	public void testKinesisInboundOutbound() {
-		this.kinesisSendChannel.send(
-				MessageBuilder.withPayload("foo")
-						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
-						.build());
+		this.kinesisSendChannel
+				.send(MessageBuilder.withPayload("foo").setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 
 		Date now = new Date();
-		this.kinesisSendChannel.send(
-				MessageBuilder.withPayload(now)
-						.setHeader(AwsHeaders.STREAM, TEST_STREAM)
-						.setHeader("foo", "BAR")
-						.build());
+		this.kinesisSendChannel.send(MessageBuilder.withPayload(now).setHeader(AwsHeaders.STREAM, TEST_STREAM)
+				.setHeader("foo", "BAR").build());
 
 		Message<?> receive = this.kinesisReceiveChannel.receive(10_000);
 		assertThat(receive).isNotNull();
@@ -114,19 +108,15 @@ public class KinesisIntegrationTests {
 		assertThat(errorMessage).isNotNull();
 		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
-				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types " +
-						"[class java.util.Date], but received [class java.lang.String]");
-
+				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types "
+						+ "[class java.util.Date], but received [class java.lang.String]");
 
 		for (int i = 0; i < 1000; i++) {
-			this.kinesisSendChannel.send(
-					MessageBuilder.withPayload(new Date())
-							.setHeader(AwsHeaders.STREAM, TEST_STREAM)
-							.build());
+			this.kinesisSendChannel
+					.send(MessageBuilder.withPayload(new Date()).setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 		}
 
 		Set<String> receivedSequences = new HashSet<>();
-
 
 		for (int i = 0; i < 1000; i++) {
 			receive = this.kinesisReceiveChannel.receive(10_000);
@@ -165,8 +155,8 @@ public class KinesisIntegrationTests {
 		}
 
 		private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
-			KinesisMessageDrivenChannelAdapter adapter =
-					new KinesisMessageDrivenChannelAdapter(KINESIS_LOCAL_RUNNING.getKinesis(), TEST_STREAM);
+			KinesisMessageDrivenChannelAdapter adapter = new KinesisMessageDrivenChannelAdapter(
+					KINESIS_LOCAL_RUNNING.getKinesis(), TEST_STREAM);
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());

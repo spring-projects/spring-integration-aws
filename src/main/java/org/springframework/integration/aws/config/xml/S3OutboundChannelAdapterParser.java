@@ -31,8 +31,7 @@ public class S3OutboundChannelAdapterParser extends AbstractOutboundChannelAdapt
 
 	@Override
 	protected AbstractBeanDefinition parseConsumer(Element element, ParserContext parserContext) {
-		AbstractBeanDefinition beanDefinition = new S3OutboundGatewayParser()
-				.parseHandler(element, parserContext)
+		AbstractBeanDefinition beanDefinition = new S3OutboundGatewayParser().parseHandler(element, parserContext)
 				.getBeanDefinition();
 		beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(2, false);
 		return beanDefinition;

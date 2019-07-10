@@ -21,22 +21,20 @@ import java.nio.ByteBuffer;
 import com.amazonaws.services.sns.model.MessageAttributeValue;
 
 /**
- * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping
- * from headers to SNS message attributes.
+ * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping from
+ * headers to SNS message attributes.
  * <p>
- * On the Inbound side, the SNS message is fully mapped from the JSON to the message payload.
- * Only important HTTP headers are mapped to the message headers.
+ * On the Inbound side, the SNS message is fully mapped from the JSON to the message
+ * payload. Only important HTTP headers are mapped to the message headers.
  *
  * @author Artem Bilan
- *
  * @since 2.0
  */
 public class SnsHeaderMapper extends AbstractMessageAttributesHeaderMapper<MessageAttributeValue> {
 
 	@Override
 	protected MessageAttributeValue buildMessageAttribute(String dataType, Object value) {
-		MessageAttributeValue messageAttributeValue = new MessageAttributeValue()
-				.withDataType(dataType);
+		MessageAttributeValue messageAttributeValue = new MessageAttributeValue().withDataType(dataType);
 		if (value instanceof ByteBuffer) {
 			return messageAttributeValue.withBinaryValue((ByteBuffer) value);
 		}

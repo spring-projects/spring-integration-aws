@@ -61,13 +61,13 @@ import com.amazonaws.waiters.WaiterParameters;
  * The {@link ConcurrentMetadataStore} for the {@link AmazonDynamoDB}.
  *
  * @author Artem Bilan
- *
  * @since 1.1
  */
 public class DynamoDbMetadataStore implements ConcurrentMetadataStore, InitializingBean {
 
 	/**
-	 * The {@value DEFAULT_TABLE_NAME} default name for the metadata table in the DynamoDB.
+	 * The {@value DEFAULT_TABLE_NAME} default name for the metadata table in the
+	 * DynamoDB.
 	 */
 	public static final String DEFAULT_TABLE_NAME = "SpringIntegrationMetadataStore";
 
@@ -105,9 +105,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 		Assert.notNull(dynamoDB, "'dynamoDB' must not be null.");
 		Assert.hasText(tableName, "'tableName' must not be empty.");
 		this.dynamoDB = dynamoDB;
-		this.table =
-				new DynamoDB(this.dynamoDB)
-						.getTable(tableName);
+		this.table = new DynamoDB(this.dynamoDB).getTable(tableName);
 
 	}
 
@@ -128,11 +126,13 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	}
 
 	/**
-	 * Configure a period in seconds for items expiration.
-	 * If it is configured to non-positive value ({@code <= 0}), the TTL is disabled on the table.
+	 * Configure a period in seconds for items expiration. If it is configured to
+	 * non-positive value ({@code <= 0}), the TTL is disabled on the table.
 	 * @param timeToLive period in seconds for items expiration.
 	 * @since 2.0
-	 * @see <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">DynamoDB TTL</a>
+	 * @see <a href=
+	 * "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">DynamoDB
+	 * TTL</a>
 	 */
 	public void setTimeToLive(int timeToLive) {
 		this.timeToLive = timeToLive;
@@ -153,37 +153,34 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 				}
 			}
 
-			CreateTableRequest createTableRequest =
-					new CreateTableRequest()
-							.withTableName(this.table.getTableName())
-							.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
-							.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
-							.withProvisionedThroughput(new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
-
+			CreateTableRequest createTableRequest = new CreateTableRequest().withTableName(this.table.getTableName())
+					.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
+					.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
+					.withProvisionedThroughput(new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
 
 			this.dynamoDB.createTableAsync(createTableRequest,
 					new AsyncHandler<CreateTableRequest, CreateTableResult>() {
 
 						@Override
 						public void onError(Exception e) {
-							logger.error("Cannot create DynamoDb table: " +
-									DynamoDbMetadataStore.this.table.getTableName(), e);
+							logger.error(
+									"Cannot create DynamoDb table: " + DynamoDbMetadataStore.this.table.getTableName(),
+									e);
 							DynamoDbMetadataStore.this.createTableLatch.countDown();
 						}
 
 						@Override
 						public void onSuccess(CreateTableRequest request, CreateTableResult createTableResult) {
-							Waiter<DescribeTableRequest> waiter =
-									DynamoDbMetadataStore.this.dynamoDB.waiters()
-											.tableExists();
+							Waiter<DescribeTableRequest> waiter = DynamoDbMetadataStore.this.dynamoDB.waiters()
+									.tableExists();
 
-							WaiterParameters<DescribeTableRequest> waiterParameters =
-									new WaiterParameters<>(
-											new DescribeTableRequest(DynamoDbMetadataStore.this.table.getTableName()))
-											.withPollingStrategy(
-													new PollingStrategy(
-															new MaxAttemptsRetryStrategy(DynamoDbMetadataStore.this.createTableRetries),
-															new FixedDelayStrategy(DynamoDbMetadataStore.this.createTableDelay)));
+							WaiterParameters<DescribeTableRequest> waiterParameters = new WaiterParameters<>(
+									new DescribeTableRequest(DynamoDbMetadataStore.this.table.getTableName()))
+											.withPollingStrategy(new PollingStrategy(
+													new MaxAttemptsRetryStrategy(
+															DynamoDbMetadataStore.this.createTableRetries),
+													new FixedDelayStrategy(
+															DynamoDbMetadataStore.this.createTableDelay)));
 
 							waiter.runAsync(waiterParameters, new WaiterHandler<DescribeTableRequest>() {
 
@@ -196,8 +193,8 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 								@Override
 								public void onWaitFailure(Exception e) {
-									logger.error("Cannot describe DynamoDb table: " +
-											DynamoDbMetadataStore.this.table.getTableName(), e);
+									logger.error("Cannot describe DynamoDb table: "
+											+ DynamoDbMetadataStore.this.table.getTableName(), e);
 									DynamoDbMetadataStore.this.createTableLatch.countDown();
 								}
 
@@ -213,13 +210,9 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 	private void updateTimeToLiveIfAny() {
 		if (this.timeToLive != null) {
-			UpdateTimeToLiveRequest updateTimeToLiveRequest =
-					new UpdateTimeToLiveRequest()
-							.withTableName(this.table.getTableName())
-							.withTimeToLiveSpecification(
-									new TimeToLiveSpecification()
-											.withAttributeName(TTL)
-											.withEnabled(this.timeToLive > 0));
+			UpdateTimeToLiveRequest updateTimeToLiveRequest = new UpdateTimeToLiveRequest()
+					.withTableName(this.table.getTableName()).withTimeToLiveSpecification(
+							new TimeToLiveSpecification().withAttributeName(TTL).withEnabled(this.timeToLive > 0));
 
 			try {
 				this.dynamoDB.updateTimeToLive(updateTimeToLiveRequest);
@@ -233,15 +226,15 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	}
 
 	private void awaitForActive() {
-		Assert.state(this.initialized, () -> "The component has not been initialized: " + this +
-				".\n Is it declared as a bean?");
+		Assert.state(this.initialized,
+				() -> "The component has not been initialized: " + this + ".\n Is it declared as a bean?");
 		try {
 			this.createTableLatch.await(this.createTableRetries * this.createTableDelay, TimeUnit.SECONDS);
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			throw new IllegalStateException("The DynamoDb table " + this.table.getTableName() +
-					" has not been created during " + this.createTableRetries * this.createTableDelay + " seconds");
+			throw new IllegalStateException("The DynamoDb table " + this.table.getTableName()
+					+ " has not been created during " + this.createTableRetries * this.createTableDelay + " seconds");
 		}
 	}
 
@@ -252,10 +245,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item =
-				new Item()
-						.withPrimaryKey(KEY, key)
-						.withString(VALUE, value);
+		Item item = new Item().withPrimaryKey(KEY, key).withString(VALUE, value);
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
 			item = item.withLong(TTL, (System.currentTimeMillis() + this.timeToLive) / 1000);
@@ -282,21 +272,12 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		UpdateItemSpec updateItemSpec =
-				new UpdateItemSpec()
-						.withPrimaryKey(KEY, key)
-						.withAttributeUpdate(
-								new AttributeUpdate(VALUE)
-										.put(value))
-						.withExpected(
-								new Expected(KEY)
-										.notExist());
+		UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey(KEY, key)
+				.withAttributeUpdate(new AttributeUpdate(VALUE).put(value)).withExpected(new Expected(KEY).notExist());
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
-			updateItemSpec =
-					updateItemSpec.addAttributeUpdate(
-							new AttributeUpdate(TTL)
-									.put((System.currentTimeMillis() + this.timeToLive) / 1000));
+			updateItemSpec = updateItemSpec.addAttributeUpdate(
+					new AttributeUpdate(TTL).put((System.currentTimeMillis() + this.timeToLive) / 1000));
 		}
 
 		try {
@@ -316,27 +297,17 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		UpdateItemSpec updateItemSpec =
-				new UpdateItemSpec()
-						.withPrimaryKey(KEY, key)
-						.withAttributeUpdate(
-								new AttributeUpdate(VALUE)
-										.put(newValue))
-						.withExpected(
-								new Expected(VALUE)
-										.eq(oldValue))
-						.withReturnValues(ReturnValue.UPDATED_NEW);
+		UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey(KEY, key)
+				.withAttributeUpdate(new AttributeUpdate(VALUE).put(newValue))
+				.withExpected(new Expected(VALUE).eq(oldValue)).withReturnValues(ReturnValue.UPDATED_NEW);
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
-			updateItemSpec =
-					updateItemSpec.addAttributeUpdate(
-							new AttributeUpdate(TTL)
-									.put((System.currentTimeMillis() + this.timeToLive) / 1000));
+			updateItemSpec = updateItemSpec.addAttributeUpdate(
+					new AttributeUpdate(TTL).put((System.currentTimeMillis() + this.timeToLive) / 1000));
 		}
 
 		try {
-			return this.table.updateItem(updateItemSpec)
-					.getItem() != null;
+			return this.table.updateItem(updateItemSpec).getItem() != null;
 		}
 		catch (ConditionalCheckFailedException e) {
 			return false;
@@ -349,12 +320,9 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item =
-				this.table.deleteItem(
-						new DeleteItemSpec()
-								.withPrimaryKey(KEY, key)
-								.withReturnValues(ReturnValue.ALL_OLD))
-						.getItem();
+		Item item = this.table
+				.deleteItem(new DeleteItemSpec().withPrimaryKey(KEY, key).withReturnValues(ReturnValue.ALL_OLD))
+				.getItem();
 
 		return getValueIfAny(item);
 	}
@@ -370,12 +338,9 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 	@Override
 	public String toString() {
-		return "DynamoDbMetadataStore{" + "table=" + this.table +
-				", createTableRetries=" + this.createTableRetries +
-				", createTableDelay=" + this.createTableDelay +
-				", readCapacity=" + this.readCapacity +
-				", writeCapacity=" + this.writeCapacity +
-				", timeToLive=" + this.timeToLive +
-				'}';
+		return "DynamoDbMetadataStore{" + "table=" + this.table + ", createTableRetries=" + this.createTableRetries
+				+ ", createTableDelay=" + this.createTableDelay + ", readCapacity=" + this.readCapacity
+				+ ", writeCapacity=" + this.writeCapacity + ", timeToLive=" + this.timeToLive + '}';
 	}
+
 }

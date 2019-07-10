@@ -58,7 +58,6 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 
 /**
  * @author Artem Bilan
- *
  * @since 1.1
  */
 @RunWith(SpringRunner.class)
@@ -100,18 +99,15 @@ public class KinesisMessageHandlerTests {
 			assertThat(e.getMessage()).contains("'partitionKey' must not be null for sending a Kinesis record");
 		}
 
-		message = MessageBuilder.fromMessage(message)
-				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
-				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
-				.setHeader("foo", "bar")
-				.build();
+		message = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").setHeader("foo", "bar").build();
 
 		this.kinesisSendChannel.send(message);
 
-		ArgumentCaptor<PutRecordRequest> putRecordRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutRecordRequest.class);
-		ArgumentCaptor<AsyncHandler<PutRecordRequest, PutRecordResult>> asyncHandlerArgumentCaptor =
-				ArgumentCaptor.forClass((Class<AsyncHandler<PutRecordRequest, PutRecordResult>>) (Class<?>) AsyncHandler.class);
+		ArgumentCaptor<PutRecordRequest> putRecordRequestArgumentCaptor = ArgumentCaptor
+				.forClass(PutRecordRequest.class);
+		ArgumentCaptor<AsyncHandler<PutRecordRequest, PutRecordResult>> asyncHandlerArgumentCaptor = ArgumentCaptor
+				.forClass((Class<AsyncHandler<PutRecordRequest, PutRecordResult>>) (Class<?>) AsyncHandler.class);
 
 		verify(this.amazonKinesis).putRecordAsync(putRecordRequestArgumentCaptor.capture(),
 				asyncHandlerArgumentCaptor.capture());
@@ -136,27 +132,21 @@ public class KinesisMessageHandlerTests {
 
 		verify(this.asyncHandler).onError(eq(testingException));
 
-		message = new GenericMessage<>(new PutRecordsRequest()
-				.withStreamName("myStream")
-				.withRecords(new PutRecordsRequestEntry()
-						.withData(ByteBuffer.wrap("test".getBytes()))
-						.withPartitionKey("testKey")));
+		message = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
+				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
 
 		this.kinesisSendChannel.send(message);
 
-		ArgumentCaptor<PutRecordsRequest> putRecordsRequestArgumentCaptor =
-				ArgumentCaptor.forClass(PutRecordsRequest.class);
+		ArgumentCaptor<PutRecordsRequest> putRecordsRequestArgumentCaptor = ArgumentCaptor
+				.forClass(PutRecordsRequest.class);
 		verify(this.amazonKinesis).putRecordsAsync(putRecordsRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 
 		PutRecordsRequest putRecordsRequest = putRecordsRequestArgumentCaptor.getValue();
 
 		assertThat(putRecordsRequest.getStreamName()).isEqualTo("myStream");
-		assertThat(putRecordsRequest.getRecords())
-				.containsExactlyInAnyOrder(new PutRecordsRequestEntry()
-						.withData(ByteBuffer.wrap("test".getBytes()))
-						.withPartitionKey("testKey"));
+		assertThat(putRecordsRequest.getRecords()).containsExactlyInAnyOrder(
+				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
 	}
-
 
 	@Configuration
 	@EnableIntegration

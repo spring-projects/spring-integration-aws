@@ -26,9 +26,9 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
- * An Amazon S3 specific {@link SessionFactory} implementation.
- * Also this class implements {@link SharedSessionCapable} around the single instance,
- * since the {@link S3Session} is simple thread-safe wrapper for the {@link AmazonS3}.
+ * An Amazon S3 specific {@link SessionFactory} implementation. Also this class implements
+ * {@link SharedSessionCapable} around the single instance, since the {@link S3Session} is
+ * simple thread-safe wrapper for the {@link AmazonS3}.
  *
  * @author Artem Bilan
  */

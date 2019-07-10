@@ -47,7 +47,8 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 		String id = super.resolveId(element, definition, parserContext);
 
 		if (!element.hasAttribute("channel")) {
-			// the created channel will get the 'id', so the adapter's bean name includes a suffix
+			// the created channel will get the 'id', so the adapter's bean name includes
+			// a suffix
 			id = id + ".adapter";
 		}
 		if (!StringUtils.hasText(id)) {

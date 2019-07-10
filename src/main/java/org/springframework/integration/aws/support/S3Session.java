@@ -67,17 +67,16 @@ public class S3Session implements Session<S3ObjectSummary> {
 	public S3ObjectSummary[] list(String path) throws IOException {
 		String[] bucketPrefix = splitPathToBucketAndKey(path, false);
 
-		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
-				.withBucketName(bucketPrefix[0]);
+		ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(bucketPrefix[0]);
 		if (bucketPrefix.length > 1) {
 			listObjectsRequest.setPrefix(bucketPrefix[1]);
 		}
 
 		/*
-		For listing objects, Amazon S3 returns up to 1,000 keys in the response.
-		If you have more than 1,000 keys in your bucket, the response will be truncated.
-		You should always check for if the response is truncated.
-		*/
+		 * For listing objects, Amazon S3 returns up to 1,000 keys in the response. If you
+		 * have more than 1,000 keys in your bucket, the response will be truncated. You
+		 * should always check for if the response is truncated.
+		 */
 		ObjectListing objectListing;
 		List<S3ObjectSummary> objectSummaries = new ArrayList<>();
 		do {
@@ -103,17 +102,16 @@ public class S3Session implements Session<S3ObjectSummary> {
 	public String[] listNames(String path) throws IOException {
 		String[] bucketPrefix = splitPathToBucketAndKey(path, false);
 
-		ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
-				.withBucketName(bucketPrefix[0]);
+		ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(bucketPrefix[0]);
 		if (bucketPrefix.length > 1) {
 			listObjectsRequest.setPrefix(bucketPrefix[1]);
 		}
 
 		/*
-		For listing objects, Amazon S3 returns up to 1,000 keys in the response.
-		If you have more than 1,000 keys in your bucket, the response will be truncated.
-		You should always check for if the response is truncated.
-		*/
+		 * For listing objects, Amazon S3 returns up to 1,000 keys in the response. If you
+		 * have more than 1,000 keys in your bucket, the response will be truncated. You
+		 * should always check for if the response is truncated.
+		 */
 		ObjectListing objectListing;
 		List<String> names = new ArrayList<>();
 		do {
@@ -139,11 +137,11 @@ public class S3Session implements Session<S3ObjectSummary> {
 	public void rename(String pathFrom, String pathTo) throws IOException {
 		String[] bucketKeyFrom = splitPathToBucketAndKey(pathFrom, true);
 		String[] bucketKeyTo = splitPathToBucketAndKey(pathTo, true);
-		CopyObjectRequest copyRequest = new CopyObjectRequest(bucketKeyFrom[0], bucketKeyFrom[1],
-				bucketKeyTo[0], bucketKeyTo[1]);
+		CopyObjectRequest copyRequest = new CopyObjectRequest(bucketKeyFrom[0], bucketKeyFrom[1], bucketKeyTo[0],
+				bucketKeyTo[1]);
 		this.amazonS3.copyObject(copyRequest);
 
-		//Delete the source
+		// Delete the source
 		this.amazonS3.deleteObject(bucketKeyFrom[0], bucketKeyFrom[1]);
 	}
 

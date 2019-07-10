@@ -47,7 +47,8 @@ public class SnsInboundChannelAdapterParser extends AbstractSingleBeanDefinition
 		String id = super.resolveId(element, definition, parserContext);
 
 		if (!element.hasAttribute("channel")) {
-			// the created channel will get the 'id', so the adapter's bean name includes a suffix
+			// the created channel will get the 'id', so the adapter's bean name includes
+			// a suffix
 			id = id + ".adapter";
 		}
 		if (!StringUtils.hasText(id)) {
@@ -71,8 +72,8 @@ public class SnsInboundChannelAdapterParser extends AbstractSingleBeanDefinition
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "send-timeout", "requestTimeout");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, IntegrationNamespaceUtils.AUTO_STARTUP);
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, IntegrationNamespaceUtils.PHASE);
-		BeanDefinition payloadExpressionDef =
-				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("payload-expression", element);
+		BeanDefinition payloadExpressionDef = IntegrationNamespaceUtils
+				.createExpressionDefIfAttributeDefined("payload-expression", element);
 		if (payloadExpressionDef != null) {
 			builder.addPropertyValue("payloadExpression", payloadExpressionDef);
 		}

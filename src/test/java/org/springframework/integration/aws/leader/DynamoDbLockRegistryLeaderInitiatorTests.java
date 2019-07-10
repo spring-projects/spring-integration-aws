@@ -47,7 +47,6 @@ import com.amazonaws.waiters.WaiterParameters;
 
 /**
  * @author Artem Bilan
- *
  * @since 2.0
  */
 public class DynamoDbLockRegistryLeaderInitiatorTests {
@@ -64,13 +63,11 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 		try {
 			dynamoDB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 
-			Waiter<DescribeTableRequest> waiter =
-					dynamoDB.waiters()
-							.tableNotExists();
+			Waiter<DescribeTableRequest> waiter = dynamoDB.waiters().tableNotExists();
 
 			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRegistry.DEFAULT_TABLE_NAME))
-					.withPollingStrategy(new PollingStrategy(new MaxAttemptsRetryStrategy(25),
-							new FixedDelayStrategy(1))));
+					.withPollingStrategy(
+							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
 		catch (Exception e) {
 
@@ -93,10 +90,8 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 			lockRepository.afterPropertiesSet();
 			registries.add(lockRepository);
 
-			LockRegistryLeaderInitiator initiator =
-					new LockRegistryLeaderInitiator(
-							lockRepository,
-							new DefaultCandidate("foo#" + i, "bar"));
+			LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository,
+					new DefaultCandidate("foo#" + i, "bar"));
 			initiator.setExecutorService(
 					Executors.newSingleThreadExecutor(new CustomizableThreadFactory("lock-leadership-" + i + "-")));
 			initiator.setLeaderEventPublisher(countingPublisher);
@@ -136,7 +131,8 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 
 		initiator2.setLeaderEventPublisher(new CountingPublisher(granted2, revoked2, acquireLockFailed2));
 
-		// It's hard to see round-robin election, so let's make the yielding initiator to sleep long before restarting
+		// It's hard to see round-robin election, so let's make the yielding initiator to
+		// sleep long before restarting
 		initiator1.setBusyWaitMillis(1000);
 
 		initiator1.getContext().yield();
@@ -161,8 +157,8 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 		initiator2.stop();
 
 		CountDownLatch revoked11 = new CountDownLatch(1);
-		initiator1.setLeaderEventPublisher(new CountingPublisher(new CountDownLatch(1), revoked11,
-				new CountDownLatch(1)));
+		initiator1.setLeaderEventPublisher(
+				new CountingPublisher(new CountDownLatch(1), revoked11, new CountDownLatch(1)));
 
 		initiator1.getContext().yield();
 

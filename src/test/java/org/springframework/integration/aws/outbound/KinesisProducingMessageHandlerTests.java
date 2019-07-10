@@ -57,7 +57,6 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
 
 /**
  * @author Jacob Severson
- *
  * @since 1.1
  */
 @RunWith(SpringRunner.class)
@@ -99,10 +98,8 @@ public class KinesisProducingMessageHandlerTests {
 			assertThat(e.getMessage()).contains("'partitionKey' must not be null for sending a Kinesis record");
 		}
 
-		message = MessageBuilder.fromMessage(message)
-				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
-				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
-				.build();
+		message = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();
 
 		this.kinesisSendChannel.send(message);
 
@@ -111,10 +108,8 @@ public class KinesisProducingMessageHandlerTests {
 		assertThat(success.getHeaders().get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("10");
 		assertThat(success.getPayload()).isEqualTo("message");
 
-		message = MessageBuilder.fromMessage(message)
-				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
-				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
-				.build();
+		message = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();
 
 		this.kinesisSendChannel.send(message);
 
@@ -125,28 +120,20 @@ public class KinesisProducingMessageHandlerTests {
 		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getPartitionKey()).isEqualTo("fooKey");
 		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getSequenceNumberForOrdering()).isEqualTo("10");
 		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getExplicitHashKey()).isNull();
-		assertThat(((PutRecordRequest) putRecordFailure.getRequest())
-				.getData()).isEqualTo(ByteBuffer.wrap("message".getBytes()));
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getData())
+				.isEqualTo(ByteBuffer.wrap("message".getBytes()));
 
-		message = new GenericMessage<>(new PutRecordsRequest()
-				.withStreamName("myStream")
-				.withRecords(new PutRecordsRequestEntry()
-						.withData(ByteBuffer.wrap("test".getBytes()))
-						.withPartitionKey("testKey")));
+		message = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
+				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
 
 		this.kinesisSendChannel.send(message);
 
 		success = this.successChannel.receive(10000);
-		assertThat(((PutRecordsRequest) success.getPayload()).getRecords())
-				.containsExactlyInAnyOrder(new PutRecordsRequestEntry()
-						.withData(ByteBuffer.wrap("test".getBytes()))
-						.withPartitionKey("testKey"));
+		assertThat(((PutRecordsRequest) success.getPayload()).getRecords()).containsExactlyInAnyOrder(
+				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
 
-		message = new GenericMessage<>(new PutRecordsRequest()
-				.withStreamName("myStream")
-				.withRecords(new PutRecordsRequestEntry()
-						.withData(ByteBuffer.wrap("test".getBytes()))
-						.withPartitionKey("testKey")));
+		message = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
+				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
 
 		this.kinesisSendChannel.send(message);
 
@@ -154,10 +141,8 @@ public class KinesisProducingMessageHandlerTests {
 		AwsRequestFailureException putRecordsFailure = (AwsRequestFailureException) failed.getPayload();
 		assertThat(putRecordsFailure.getCause().getMessage()).isEqualTo("putRecordsRequestEx");
 		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getStreamName()).isEqualTo("myStream");
-		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getRecords())
-				.containsExactlyInAnyOrder(new PutRecordsRequestEntry()
-						.withData(ByteBuffer.wrap("test".getBytes()))
-						.withPartitionKey("testKey"));
+		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getRecords()).containsExactlyInAnyOrder(
+				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
 	}
 
 	@Configuration
@@ -169,30 +154,25 @@ public class KinesisProducingMessageHandlerTests {
 		public AmazonKinesisAsync amazonKinesis() {
 			AmazonKinesisAsync mock = mock(AmazonKinesisAsync.class);
 
-			given(mock.putRecordAsync(any(PutRecordRequest.class), any(AsyncHandler.class)))
-					.willAnswer(invocation -> {
-						PutRecordRequest request = invocation.getArgument(0);
-						AsyncHandler<PutRecordRequest, PutRecordResult> handler = invocation.getArgument(1);
-						PutRecordResult result = new PutRecordResult()
-								.withSequenceNumber(request.getSequenceNumberForOrdering())
-								.withShardId("shardId-1");
-						handler.onSuccess(new PutRecordRequest(), result);
-						return mock(Future.class);
-					})
-					.willAnswer(invocation -> {
-						AsyncHandler<?, ?> handler = invocation.getArgument(1);
-						handler.onError(new RuntimeException("putRecordRequestEx"));
-						return mock(Future.class);
-					});
-
+			given(mock.putRecordAsync(any(PutRecordRequest.class), any(AsyncHandler.class))).willAnswer(invocation -> {
+				PutRecordRequest request = invocation.getArgument(0);
+				AsyncHandler<PutRecordRequest, PutRecordResult> handler = invocation.getArgument(1);
+				PutRecordResult result = new PutRecordResult()
+						.withSequenceNumber(request.getSequenceNumberForOrdering()).withShardId("shardId-1");
+				handler.onSuccess(new PutRecordRequest(), result);
+				return mock(Future.class);
+			}).willAnswer(invocation -> {
+				AsyncHandler<?, ?> handler = invocation.getArgument(1);
+				handler.onError(new RuntimeException("putRecordRequestEx"));
+				return mock(Future.class);
+			});
 
 			given(mock.putRecordsAsync(any(PutRecordsRequest.class), any(AsyncHandler.class)))
 					.willAnswer(invocation -> {
 						AsyncHandler<PutRecordsRequest, PutRecordsResult> handler = invocation.getArgument(1);
 						handler.onSuccess(new PutRecordsRequest(), new PutRecordsResult());
 						return mock(Future.class);
-					})
-					.willAnswer(invocation -> {
+					}).willAnswer(invocation -> {
 						AsyncHandler<?, ?> handler = invocation.getArgument(1);
 						handler.onError(new RuntimeException("putRecordsRequestEx"));
 						return mock(Future.class);

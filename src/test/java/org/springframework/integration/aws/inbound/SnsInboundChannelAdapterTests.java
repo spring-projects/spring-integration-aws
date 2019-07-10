@@ -89,9 +89,8 @@ public class SnsInboundChannelAdapterTests {
 
 	@Test
 	public void testSubscriptionConfirmation() throws Exception {
-		this.mockMvc.perform(
-				post("/mySampleTopic")
-						.header("x-amz-sns-message-type", "SubscriptionConfirmation")
+		this.mockMvc
+				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "SubscriptionConfirmation")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(StreamUtils.copyToByteArray(this.subscriptionConfirmation.getInputStream())))
 				.andExpect(status().isNoContent());
@@ -107,16 +106,14 @@ public class SnsInboundChannelAdapterTests {
 
 		notificationStatus.confirmSubscription();
 
-		verify(this.amazonSns)
-				.confirmSubscription("arn:aws:sns:eu-west-1:111111111111:mySampleTopic", "111");
+		verify(this.amazonSns).confirmSubscription("arn:aws:sns:eu-west-1:111111111111:mySampleTopic", "111");
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testNotification() throws Exception {
-		this.mockMvc.perform(
-				post("/mySampleTopic")
-						.header("x-amz-sns-message-type", "Notification")
+		this.mockMvc
+				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "Notification")
 						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.notificationMessage.getInputStream())))
 				.andExpect(status().isNoContent());
@@ -131,9 +128,8 @@ public class SnsInboundChannelAdapterTests {
 
 	@Test
 	public void testUnsubscribe() throws Exception {
-		this.mockMvc.perform(
-				post("/mySampleTopic")
-						.header("x-amz-sns-message-type", "UnsubscribeConfirmation")
+		this.mockMvc
+				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "UnsubscribeConfirmation")
 						.contentType(MediaType.TEXT_PLAIN)
 						.content(StreamUtils.copyToByteArray(this.unsubscribeConfirmation.getInputStream())))
 				.andExpect(status().isNoContent());
@@ -149,8 +145,7 @@ public class SnsInboundChannelAdapterTests {
 
 		notificationStatus.confirmSubscription();
 
-		verify(this.amazonSns)
-				.confirmSubscription("arn:aws:sns:eu-west-1:111111111111:mySampleTopic", "233");
+		verify(this.amazonSns).confirmSubscription("arn:aws:sns:eu-west-1:111111111111:mySampleTopic", "233");
 	}
 
 	@Configuration

@@ -28,25 +28,22 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.support.ErrorMessage;
 
 /**
- * The {@link ErrorMessageStrategy} implementation to build an {@link ErrorMessage}
- * with the {@link AwsHeaders#RAW_RECORD} header by the value from
- * the the provided {@link AttributeAccessor}.
+ * The {@link ErrorMessageStrategy} implementation to build an {@link ErrorMessage} with
+ * the {@link AwsHeaders#RAW_RECORD} header by the value from the the provided
+ * {@link AttributeAccessor}.
  *
  * @author Artem Bilan
- *
  * @since 2.0
  */
 public class KinesisMessageHeaderErrorMessageStrategy implements ErrorMessageStrategy {
 
 	@Override
 	public ErrorMessage buildErrorMessage(Throwable throwable, AttributeAccessor context) {
-		Object inputMessage =
-				context == null ? null : context.getAttribute(ErrorMessageUtils.INPUT_MESSAGE_CONTEXT_KEY);
+		Object inputMessage = context == null ? null
+				: context.getAttribute(ErrorMessageUtils.INPUT_MESSAGE_CONTEXT_KEY);
 
-		Map<String, Object> headers =
-				context == null
-						? new HashMap<>()
-						: Collections.singletonMap(AwsHeaders.RAW_RECORD, context.getAttribute(AwsHeaders.RAW_RECORD));
+		Map<String, Object> headers = context == null ? new HashMap<>()
+				: Collections.singletonMap(AwsHeaders.RAW_RECORD, context.getAttribute(AwsHeaders.RAW_RECORD));
 
 		return new ErrorMessage(throwable, headers, inputMessage instanceof Message ? (Message<?>) inputMessage : null);
 	}

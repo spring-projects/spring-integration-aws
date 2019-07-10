@@ -16,15 +16,14 @@
 
 package org.springframework.integration.aws.support.filters;
 
-
 import org.springframework.integration.file.filters.AbstractPersistentAcceptOnceFileListFilter;
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
- * Persistent file list filter using the server's file timestamp to detect if we've already
- * 'seen' this file.
+ * Persistent file list filter using the server's file timestamp to detect if we've
+ * already 'seen' this file.
  *
  * @author Artem Bilan
  */

@@ -77,14 +77,10 @@ public class SnsMessageHandlerTests {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testSnsMessageHandler() {
-		SnsBodyBuilder payload = SnsBodyBuilder.withDefault("foo")
-				.forProtocols("{\"foo\" : \"bar\"}", "sms");
+		SnsBodyBuilder payload = SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "sms");
 
-		Message<?> message = MessageBuilder.withPayload(payload)
-				.setHeader("topic", "topic")
-				.setHeader("subject", "subject")
-				.setHeader("foo", "bar")
-				.build();
+		Message<?> message = MessageBuilder.withPayload(payload).setHeader("topic", "topic")
+				.setHeader("subject", "subject").setHeader("foo", "bar").build();
 
 		this.sendToSnsChannel.send(message);
 
@@ -128,9 +124,7 @@ public class SnsMessageHandlerTests {
 				AsyncHandler<PublishRequest, PublishResult> asyncHandler = invocation.getArgument(1);
 				asyncHandler.onSuccess(invocation.getArgument(0), publishResult);
 				return new AsyncResult<>(publishResult);
-			})
-					.given(mock)
-					.publishAsync(any(PublishRequest.class), any(AsyncHandler.class));
+			}).given(mock).publishAsync(any(PublishRequest.class), any(AsyncHandler.class));
 
 			return mock;
 		}

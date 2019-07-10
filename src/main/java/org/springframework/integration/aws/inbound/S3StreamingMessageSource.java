@@ -36,7 +36,6 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  *
  * @author Christian Tzolov
  * @author Artem Bilan
- *
  * @since 1.1
  */
 public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<S3ObjectSummary> {
@@ -55,9 +54,7 @@ public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessage
 
 	@Override
 	protected List<AbstractFileInfo<S3ObjectSummary>> asFileInfoList(Collection<S3ObjectSummary> collection) {
-		return collection.stream()
-				.map(S3FileInfo::new)
-				.collect(Collectors.toList());
+		return collection.stream().map(S3FileInfo::new).collect(Collectors.toList());
 	}
 
 	@Override

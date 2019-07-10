@@ -110,9 +110,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	private boolean bindSourceRecord;
 
 	public KclMessageDrivenChannelAdapter(String streams) {
-		this(streams, AmazonKinesisClientBuilder.defaultClient(),
-				AmazonCloudWatchClientBuilder.defaultClient(), AmazonDynamoDBClientBuilder.defaultClient(),
-				new DefaultAWSCredentialsProviderChain());
+		this(streams, AmazonKinesisClientBuilder.defaultClient(), AmazonCloudWatchClientBuilder.defaultClient(),
+				AmazonDynamoDBClientBuilder.defaultClient(), new DefaultAWSCredentialsProviderChain());
 	}
 
 	public KclMessageDrivenChannelAdapter(String streams, Regions region) {
@@ -121,8 +120,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				AmazonDynamoDBClient.builder().withRegion(region).build(), new DefaultAWSCredentialsProviderChain());
 	}
 
-	public KclMessageDrivenChannelAdapter(String stream,
-			AmazonKinesis kinesisClient, AmazonCloudWatch cloudWatchClient,
+	public KclMessageDrivenChannelAdapter(String stream, AmazonKinesis kinesisClient, AmazonCloudWatch cloudWatchClient,
 			AmazonDynamoDB dynamoDBClient, AWSCredentialsProvider kinesisProxyCredentialsProvider) {
 
 		Assert.notNull(stream, "'stream' must not be null.");
@@ -148,8 +146,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	}
 
 	/**
-	 * Specify an {@link InboundMessageMapper} to extract message headers embedded
-	 * into the record data.
+	 * Specify an {@link InboundMessageMapper} to extract message headers embedded into
+	 * the record data.
 	 * @param embeddedHeadersMapper the {@link InboundMessageMapper} to use.
 	 */
 	public void setEmbeddedHeadersMapper(InboundMessageMapper<byte[]> embeddedHeadersMapper) {
@@ -183,8 +181,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	}
 
 	/**
-	 * Sets the worker identifier used to distinguish different
-	 * workers/processes of a Kinesis application.
+	 * Sets the worker identifier used to distinguish different workers/processes of a
+	 * Kinesis application.
 	 * @param workerId the worker identifier to use
 	 */
 	public void setWorkerId(String workerId) {
@@ -194,8 +192,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	/**
 	 * Set to true to bind the source consumer record in the header named
-	 * {@link IntegrationMessageHeaderAccessor#SOURCE_DATA}.
-	 * Does not apply to batch listeners.
+	 * {@link IntegrationMessageHeaderAccessor#SOURCE_DATA}. Does not apply to batch
+	 * listeners.
 	 * @param bindSourceRecord true to bind.
 	 * @since 2.2
 	 */
@@ -207,40 +205,22 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	protected void onInit() {
 		super.onInit();
 
-		KinesisClientLibConfiguration config =
-				new KinesisClientLibConfiguration(
-						this.consumerGroup,
-						this.stream,
-						null,
-						this.streamInitialSequence,
-						this.kinesisProxyCredentialsProvider,
-						null, null,
-						KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
-						this.workerId,
-						KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
-						this.idleBetweenPolls,
-						false,
-						KinesisClientLibConfiguration.DEFAULT_PARENT_SHARD_POLL_INTERVAL_MILLIS,
-						KinesisClientLibConfiguration.DEFAULT_SHARD_SYNC_INTERVAL_MILLIS,
-						KinesisClientLibConfiguration.DEFAULT_CLEANUP_LEASES_UPON_SHARDS_COMPLETION,
-						new ClientConfiguration(),
-						new ClientConfiguration(),
-						new ClientConfiguration(),
-						this.consumerBackoff,
-						KinesisClientLibConfiguration.DEFAULT_METRICS_BUFFER_TIME_MILLIS,
-						KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
-						KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
-						null,
-						KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS);
+		KinesisClientLibConfiguration config = new KinesisClientLibConfiguration(this.consumerGroup, this.stream, null,
+				this.streamInitialSequence, this.kinesisProxyCredentialsProvider, null, null,
+				KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS, this.workerId,
+				KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS, this.idleBetweenPolls, false,
+				KinesisClientLibConfiguration.DEFAULT_PARENT_SHARD_POLL_INTERVAL_MILLIS,
+				KinesisClientLibConfiguration.DEFAULT_SHARD_SYNC_INTERVAL_MILLIS,
+				KinesisClientLibConfiguration.DEFAULT_CLEANUP_LEASES_UPON_SHARDS_COMPLETION, new ClientConfiguration(),
+				new ClientConfiguration(), new ClientConfiguration(), this.consumerBackoff,
+				KinesisClientLibConfiguration.DEFAULT_METRICS_BUFFER_TIME_MILLIS,
+				KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
+				KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING, null,
+				KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS);
 
-		this.scheduler = new Worker.Builder()
-				.kinesisClient(this.kinesisClient)
-				.dynamoDBClient(this.dynamoDBClient)
-				.cloudWatchClient(this.cloudWatchClient)
-				.recordProcessorFactory(new RecordProcessorFactory())
-				.execService(new ExecutorServiceAdapter(this.executor))
-				.config(config)
-				.build();
+		this.scheduler = new Worker.Builder().kinesisClient(this.kinesisClient).dynamoDBClient(this.dynamoDBClient)
+				.cloudWatchClient(this.cloudWatchClient).recordProcessorFactory(new RecordProcessorFactory())
+				.execService(new ExecutorServiceAdapter(this.executor)).config(config).build();
 	}
 
 	@Override
@@ -273,8 +253,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	@Override
 	public String toString() {
-		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' +
-				", stream='" + this.stream + "'}";
+		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' + ", stream='" + this.stream
+				+ "'}";
 	}
 
 	private class RecordProcessorFactory implements IRecordProcessorFactory {
@@ -354,11 +334,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
 				try {
-					messageToUse =
-							KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper.toMessage((byte[]) payload);
+					messageToUse = KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper
+							.toMessage((byte[]) payload);
 					if (messageToUse == null) {
-						throw new IllegalStateException("The 'embeddedHeadersMapper' returned null for payload: " +
-								Arrays.toString((byte[]) payload));
+						throw new IllegalStateException("The 'embeddedHeadersMapper' returned null for payload: "
+								+ Arrays.toString((byte[]) payload));
 					}
 					payload = messageToUse.getPayload();
 				}
@@ -401,8 +381,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		}
 
 		/**
-		 * If there's an error channel, we create a new attributes holder here.
-		 * Then set the attributes for use by the {@link ErrorMessageStrategy}.
+		 * If there's an error channel, we create a new attributes holder here. Then set
+		 * the attributes for use by the {@link ErrorMessageStrategy}.
 		 * @param record the Kinesis record to use.
 		 * @param message the Spring Messaging message to use.
 		 */
@@ -426,7 +406,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				checkpointer.checkpoint();
 			}
 			catch (ShutdownException se) {
-				// Ignore checkpoint if the processor instance has been shutdown (fail over).
+				// Ignore checkpoint if the processor instance has been shutdown (fail
+				// over).
 				logger.info("Caught shutdown exception, skipping checkpoint.", se);
 			}
 			catch (ThrottlingException e) {
@@ -435,7 +416,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				}
 			}
 			catch (InvalidStateException e) {
-				// This indicates an issue with the DynamoDB table (check for table, provisioned
+				// This indicates an issue with the DynamoDB table (check for table,
+				// provisioned
 				// IOPS).
 				logger.error("Cannot save checkpoint to the DynamoDB table used by the Amazon Kinesis Client Library.",
 						e);

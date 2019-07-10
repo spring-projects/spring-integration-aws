@@ -50,18 +50,15 @@ public class S3OutboundGatewayParser extends AbstractConsumerEndpointParser {
 					.error("One and only of 's3' and 'transfer-manager' attributes must be provided", element);
 		}
 
-		BeanDefinition bucketExpression =
-				IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression("bucket", "bucket-expression",
-						parserContext, element, true);
+		BeanDefinition bucketExpression = IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression(
+				"bucket", "bucket-expression", parserContext, element, true);
 
 		BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(S3MessageHandler.class)
-				.addConstructorArgReference(hasS3 ? s3 : transferManager)
-				.addConstructorArgValue(bucketExpression)
+				.addConstructorArgReference(hasS3 ? s3 : transferManager).addConstructorArgValue(bucketExpression)
 				.addConstructorArgValue(true);
 
-		BeanDefinition commandExpression =
-				IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression("command",
-						"command-expression", parserContext, element, false);
+		BeanDefinition commandExpression = IntegrationNamespaceUtils.createExpressionDefinitionFromValueOrExpression(
+				"command", "command-expression", parserContext, element, false);
 
 		if (commandExpression != null) {
 			builder.addPropertyValue("commandExpression", commandExpression);
@@ -70,27 +67,26 @@ public class S3OutboundGatewayParser extends AbstractConsumerEndpointParser {
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "progress-listener");
 		IntegrationNamespaceUtils.setReferenceIfAttributeDefined(builder, element, "upload-metadata-provider");
 
-		BeanDefinition keyExpression =
-				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("key-expression", element);
+		BeanDefinition keyExpression = IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("key-expression",
+				element);
 		if (keyExpression != null) {
 			builder.addPropertyValue("keyExpression", keyExpression);
 		}
 
-		BeanDefinition objectAclExpression =
-				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("object-acl-expression", element);
+		BeanDefinition objectAclExpression = IntegrationNamespaceUtils
+				.createExpressionDefIfAttributeDefined("object-acl-expression", element);
 		if (objectAclExpression != null) {
 			builder.addPropertyValue("objectAclExpression", objectAclExpression);
 		}
 
-		BeanDefinition destinationBucketExpression =
-				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("destination-bucket-expression",
-						element);
+		BeanDefinition destinationBucketExpression = IntegrationNamespaceUtils
+				.createExpressionDefIfAttributeDefined("destination-bucket-expression", element);
 		if (destinationBucketExpression != null) {
 			builder.addPropertyValue("destinationBucketExpression", destinationBucketExpression);
 		}
 
-		BeanDefinition destinationKeyExpression =
-				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("destination-key-expression", element);
+		BeanDefinition destinationKeyExpression = IntegrationNamespaceUtils
+				.createExpressionDefIfAttributeDefined("destination-key-expression", element);
 		if (destinationKeyExpression != null) {
 			builder.addPropertyValue("destinationKeyExpression", destinationKeyExpression);
 		}

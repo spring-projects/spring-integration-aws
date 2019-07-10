@@ -54,17 +54,14 @@ public class SnsInboundChannelAdapterParserTests {
 	@Qualifier("snsInboundChannelAdapter")
 	private SnsInboundChannelAdapter snsInboundChannelAdapter;
 
-
 	@Test
 	public void testSnsInboundChannelAdapterParser() {
 		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "notificationStatusResolver.amazonSns"))
 				.isSameAs(this.amazonSns);
-		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "handleNotificationStatus",
-				Boolean.class))
+		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "handleNotificationStatus", Boolean.class))
 				.isTrue();
 		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "requestMapping.pathPatterns",
-				String[].class))
-				.isEqualTo(new String[] { "/foo" });
+				String[].class)).isEqualTo(new String[] { "/foo" });
 		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "payloadExpression.expression"))
 				.isEqualTo("payload.Message");
 		assertThat(this.snsInboundChannelAdapter.isRunning()).isFalse();

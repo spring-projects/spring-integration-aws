@@ -79,8 +79,7 @@ public class SnsOutboundChannelAdapterParserTests {
 	public void testSnsOutboundChannelAdapterDefaultParser() {
 		Object handler = TestUtils.getPropertyValue(this.defaultAdapter, "handler");
 
-		assertThat(TestUtils.getPropertyValue(this.defaultAdapter, "inputChannel"))
-				.isSameAs(this.notificationChannel);
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapter, "inputChannel")).isSameAs(this.notificationChannel);
 
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "amazonSns")).isSameAs(this.amazonSns);
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "evaluationContext")).isNotNull();
@@ -101,14 +100,11 @@ public class SnsOutboundChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "errorMessageStrategy"))
 				.isSameAs(this.errorMessageStrategy);
 
-		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "asyncHandler"))
-				.isSameAs(this.asyncHandler);
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "asyncHandler")).isSameAs(this.asyncHandler);
 
-		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "sync", Boolean.class))
-				.isFalse();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "sync", Boolean.class)).isFalse();
 
-		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler,
-				"sendTimeoutExpression.literalValue"))
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "sendTimeoutExpression.literalValue"))
 				.isEqualTo("202");
 
 	}

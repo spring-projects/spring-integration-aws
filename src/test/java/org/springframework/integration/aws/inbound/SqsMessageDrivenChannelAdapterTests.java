@@ -73,9 +73,9 @@ public class SqsMessageDrivenChannelAdapterTests {
 
 	@Test
 	public void testSqsMessageDrivenChannelAdapter() {
-		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
-				"listenerContainer.queueStopTimeout"))
-				.isEqualTo(10000L);
+		assertThat(
+				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "listenerContainer.queueStopTimeout"))
+						.isEqualTo(10000L);
 		org.springframework.messaging.Message<?> receive = this.inputChannel.receive(1000);
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");
@@ -89,7 +89,8 @@ public class SqsMessageDrivenChannelAdapterTests {
 			this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.stop('testQueue')"));
 		}
 		catch (Exception e) {
-			// May fail with NPE. See https://github.com/spring-cloud/spring-cloud-aws/issues/232
+			// May fail with NPE. See
+			// https://github.com/spring-cloud/spring-cloud-aws/issues/232
 		}
 		this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.isRunning('testQueue')"));
 
@@ -104,10 +105,10 @@ public class SqsMessageDrivenChannelAdapterTests {
 		assertThat(receive).isNotNull();
 		assertThat((Boolean) receive.getPayload()).isTrue();
 
-		assertThatThrownBy(() ->
-				this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.start('foo')")))
-				.hasCauseExactlyInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("Queue with name 'foo' does not exist");
+		assertThatThrownBy(
+				() -> this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.start('foo')")))
+						.hasCauseExactlyInstanceOf(IllegalArgumentException.class)
+						.hasMessageContaining("Queue with name 'foo' does not exist");
 
 		assertThat(this.sqsMessageDrivenChannelAdapter.getQueues()).isEqualTo(new String[] { "testQueue" });
 	}
@@ -122,16 +123,13 @@ public class SqsMessageDrivenChannelAdapterTests {
 			given(sqs.getQueueUrl(new GetQueueUrlRequest("testQueue")))
 					.willReturn(new GetQueueUrlResult().withQueueUrl("http://testQueue.amazonaws.com"));
 
-
-			given(sqs.receiveMessage(new ReceiveMessageRequest("http://testQueue.amazonaws.com")
-					.withAttributeNames("All")
-					.withMessageAttributeNames("All")
-					.withMaxNumberOfMessages(10)
-					.withWaitTimeSeconds(20)))
-					.willReturn(new ReceiveMessageResult()
-							.withMessages(new Message().withBody("messageContent"),
-									new Message().withBody("messageContent2")))
-					.willReturn(new ReceiveMessageResult());
+			given(sqs.receiveMessage(
+					new ReceiveMessageRequest("http://testQueue.amazonaws.com").withAttributeNames("All")
+							.withMessageAttributeNames("All").withMaxNumberOfMessages(10).withWaitTimeSeconds(20)))
+									.willReturn(new ReceiveMessageResult().withMessages(
+											new Message().withBody("messageContent"),
+											new Message().withBody("messageContent2")))
+									.willReturn(new ReceiveMessageResult());
 
 			given(sqs.getQueueAttributes(any(GetQueueAttributesRequest.class)))
 					.willReturn(new GetQueueAttributesResult());

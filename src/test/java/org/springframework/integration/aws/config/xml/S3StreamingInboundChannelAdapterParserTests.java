@@ -73,9 +73,9 @@ public class S3StreamingInboundChannelAdapterParserTests {
 		S3StreamingMessageSource source = TestUtils.getPropertyValue(this.s3Inbound, "source",
 				S3StreamingMessageSource.class);
 
-		assertThat(TestUtils.getPropertyValue(source, "remoteDirectoryExpression", Expression.class)
-				.getExpressionString())
-				.isEqualTo("foo/bar");
+		assertThat(
+				TestUtils.getPropertyValue(source, "remoteDirectoryExpression", Expression.class).getExpressionString())
+						.isEqualTo("foo/bar");
 
 		assertThat(TestUtils.getPropertyValue(source, "comparator")).isSameAs(this.comparator);
 		String remoteFileSeparator = (String) TestUtils.getPropertyValue(source, "remoteFileSeparator");

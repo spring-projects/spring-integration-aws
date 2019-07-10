@@ -37,15 +37,14 @@ public class SnsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
 	protected AbstractBeanDefinition parseConsumer(Element element, ParserContext parserContext) {
 		String sns = element.getAttribute(AwsParserUtils.SNS_REF);
 
-		BeanDefinitionBuilder builder =
-				BeanDefinitionBuilder.genericBeanDefinition(SnsMessageHandler.class)
-						.addConstructorArgReference(sns);
+		BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(SnsMessageHandler.class)
+				.addConstructorArgReference(sns);
 
 		AwsParserUtils.populateExpressionAttribute("topic-arn", builder, element, parserContext);
 		AwsParserUtils.populateExpressionAttribute("subject", builder, element, parserContext);
 
-		BeanDefinition message =
-				IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("body-expression", element);
+		BeanDefinition message = IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("body-expression",
+				element);
 		if (message != null) {
 			builder.addPropertyValue("bodyExpression", message);
 		}

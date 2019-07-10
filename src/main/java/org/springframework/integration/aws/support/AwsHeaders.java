@@ -106,7 +106,8 @@ public abstract class AwsHeaders {
 	public static final String CHECKPOINTER = PREFIX + "checkpointer";
 
 	/**
-	 * The {@value SERVICE_RESULT} header represents a {@link com.amazonaws.AmazonWebServiceResult}.
+	 * The {@value SERVICE_RESULT} header represents a
+	 * {@link com.amazonaws.AmazonWebServiceResult}.
 	 */
 	public static final String SERVICE_RESULT = PREFIX + "serviceResult";
 

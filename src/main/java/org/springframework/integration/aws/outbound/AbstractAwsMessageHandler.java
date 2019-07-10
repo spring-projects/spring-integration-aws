@@ -42,14 +42,12 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
 
 /**
- * The base {@link AbstractMessageProducingHandler} for AWS services.
- * Utilizes common logic ({@link AsyncHandler}, {@link ErrorMessageStrategy},
- * {@code failureChannel} etc.) and message pre- and post-processing,
+ * The base {@link AbstractMessageProducingHandler} for AWS services. Utilizes common
+ * logic ({@link AsyncHandler}, {@link ErrorMessageStrategy}, {@code failureChannel} etc.)
+ * and message pre- and post-processing,
  *
  * @param <H> the headers container type.
- *
  * @author Artem Bilan
- *
  * @since 2.0
  */
 public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProducingHandler {
@@ -106,9 +104,9 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	}
 
 	/**
-	 * Set the failure channel. After a failure on put, an {@link ErrorMessage} will be sent
-	 * to this channel with a payload of a {@link AwsRequestFailureException} with the
-	 * failed message and cause.
+	 * Set the failure channel. After a failure on put, an {@link ErrorMessage} will be
+	 * sent to this channel with a payload of a {@link AwsRequestFailureException} with
+	 * the failed message and cause.
 	 * @param failureChannel the failure channel.
 	 */
 	public void setFailureChannel(MessageChannel failureChannel) {
@@ -116,8 +114,8 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	}
 
 	/**
-	 * Set the failure channel name. After a failure on put, an {@link ErrorMessage} will be
-	 * sent to this channel name with a payload of a {@link AwsRequestFailureException}
+	 * Set the failure channel name. After a failure on put, an {@link ErrorMessage} will
+	 * be sent to this channel name with a payload of a {@link AwsRequestFailureException}
 	 * with the failed message and cause.
 	 * @param failureChannelName the failure channel name.
 	 */
@@ -213,9 +211,8 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 				}
 
 				if (getFailureChannel() != null) {
-					AbstractAwsMessageHandler.this.messagingTemplate.send(getFailureChannel(),
-							getErrorMessageStrategy()
-									.buildErrorMessage(new AwsRequestFailureException(message, request, ex), null));
+					AbstractAwsMessageHandler.this.messagingTemplate.send(getFailureChannel(), getErrorMessageStrategy()
+							.buildErrorMessage(new AwsRequestFailureException(message, request, ex), null));
 				}
 			}
 
@@ -227,14 +224,12 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 				}
 
 				if (getOutputChannel() != null) {
-					AbstractIntegrationMessageBuilder<?> messageBuilder =
-							getMessageBuilderFactory()
-									.fromMessage(message);
+					AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory()
+							.fromMessage(message);
 
 					additionalOnSuccessHeaders(messageBuilder, request, result);
 
 					messageBuilder.setHeaderIfAbsent(AwsHeaders.SERVICE_RESULT, result);
-
 
 					AbstractAwsMessageHandler.this.messagingTemplate.send(getOutputChannel(), messageBuilder.build());
 				}

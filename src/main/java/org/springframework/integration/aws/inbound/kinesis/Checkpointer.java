@@ -20,7 +20,6 @@ package org.springframework.integration.aws.inbound.kinesis;
  * A callback for target record process to perform checkpoint on the related shard.
  *
  * @author Artem Bilan
- *
  * @since 1.1
  */
 public interface Checkpointer {

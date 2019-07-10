@@ -23,22 +23,21 @@ import org.springframework.messaging.MessageHeaders;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 
 /**
- * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping
- * from headers to SQS message attributes.
+ * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping from
+ * headers to SQS message attributes.
  * <p>
- * The {@link org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer} maps
- * all the SQS message attributes to the {@link MessageHeaders}.
+ * The
+ * {@link org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer}
+ * maps all the SQS message attributes to the {@link MessageHeaders}.
  *
  * @author Artem Bilan
- *
  * @since 2.0
  */
 public class SqsHeaderMapper extends AbstractMessageAttributesHeaderMapper<MessageAttributeValue> {
 
 	@Override
 	protected MessageAttributeValue buildMessageAttribute(String dataType, Object value) {
-		MessageAttributeValue messageAttributeValue = new MessageAttributeValue()
-				.withDataType(dataType);
+		MessageAttributeValue messageAttributeValue = new MessageAttributeValue().withDataType(dataType);
 		if (value instanceof ByteBuffer) {
 			return messageAttributeValue.withBinaryValue((ByteBuffer) value);
 		}

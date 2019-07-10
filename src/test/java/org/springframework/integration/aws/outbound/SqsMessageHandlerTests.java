@@ -98,35 +98,31 @@ public class SqsMessageHandlerTests {
 
 		this.sqsMessageHandler.setQueue("foo");
 		this.sqsSendChannel.send(message);
-		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor =
-				ArgumentCaptor.forClass(SendMessageRequest.class);
-		verify(this.amazonSqs)
-				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
-		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("https://queue-url.com/foo");
+		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor = ArgumentCaptor
+				.forClass(SendMessageRequest.class);
+		verify(this.amazonSqs).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl()).isEqualTo("https://queue-url.com/foo");
 
 		message = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
 		this.sqsSendChannel.send(message);
-		verify(this.amazonSqs, times(2))
-				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
+		verify(this.amazonSqs, times(2)).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(),
+				any(AsyncHandler.class));
 
-		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("https://queue-url.com/bar");
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl()).isEqualTo("https://queue-url.com/bar");
 
 		SpelExpressionParser spelExpressionParser = new SpelExpressionParser();
 		Expression expression = spelExpressionParser.parseExpression("headers.foo");
 		this.sqsMessageHandler.setQueueExpression(expression);
 		message = MessageBuilder.withPayload("message").setHeader("foo", "baz").build();
 		this.sqsSendChannel.send(message);
-		verify(this.amazonSqs, times(3))
-				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
+		verify(this.amazonSqs, times(3)).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(),
+				any(AsyncHandler.class));
 
 		SendMessageRequest sendMessageRequestArgumentCaptorValue = sendMessageRequestArgumentCaptor.getValue();
-		assertThat(sendMessageRequestArgumentCaptorValue.getQueueUrl())
-				.isEqualTo("https://queue-url.com/baz");
+		assertThat(sendMessageRequestArgumentCaptorValue.getQueueUrl()).isEqualTo("https://queue-url.com/baz");
 
-		Map<String, MessageAttributeValue> messageAttributes =
-				sendMessageRequestArgumentCaptorValue.getMessageAttributes();
+		Map<String, MessageAttributeValue> messageAttributes = sendMessageRequestArgumentCaptorValue
+				.getMessageAttributes();
 
 		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.ID);
 		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
@@ -142,17 +138,15 @@ public class SqsMessageHandlerTests {
 
 		this.sqsMessageHandlerWithAutoQueueCreate.setQueue("foo");
 		this.sqsSendChannelWithAutoCreate.send(message);
-		ArgumentCaptor<CreateQueueRequest> createQueueRequestArgumentCaptor =
-				ArgumentCaptor.forClass(CreateQueueRequest.class);
+		ArgumentCaptor<CreateQueueRequest> createQueueRequestArgumentCaptor = ArgumentCaptor
+				.forClass(CreateQueueRequest.class);
 		verify(this.amazonSqs).createQueue(createQueueRequestArgumentCaptor.capture());
 		assertThat(createQueueRequestArgumentCaptor.getValue().getQueueName()).isEqualTo("foo");
 
-		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor =
-				ArgumentCaptor.forClass(SendMessageRequest.class);
-		verify(this.amazonSqs)
-				.sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
-		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl())
-				.isEqualTo("https://queue-url.com/foo");
+		ArgumentCaptor<SendMessageRequest> sendMessageRequestArgumentCaptor = ArgumentCaptor
+				.forClass(SendMessageRequest.class);
+		verify(this.amazonSqs).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
+		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl()).isEqualTo("https://queue-url.com/foo");
 	}
 
 	@Configuration
@@ -168,18 +162,14 @@ public class SqsMessageHandlerTests {
 				GetQueueUrlResult queueUrl = new GetQueueUrlResult();
 				queueUrl.setQueueUrl("https://queue-url.com/" + getQueueUrlRequest.getQueueName());
 				return queueUrl;
-			})
-					.given(amazonSqs)
-					.getQueueUrl(any(GetQueueUrlRequest.class));
+			}).given(amazonSqs).getQueueUrl(any(GetQueueUrlRequest.class));
 
 			willAnswer(invocation -> {
 				CreateQueueRequest createQueueRequest = (CreateQueueRequest) invocation.getArguments()[0];
 				CreateQueueResult queueUrl = new CreateQueueResult();
 				queueUrl.setQueueUrl("https://queue-url.com/" + createQueueRequest.getQueueName());
 				return queueUrl;
-			})
-					.given(amazonSqs)
-					.createQueue(any(CreateQueueRequest.class));
+			}).given(amazonSqs).createQueue(any(CreateQueueRequest.class));
 
 			return amazonSqs;
 		}
@@ -193,7 +183,8 @@ public class SqsMessageHandlerTests {
 		@Bean
 		@ServiceActivator(inputChannel = "sqsSendChannelWithAutoCreate")
 		public MessageHandler sqsMessageHandlerWithAutoQueueCreate() {
-			DynamicQueueUrlDestinationResolver destinationResolver = new DynamicQueueUrlDestinationResolver(amazonSqs(), null);
+			DynamicQueueUrlDestinationResolver destinationResolver = new DynamicQueueUrlDestinationResolver(amazonSqs(),
+					null);
 			destinationResolver.setAutoCreate(true);
 			return new SqsMessageHandler(amazonSqs(), destinationResolver);
 		}

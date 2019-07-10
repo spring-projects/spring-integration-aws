@@ -75,17 +75,14 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 	@Bean
 	public DestinationResolver<?> destinationResolver() {
 		DestinationResolver<?> destinationResolver = Mockito.mock(DestinationResolver.class);
-		willThrow(DestinationResolutionException.class)
-				.given(destinationResolver)
-				.resolveDestination(anyString());
+		willThrow(DestinationResolutionException.class).given(destinationResolver).resolveDestination(anyString());
 		return destinationResolver;
 	}
 
 	@Test
 	public void testSqsMessageDrivenChannelAdapterParser() {
-		SimpleMessageListenerContainer listenerContainer =
-				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "listenerContainer",
-						SimpleMessageListenerContainer.class);
+		SimpleMessageListenerContainer listenerContainer = TestUtils.getPropertyValue(
+				this.sqsMessageDrivenChannelAdapter, "listenerContainer", SimpleMessageListenerContainer.class);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "amazonSqs")).isSameAs(this.amazonSqs);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "resourceIdResolver"))
 				.isSameAs(this.resourceIdResolver);
@@ -106,12 +103,10 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 				.isSameAs(this.errorChannel);
 		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "errorChannel"))
 				.isSameAs(this.nullChannel);
-		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter,
-				"messagingTemplate.sendTimeout"))
+		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messagingTemplate.sendTimeout"))
 				.isEqualTo(2000L);
 		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messageDeletionPolicy",
-				SqsMessageDeletionPolicy.class))
-				.isEqualTo(SqsMessageDeletionPolicy.NEVER);
+				SqsMessageDeletionPolicy.class)).isEqualTo(SqsMessageDeletionPolicy.NEVER);
 	}
 
 }

@@ -45,12 +45,12 @@ import org.springframework.util.Assert;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
 
 /**
- * The {@link MessageProducerSupport} implementation for the Amazon SQS {@code receiveMessage}.
- * Works in 'listener' manner and delegates hard to the {@link SimpleMessageListenerContainer}.
+ * The {@link MessageProducerSupport} implementation for the Amazon SQS
+ * {@code receiveMessage}. Works in 'listener' manner and delegates hard to the
+ * {@link SimpleMessageListenerContainer}.
  *
  * @author Artem Bilan
  * @author Patrick Fitzsimons
- *
  * @see SimpleMessageListenerContainerFactory
  * @see SimpleMessageListenerContainer
  * @see QueueMessageHandler
@@ -59,8 +59,7 @@ import com.amazonaws.services.sqs.AmazonSQSAsync;
 @IntegrationManagedResource
 public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
 
-	private final SimpleMessageListenerContainerFactory simpleMessageListenerContainerFactory =
-			new SimpleMessageListenerContainerFactory();
+	private final SimpleMessageListenerContainerFactory simpleMessageListenerContainerFactory = new SimpleMessageListenerContainerFactory();
 
 	private final String[] queues;
 
@@ -163,7 +162,7 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 
 	@ManagedAttribute
 	public String[] getQueues() {
-		return  Arrays.copyOf(this.queues, this.queues.length);
+		return Arrays.copyOf(this.queues, this.queues.length);
 	}
 
 	@Override
@@ -185,17 +184,12 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		protected void handleMessageInternal(Message<?> message, String lookupDestination) {
 			MessageHeaders headers = message.getHeaders();
 
-			Message<?> messageToSend = getMessageBuilderFactory()
-					.fromMessage(message)
-					.removeHeaders("LogicalResourceId",
-							"MessageId",
-							"ReceiptHandle",
-							"Acknowledgment")
+			Message<?> messageToSend = getMessageBuilderFactory().fromMessage(message)
+					.removeHeaders("LogicalResourceId", "MessageId", "ReceiptHandle", "Acknowledgment")
 					.setHeader(AwsHeaders.MESSAGE_ID, headers.get("MessageId"))
 					.setHeader(AwsHeaders.RECEIPT_HANDLE, headers.get("ReceiptHandle"))
 					.setHeader(AwsHeaders.RECEIVED_QUEUE, headers.get("LogicalResourceId"))
-					.setHeader(AwsHeaders.ACKNOWLEDGMENT, headers.get("Acknowledgment"))
-					.build();
+					.setHeader(AwsHeaders.ACKNOWLEDGMENT, headers.get("Acknowledgment")).build();
 
 			sendMessage(messageToSend);
 		}

@@ -32,7 +32,6 @@ import org.springframework.integration.file.remote.RemoteFileOperations;
  *
  * @author Christian Tzolov
  * @author Artem Bilan
- *
  * @since 1.1
  */
 public class S3StreamingInboundChannelAdapterParser extends AbstractRemoteFileStreamingInboundChannelAdapterParser {

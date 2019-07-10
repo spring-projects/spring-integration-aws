@@ -33,8 +33,8 @@ public enum ListenerMode {
 	record,
 
 	/**
-	 * Each {@link Message} will contain {@code List} ( if not empty)
-	 * of converted or raw {@code Record}s.
+	 * Each {@link Message} will contain {@code List} ( if not empty) of converted or raw
+	 * {@code Record}s.
 	 */
 	batch
 

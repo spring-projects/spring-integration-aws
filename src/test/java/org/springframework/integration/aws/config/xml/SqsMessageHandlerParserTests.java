@@ -81,10 +81,8 @@ public class SqsMessageHandlerParserTests {
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "amazonSqs"))
 				.isSameAs(this.amazonSqs);
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"destinationResolver.resourceIdResolver"))
-				.isSameAs(this.resourceIdResolver);
-		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"queueExpression.literalValue"))
+				"destinationResolver.resourceIdResolver")).isSameAs(this.resourceIdResolver);
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "queueExpression.literalValue"))
 				.isEqualTo("foo");
 		assertThat(this.sqsOutboundChannelAdapter.getPhase()).isEqualTo(100);
 		assertThat(this.sqsOutboundChannelAdapter.isAutoStartup()).isFalse();
@@ -94,17 +92,14 @@ public class SqsMessageHandlerParserTests {
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapter, "handler"))
 				.isSameAs(this.sqsOutboundChannelAdapterHandler);
 
-		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"delayExpression.expression"))
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "delayExpression.expression"))
 				.isEqualTo("'200'");
 
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"messageDeduplicationIdExpression.literalValue"))
-				.isEqualTo("foo");
+				"messageDeduplicationIdExpression.literalValue")).isEqualTo("foo");
 
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"messageGroupIdExpression.expression"))
-				.isEqualTo("'bar'");
+				"messageGroupIdExpression.expression")).isEqualTo("'bar'");
 
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "failureChannel"))
 				.isSameAs(this.failureChannel);
@@ -121,12 +116,11 @@ public class SqsMessageHandlerParserTests {
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "asyncHandler"))
 				.isSameAs(this.asyncHandler);
 
-		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "sync", Boolean.class))
-				.isFalse();
+		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "sync", Boolean.class)).isFalse();
 
-		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
-				"sendTimeoutExpression.literalValue"))
-				.isEqualTo("202");
+		assertThat(
+				TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "sendTimeoutExpression.literalValue"))
+						.isEqualTo("202");
 	}
 
 }

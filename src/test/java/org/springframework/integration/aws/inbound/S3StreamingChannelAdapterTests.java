@@ -66,7 +66,6 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 /**
  * @author Christian Tzolov
  * @author Artem Bilan
- *
  * @since 1.1
  */
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -154,7 +153,6 @@ public class S3StreamingChannelAdapterTests {
 			return amazonS3;
 		}
 
-
 		@Bean
 		@InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
 		public S3StreamingMessageSource s3InboundStreamingMessageSource(AmazonS3 amazonS3) {
@@ -163,8 +161,7 @@ public class S3StreamingChannelAdapterTests {
 			S3StreamingMessageSource s3MessageSource = new S3StreamingMessageSource(s3FileTemplate,
 					Comparator.comparing(S3ObjectSummary::getKey));
 			s3MessageSource.setRemoteDirectory("/" + S3_BUCKET + "/subdir");
-			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"
-			));
+			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));
 
 			return s3MessageSource;
 		}

@@ -27,8 +27,8 @@ package org.springframework.integration.aws.inbound.kinesis;
 public enum CheckpointMode {
 
 	/**
-	 * Checkpoint after each processed record.
-	 * Makes sense only if {@link ListenerMode#record} is used.
+	 * Checkpoint after each processed record. Makes sense only if
+	 * {@link ListenerMode#record} is used.
 	 */
 	record,
 

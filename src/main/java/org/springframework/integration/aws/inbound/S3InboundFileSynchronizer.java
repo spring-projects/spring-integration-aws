@@ -47,7 +47,8 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	}
 
 	/**
-	 * Create a synchronizer with the {@link SessionFactory} used to acquire {@link Session} instances.
+	 * Create a synchronizer with the {@link SessionFactory} used to acquire
+	 * {@link Session} instances.
 	 * @param sessionFactory The session factory.
 	 */
 	public S3InboundFileSynchronizer(SessionFactory<S3ObjectSummary> sessionFactory) {

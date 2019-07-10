@@ -178,8 +178,8 @@ public class S3InboundChannelAdapterTests {
 			synchronizer.setPreserveTimestamp(true);
 			synchronizer.setRemoteDirectory(S3_BUCKET);
 			synchronizer.setFilter(new S3RegexPatternFileListFilter(".*\\.test$"));
-			Expression expression =
-					PARSER.parseExpression("(#this.contains('/') ? #this.substring(#this.lastIndexOf('/') + 1) : #this).toUpperCase() + '.a'");
+			Expression expression = PARSER.parseExpression(
+					"(#this.contains('/') ? #this.substring(#this.lastIndexOf('/') + 1) : #this).toUpperCase() + '.a'");
 			synchronizer.setLocalFilenameGeneratorExpression(expression);
 			return synchronizer;
 		}
@@ -187,8 +187,8 @@ public class S3InboundChannelAdapterTests {
 		@Bean
 		@InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
 		public S3InboundFileSynchronizingMessageSource s3InboundFileSynchronizingMessageSource() {
-			S3InboundFileSynchronizingMessageSource messageSource =
-					new S3InboundFileSynchronizingMessageSource(s3InboundFileSynchronizer());
+			S3InboundFileSynchronizingMessageSource messageSource = new S3InboundFileSynchronizingMessageSource(
+					s3InboundFileSynchronizer());
 			messageSource.setAutoCreateLocalDirectory(true);
 			messageSource.setLocalDirectory(LOCAL_FOLDER);
 			messageSource.setLocalFilter(new AcceptOnceFileListFilter<File>());
