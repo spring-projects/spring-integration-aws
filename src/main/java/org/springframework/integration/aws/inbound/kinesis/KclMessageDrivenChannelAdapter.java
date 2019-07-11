@@ -16,11 +16,17 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 import org.springframework.core.AttributeAccessor;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.support.ExecutorServiceAdapter;
@@ -101,6 +107,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private int consumerBackoff;
 
+	private Converter<byte[], Object> converter = new DeserializingConverter();
+
+	private ListenerMode listenerMode = ListenerMode.record;
+
 	private long checkpointsInterval = 5_000L;
 
 	private CheckpointMode checkpointMode = CheckpointMode.batch;
@@ -168,6 +178,20 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	}
 
 	/**
+	 * Specify a {@link Converter} to deserialize the {@code byte[]} from record's body.
+	 * Can be {@code null} meaning no deserialization.
+	 * @param converter the {@link Converter} to use or null
+	 */
+	public void setConverter(Converter<byte[], Object> converter) {
+		this.converter = converter;
+	}
+
+	public void setListenerMode(ListenerMode listenerMode) {
+		Assert.notNull(listenerMode, "'listenerMode' must not be null");
+		this.listenerMode = listenerMode;
+	}
+
+	/**
 	 * Sets the interval between 2 checkpoints.
 	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
 	 */
@@ -226,6 +250,13 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	@Override
 	protected void doStart() {
 		super.doStart();
+
+		if (ListenerMode.batch.equals(this.listenerMode) && CheckpointMode.record.equals(this.checkpointMode)) {
+			this.checkpointMode = CheckpointMode.batch;
+			logger.warn("The 'checkpointMode' is overridden from [CheckpointMode.record] to [CheckpointMode.batch] "
+					+ "because it does not make sense in case of [ListenerMode.batch].");
+		}
+
 		this.executor.execute(this.scheduler);
 	}
 
@@ -288,47 +319,63 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			if (logger.isDebugEnabled()) {
 				logger.debug("Processing " + records.size() + " records from " + this.shardId);
 			}
-			for (Record record : records) {
-				try {
-					processSingleRecord(record, checkpointer);
-				}
-				catch (Throwable t) {
-					logger.warn("Caught throwable while processing record " + record, t);
-				}
-				finally {
-					attributesHolder.remove();
-					// Checkpoint once every checkpoint interval.
-					if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode) &&
-							System.currentTimeMillis() > nextCheckpointTimeInMillis) {
-						checkpoint(checkpointer);
-						this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+
+			try {
+				if (ListenerMode.record.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
+					for (Record record : records) {
+						processSingleRecord(record, checkpointer);
+						checkpointIfRecordMode(checkpointer, record);
+						checkpointIfPeriodicMode(checkpointer, record);
 					}
 				}
+				else if (ListenerMode.batch.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
+					processMultipleRecords(records, checkpointer);
+					checkpointIfPeriodicMode(checkpointer, null);
+				}
+				checkpointIfBatchMode(checkpointer);
 			}
-
-			// checkpoint if needed
-			if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
-				checkpoint(checkpointer);
+			finally {
+				attributesHolder.remove();
 			}
 		}
 
-		/**
-		 * Process a single record.
-		 * @param record The record to be processed.
-		 * @param checkpointer the checkpointer to use if the checkpointMode is record
-		 */
 		private void processSingleRecord(Record record, IRecordProcessorCheckpointer checkpointer) {
-			// Convert AWS Record in Spring Message.
-			performSend(prepareMessageForRecord(record, checkpointer), record);
-
-			// checkpoint if needed
-			if (CheckpointMode.record.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
-				checkpoint(checkpointer);
-			}
+			performSend(prepareMessageForRecord(record), record, checkpointer);
 		}
 
-		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record,
-				IRecordProcessorCheckpointer checkpointer) {
+		private void processMultipleRecords(List<Record> records, IRecordProcessorCheckpointer checkpointer) {
+			Object payload = records;
+
+			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+				payload = records.stream().map(this::prepareMessageForRecord).collect(Collectors.toList());
+			}
+
+			final List<String> partitionKeys;
+			final List<String> sequenceNumbers;
+			if (KclMessageDrivenChannelAdapter.this.converter != null) {
+				partitionKeys = new ArrayList<>();
+				sequenceNumbers = new ArrayList<>();
+
+				payload = records.stream().map(r -> {
+					partitionKeys.add(r.getPartitionKey());
+					sequenceNumbers.add(r.getSequenceNumber());
+
+					return KclMessageDrivenChannelAdapter.this.converter.convert(r.getData().array());
+				}).collect(Collectors.toList());
+			}
+			else {
+				partitionKeys = null;
+				sequenceNumbers = null;
+			}
+
+			AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(payload)
+					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
+					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
+
+			performSend(messageBuilder, records, checkpointer);
+		}
+
+		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
 			Object payload = record.getData().array();
 			Message<?> messageToUse = null;
 
@@ -347,11 +394,13 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				}
 			}
 
+			if (payload instanceof byte[] && KclMessageDrivenChannelAdapter.this.converter != null) {
+				payload = KclMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
+			}
+
 			AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory().withPayload(payload)
 					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.getPartitionKey())
-					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber())
-					.setHeader(AwsHeaders.RECEIVED_STREAM, KclMessageDrivenChannelAdapter.this.stream)
-					.setHeader(AwsHeaders.SHARD, this.shardId);
+					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
 
 			if (KclMessageDrivenChannelAdapter.this.bindSourceRecord) {
 				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
@@ -361,14 +410,18 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
 			}
 
+			return messageBuilder;
+		}
+
+		private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord,
+								IRecordProcessorCheckpointer checkpointer) {
+			messageBuilder.setHeader(AwsHeaders.RECEIVED_STREAM, KclMessageDrivenChannelAdapter.this.stream)
+					.setHeader(AwsHeaders.SHARD, this.shardId);
+
 			if (CheckpointMode.manual.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
 				messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, checkpointer);
 			}
 
-			return messageBuilder;
-		}
-
-		private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord) {
 			Message<?> messageToSend = messageBuilder.build();
 			setAttributesIfNecessary(rawRecord, messageToSend);
 			try {
@@ -397,13 +450,19 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		/**
 		 * Checkpoint with retries.
 		 * @param checkpointer checkpointer
+		 * @param record last processed record
 		 */
-		private void checkpoint(IRecordProcessorCheckpointer checkpointer) {
+		private void checkpoint(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
 			if (logger.isInfoEnabled()) {
 				logger.info("Checkpointing shard " + shardId);
 			}
 			try {
-				checkpointer.checkpoint();
+				if (record == null) {
+					checkpointer.checkpoint();
+				}
+				else {
+					checkpointer.checkpoint(record);
+				}
 			}
 			catch (ShutdownException se) {
 				// Ignore checkpoint if the processor instance has been shutdown (fail
@@ -421,6 +480,26 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				// IOPS).
 				logger.error("Cannot save checkpoint to the DynamoDB table used by the Amazon Kinesis Client Library.",
 						e);
+			}
+		}
+
+		private void checkpointIfBatchMode(IRecordProcessorCheckpointer checkpointer) {
+			if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				checkpoint(checkpointer, null);
+			}
+		}
+
+		private void checkpointIfRecordMode(IRecordProcessorCheckpointer checkpointer, Record record) {
+			if (CheckpointMode.record.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				checkpoint(checkpointer, record);
+			}
+		}
+
+		private void checkpointIfPeriodicMode(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
+			if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)
+					&& System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+				checkpoint(checkpointer, record);
+				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
 			}
 		}
 
