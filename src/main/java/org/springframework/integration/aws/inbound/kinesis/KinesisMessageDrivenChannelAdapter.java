@@ -42,6 +42,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
@@ -86,6 +88,7 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  * @author Artem Bilan
  * @author Krzysztof Witkowski
  * @author Hervé Fortin
+ * @author Dirk Bonhomme
  * @since 1.1
  */
 @ManagedResource
@@ -972,60 +975,54 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 			this.checkpointer.setHighestSequence(records.get(records.size() - 1).getSequenceNumber());
 
-			switch (KinesisMessageDrivenChannelAdapter.this.listenerMode) {
-			case record:
+			if (ListenerMode.record.equals(KinesisMessageDrivenChannelAdapter.this.listenerMode)) {
 				for (Record record : records) {
-					performSend(prepareMessageForRecord(record), record);
-
-					if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-						this.checkpointer.checkpoint(record.getSequenceNumber());
-					}
+					processSingleRecord(record);
+					checkpointIfRecordMode(record);
+					checkpointIfPeriodicMode(record);
 				}
+			}
+			else if (ListenerMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.listenerMode)) {
+				processMultipleRecords(records);
+				checkpointIfPeriodicMode(null);
+			}
+			checkpointIfBatchMode();
+		}
 
-				break;
+		private void processSingleRecord(Record record) {
+			performSend(prepareMessageForRecord(record), record);
+		}
 
-			case batch:
-				Object payload = records;
+		private void processMultipleRecords(List<Record> records) {
+			Object payload = records;
 
-				if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-					payload = records.stream().map(this::prepareMessageForRecord).collect(Collectors.toList());
-				}
-
-				final List<String> partitionKeys;
-				final List<String> sequenceNumbers;
-				if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
-					partitionKeys = new ArrayList<>();
-					sequenceNumbers = new ArrayList<>();
-
-					payload = records.stream().map(r -> {
-						partitionKeys.add(r.getPartitionKey());
-						sequenceNumbers.add(r.getSequenceNumber());
-
-						return KinesisMessageDrivenChannelAdapter.this.converter.convert(r.getData().array());
-					}).collect(Collectors.toList());
-				}
-				else {
-					partitionKeys = null;
-					sequenceNumbers = null;
-				}
-
-				AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(payload)
-						.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
-						.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
-
-				performSend(messageBuilder, records);
-
-				break;
+			if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+				payload = records.stream().map(this::prepareMessageForRecord).collect(Collectors.toList());
 			}
 
-			if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-				this.checkpointer.checkpoint();
+			final List<String> partitionKeys;
+			final List<String> sequenceNumbers;
+			if (KinesisMessageDrivenChannelAdapter.this.converter != null) {
+				partitionKeys = new ArrayList<>();
+				sequenceNumbers = new ArrayList<>();
+
+				payload = records.stream().map(r -> {
+					partitionKeys.add(r.getPartitionKey());
+					sequenceNumbers.add(r.getSequenceNumber());
+
+					return KinesisMessageDrivenChannelAdapter.this.converter.convert(r.getData().array());
+				}).collect(Collectors.toList());
 			}
-			else if (CheckpointMode.periodic.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
-					&& System.currentTimeMillis() > nextCheckpointTimeInMillis) {
-				this.checkpointer.checkpoint();
-				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+			else {
+				partitionKeys = null;
+				sequenceNumbers = null;
 			}
+
+			AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(payload)
+					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
+					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
+
+			performSend(messageBuilder, records);
 		}
 
 		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
@@ -1045,7 +1042,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			}
 
 			if (payload instanceof byte[] && KinesisMessageDrivenChannelAdapter.this.converter != null) {
-
 				payload = KinesisMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
 			}
 
@@ -1080,6 +1076,31 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			catch (Exception e) {
 				logger.info("Got an exception during sending a '" + messageToSend + "'" + "\nfor the '" + rawRecord
 						+ "'.\n" + "Consider to use 'errorChannel' flow for the compensation logic.", e);
+			}
+		}
+
+		private void checkpointIfBatchMode() {
+			if (CheckpointMode.batch.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+				this.checkpointer.checkpoint();
+			}
+		}
+
+		private void checkpointIfRecordMode(Record record) {
+			if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+				this.checkpointer.checkpoint(record.getSequenceNumber());
+			}
+		}
+
+		private void checkpointIfPeriodicMode(@Nullable Record record) {
+			if (CheckpointMode.periodic.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
+					&& System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+				if (record == null) {
+					this.checkpointer.checkpoint();
+				}
+				else {
+					this.checkpointer.checkpoint(record.getSequenceNumber());
+				}
+				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
 			}
 		}
 

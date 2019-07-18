@@ -195,7 +195,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings("rawtypes")
-	public void testReshadring() throws InterruptedException {
+	public void testResharding() throws InterruptedException {
 		this.reshardingChannelAdapter.start();
 
 		assertThat(this.kinesisChannel.receive(10000)).isNotNull();
