@@ -30,6 +30,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 
+import com.amazonaws.regions.Region;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CopyObjectRequest;
@@ -64,7 +65,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 	}
 
 	@Override
-	public S3ObjectSummary[] list(String path) throws IOException {
+	public S3ObjectSummary[] list(String path) {
 		String[] bucketPrefix = splitPathToBucketAndKey(path, false);
 
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(bucketPrefix[0]);
@@ -86,7 +87,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 		}
 		while (objectListing.isTruncated());
 
-		return objectSummaries.toArray(new S3ObjectSummary[objectSummaries.size()]);
+		return objectSummaries.toArray(new S3ObjectSummary[0]);
 	}
 
 	private String resolveBucket(String bucket) {
@@ -99,7 +100,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 	}
 
 	@Override
-	public String[] listNames(String path) throws IOException {
+	public String[] listNames(String path) {
 		String[] bucketPrefix = splitPathToBucketAndKey(path, false);
 
 		ListObjectsRequest listObjectsRequest = new ListObjectsRequest().withBucketName(bucketPrefix[0]);
@@ -123,18 +124,18 @@ public class S3Session implements Session<S3ObjectSummary> {
 		}
 		while (objectListing.isTruncated());
 
-		return names.toArray(new String[names.size()]);
+		return names.toArray(new String[0]);
 	}
 
 	@Override
-	public boolean remove(String path) throws IOException {
+	public boolean remove(String path) {
 		String[] bucketKey = splitPathToBucketAndKey(path, true);
 		this.amazonS3.deleteObject(bucketKey[0], bucketKey[1]);
 		return true;
 	}
 
 	@Override
-	public void rename(String pathFrom, String pathTo) throws IOException {
+	public void rename(String pathFrom, String pathTo) {
 		String[] bucketKeyFrom = splitPathToBucketAndKey(pathFrom, true);
 		String[] bucketKeyTo = splitPathToBucketAndKey(pathTo, true);
 		CopyObjectRequest copyRequest = new CopyObjectRequest(bucketKeyFrom[0], bucketKeyFrom[1], bucketKeyTo[0],
@@ -149,41 +150,37 @@ public class S3Session implements Session<S3ObjectSummary> {
 	public void read(String source, OutputStream outputStream) throws IOException {
 		String[] bucketKey = splitPathToBucketAndKey(source, true);
 		S3Object s3Object = this.amazonS3.getObject(bucketKey[0], bucketKey[1]);
-		S3ObjectInputStream objectContent = s3Object.getObjectContent();
-		try {
+		try (S3ObjectInputStream objectContent = s3Object.getObjectContent()) {
 			StreamUtils.copy(objectContent, outputStream);
-		}
-		finally {
-			objectContent.close();
 		}
 	}
 
 	@Override
-	public void write(InputStream inputStream, String destination) throws IOException {
+	public void write(InputStream inputStream, String destination) {
 		Assert.notNull(inputStream, "'inputStream' must not be null.");
 		String[] bucketKey = splitPathToBucketAndKey(destination, true);
 		this.amazonS3.putObject(bucketKey[0], bucketKey[1], inputStream, new ObjectMetadata());
 	}
 
 	@Override
-	public void append(InputStream inputStream, String destination) throws IOException {
+	public void append(InputStream inputStream, String destination) {
 		throw new UnsupportedOperationException("The 'append' operation isn't supported by the Amazon S3 protocol.");
 	}
 
 	@Override
-	public boolean mkdir(String directory) throws IOException {
+	public boolean mkdir(String directory) {
 		this.amazonS3.createBucket(directory);
 		return true;
 	}
 
 	@Override
-	public boolean rmdir(String directory) throws IOException {
+	public boolean rmdir(String directory) {
 		this.amazonS3.deleteBucket(resolveBucket(directory));
 		return true;
 	}
 
 	@Override
-	public boolean exists(String path) throws IOException {
+	public boolean exists(String path) {
 		String[] bucketKey = splitPathToBucketAndKey(path, true);
 		try {
 			this.amazonS3.getObjectMetadata(bucketKey[0], bucketKey[1]);
@@ -200,7 +197,7 @@ public class S3Session implements Session<S3ObjectSummary> {
 	}
 
 	@Override
-	public InputStream readRaw(String source) throws IOException {
+	public InputStream readRaw(String source) {
 		String[] bucketKey = splitPathToBucketAndKey(source, true);
 		S3Object s3Object = this.amazonS3.getObject(bucketKey[0], bucketKey[1]);
 		return s3Object.getObjectContent();
@@ -217,13 +214,19 @@ public class S3Session implements Session<S3ObjectSummary> {
 	}
 
 	@Override
-	public boolean finalizeRaw() throws IOException {
+	public boolean finalizeRaw() {
 		return true;
 	}
 
 	@Override
 	public Object getClientInstance() {
 		return this.amazonS3;
+	}
+
+	@Override
+	public String getHostPort() {
+		Region region = this.amazonS3.getRegion().toAWSRegion();
+		return String.format("%s.%s.%s:%d", AmazonS3.ENDPOINT_PREFIX, region.getName(), region.getDomain(), 443);
 	}
 
 	public String normalizeBucketName(String path) {

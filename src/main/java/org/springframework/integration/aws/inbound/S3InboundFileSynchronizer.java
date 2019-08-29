@@ -80,4 +80,9 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 				remoteFile, localDirectory, session);
 	}
 
+	@Override
+	protected String protocol() {
+		return "s3";
+	}
+
 }

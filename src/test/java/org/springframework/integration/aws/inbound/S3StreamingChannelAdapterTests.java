@@ -19,6 +19,7 @@ package org.springframework.integration.aws.inbound;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willReturn;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,6 +61,7 @@ import org.springframework.util.FileCopyUtils;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.Region;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 
@@ -119,6 +121,8 @@ public class S3StreamingChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(InputStream.class);
 		assertThat(message.getHeaders().get(FileHeaders.REMOTE_FILE)).isEqualTo("subdir/b.test");
+		assertThat(message.getHeaders())
+				.containsKeys(FileHeaders.REMOTE_DIRECTORY, FileHeaders.REMOTE_HOST_PORT, FileHeaders.REMOTE_FILE);
 		InputStream inputStreamB = (InputStream) message.getPayload();
 		assertThat(IOUtils.toString(inputStreamB, Charset.defaultCharset())).isEqualTo("Bye");
 
@@ -149,7 +153,7 @@ public class S3StreamingChannelAdapterTests {
 			for (final S3Object s3Object : S3_OBJECTS) {
 				willAnswer(invocation -> s3Object).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
 			}
-
+			willReturn(Region.US_West).given(amazonS3).getRegion();
 			return amazonS3;
 		}
 
