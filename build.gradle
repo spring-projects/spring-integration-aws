@@ -24,7 +24,7 @@ repositories {
 
 ext {
 	assertjVersion = '3.13.2'
-	awaitilityVersion = '3.1.6'
+	awaitilityVersion = '4.0.0'
 	dynamodbLockClientVersion = '1.1.0'
 	jacksonVersion = '2.9.9.20190807'
 	servletApiVersion = '4.0.1'
@@ -38,7 +38,7 @@ ext {
 
 	linkHomepage = 'https://github.com/spring-projects/spring-integration-aws'
 	linkCi = 'https://build.spring.io/browse/INTEXT'
-	linkIssue = 'https://jira.spring.io/browse/INTEXT'
+	linkIssue = 'https://github.com/spring-projects/spring-integration-aws/issues'
 	linkScmUrl = 'https://github.com/spring-projects/spring-integration-aws'
 	linkScmConnection = 'https://github.com/spring-projects/spring-integration-aws.git'
 	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
@@ -64,8 +64,6 @@ sourceSets {
 	}
 }
 
-apply plugin: 'io.spring.dependency-management'
-
 dependencyManagement {
 	resolutionStrategy {
 		cacheChangingModulesFor 0, 'seconds'
@@ -87,7 +85,7 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = "8.23"
+	toolVersion = "8.24"
 }
 
 dependencies {

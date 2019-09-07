@@ -16,7 +16,7 @@
 
 package org.springframework.integration.aws.lock;
 
-import static org.assertj.core.api.Java6Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
