@@ -822,62 +822,63 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			if (this.task == null) {
 				switch (this.state) {
 
-				case NEW:
-				case EXPIRED:
-					this.task = () -> {
-						try {
-							if (this.shardOffset.isReset()) {
-								this.checkpointer.remove();
-							}
-							else {
-								String checkpoint = this.checkpointer.getCheckpoint();
-								if (checkpoint != null) {
-									this.shardOffset.setSequenceNumber(checkpoint);
-									this.shardOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+					case NEW:
+					case EXPIRED:
+						this.task = () -> {
+							try {
+								if (this.shardOffset.isReset()) {
+									this.checkpointer.remove();
+								}
+								else {
+									String checkpoint = this.checkpointer.getCheckpoint();
+									if (checkpoint != null) {
+										this.shardOffset.setSequenceNumber(checkpoint);
+										this.shardOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+									}
+								}
+								if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
+									logger.info("The [" + this + "] has been started.");
+								}
+								GetShardIteratorRequest shardIteratorRequest =
+										this.shardOffset.toShardIteratorRequest();
+								this.shardIterator = KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+										.getShardIterator(shardIteratorRequest).getShardIterator();
+								if (ConsumerState.STOP != this.state) {
+									this.state = ConsumerState.CONSUME;
 								}
 							}
-							if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
-								logger.info("The [" + this + "] has been started.");
+							finally {
+								this.task = null;
 							}
-							GetShardIteratorRequest shardIteratorRequest = this.shardOffset.toShardIteratorRequest();
-							this.shardIterator = KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-									.getShardIterator(shardIteratorRequest).getShardIterator();
-							if (ConsumerState.STOP != this.state) {
-								this.state = ConsumerState.CONSUME;
+						};
+						break;
+
+					case CONSUME:
+						this.task = this.processTask;
+						break;
+
+					case SLEEP:
+						if (System.currentTimeMillis() >= this.sleepUntil) {
+							this.state = ConsumerState.CONSUME;
+						}
+						this.task = null;
+						break;
+
+					case STOP:
+						if (this.shardIterator == null) {
+							if (logger.isInfoEnabled()) {
+								logger.info("Stopping the [" + this + "] on the checkpoint ["
+										+ this.checkpointer.getCheckpoint()
+										+ "] because the shard has been CLOSED and exhausted.");
 							}
 						}
-						finally {
-							this.task = null;
+						else {
+							if (logger.isInfoEnabled()) {
+								logger.info("Stopping the [" + this + "].");
+							}
 						}
-					};
-					break;
-
-				case CONSUME:
-					this.task = this.processTask;
-					break;
-
-				case SLEEP:
-					if (System.currentTimeMillis() >= this.sleepUntil) {
-						this.state = ConsumerState.CONSUME;
-					}
-					this.task = null;
-					break;
-
-				case STOP:
-					if (this.shardIterator == null) {
-						if (logger.isInfoEnabled()) {
-							logger.info("Stopping the [" + this + "] on the checkpoint ["
-									+ this.checkpointer.getCheckpoint()
-									+ "] because the shard has been CLOSED and exhausted.");
-						}
-					}
-					else {
-						if (logger.isInfoEnabled()) {
-							logger.info("Stopping the [" + this + "].");
-						}
-					}
-					this.task = null;
-					break;
+						this.task = null;
+						break;
 				}
 
 				if (this.task != null) {
@@ -997,7 +998,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 			Object payload = records;
 
 			if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-				payload = records.stream().map(this::prepareMessageForRecord).collect(Collectors.toList());
+				payload = records.stream()
+						.map(this::prepareMessageForRecord)
+						.map(AbstractIntegrationMessageBuilder::build)
+						.collect(Collectors.toList());
 			}
 
 			final List<String> partitionKeys;
@@ -1152,7 +1156,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					throw new IllegalStateException("ConsumerInvoker thread [" + this + "] has been interrupted", e);
 				}
 
-				for (Iterator<ShardConsumer> iterator = this.consumers.iterator(); iterator.hasNext();) {
+				for (Iterator<ShardConsumer> iterator = this.consumers.iterator(); iterator.hasNext(); ) {
 					ShardConsumer shardConsumer = iterator.next();
 					if (ConsumerState.STOP == shardConsumer.state) {
 						iterator.remove();
@@ -1267,7 +1271,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 				}
 			}
 			finally {
-				for (Iterator<Lock> iterator = this.locks.values().iterator(); iterator.hasNext();) {
+				for (Iterator<Lock> iterator = this.locks.values().iterator(); iterator.hasNext(); ) {
 					Lock lock = iterator.next();
 					try {
 						lock.unlock();

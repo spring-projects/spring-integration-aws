@@ -377,7 +377,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			Object payload = records;
 
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-				payload = records.stream().map(this::prepareMessageForRecord).collect(Collectors.toList());
+				payload = records.stream()
+						.map(this::prepareMessageForRecord)
+						.map(AbstractIntegrationMessageBuilder::build)
+						.collect(Collectors.toList());
 			}
 
 			final List<String> partitionKeys;
