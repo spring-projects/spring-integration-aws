@@ -37,8 +37,8 @@ ext {
 	jacksonVersion = '2.9.9'
 	servletApiVersion = '4.0.1'
 	log4jVersion = '2.11.2'
-	springCloudAwsVersion = '2.1.1.RELEASE'
-	springIntegrationVersion = '5.1.6.RELEASE'
+	springCloudAwsVersion = '2.1.3.RELEASE'
+	springIntegrationVersion = '5.1.7.RELEASE'
 	kinesisClientVersion = '1.10.0'
 	kinesisProducerVersion = '0.12.11'
 
