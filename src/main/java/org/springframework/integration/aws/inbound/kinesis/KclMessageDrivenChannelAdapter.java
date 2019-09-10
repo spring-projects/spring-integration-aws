@@ -374,36 +374,33 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		}
 
 		private void processMultipleRecords(List<Record> records, IRecordProcessorCheckpointer checkpointer) {
-			Object payload = records;
-
+			AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(records);
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-				payload = records.stream()
-						.map(this::prepareMessageForRecord)
-						.map(AbstractIntegrationMessageBuilder::build)
+				List<Message<Object>> payload =
+						records.stream()
+								.map(this::prepareMessageForRecord)
+								.map(AbstractIntegrationMessageBuilder::build)
+								.collect(Collectors.toList());
+
+				messageBuilder = getMessageBuilderFactory().withPayload(payload);
+			}
+			else if (KclMessageDrivenChannelAdapter.this.converter != null) {
+				final List<String> partitionKeys = new ArrayList<>();
+				final List<String> sequenceNumbers = new ArrayList<>();
+
+				List<Object> payload = records.stream()
+						.map(r -> {
+							partitionKeys.add(r.getPartitionKey());
+							sequenceNumbers.add(r.getSequenceNumber());
+
+							return KclMessageDrivenChannelAdapter.this.converter.convert(r.getData().array());
+						})
 						.collect(Collectors.toList());
+
+				messageBuilder = getMessageBuilderFactory().withPayload(payload)
+						.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
+						.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
 			}
-
-			final List<String> partitionKeys;
-			final List<String> sequenceNumbers;
-			if (KclMessageDrivenChannelAdapter.this.converter != null) {
-				partitionKeys = new ArrayList<>();
-				sequenceNumbers = new ArrayList<>();
-
-				payload = records.stream().map(r -> {
-					partitionKeys.add(r.getPartitionKey());
-					sequenceNumbers.add(r.getSequenceNumber());
-
-					return KclMessageDrivenChannelAdapter.this.converter.convert(r.getData().array());
-				}).collect(Collectors.toList());
-			}
-			else {
-				partitionKeys = null;
-				sequenceNumbers = null;
-			}
-
-			AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(payload)
-					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
-					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
 
 			performSend(messageBuilder, records, checkpointer);
 		}
