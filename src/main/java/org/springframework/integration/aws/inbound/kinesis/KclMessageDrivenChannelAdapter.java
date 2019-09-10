@@ -267,7 +267,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	}
 
 	@Override
-	public void destroy() {
+	public void destroy() throws Exception {
 		super.destroy();
 		this.scheduler.shutdown();
 	}
