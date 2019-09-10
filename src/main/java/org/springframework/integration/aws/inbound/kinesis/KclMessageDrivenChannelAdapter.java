@@ -77,6 +77,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
+	private final RecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
+
 	private final String stream;
 
 	private final AmazonKinesis kinesisClient;
@@ -93,7 +95,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
-	private Worker scheduler;
+	private KinesisClientLibConfiguration config;
 
 	private InitialPositionInStream streamInitialSequence = InitialPositionInStream.LATEST;
 
@@ -108,6 +110,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	private String workerId = UUID.randomUUID().toString();
 
 	private boolean bindSourceRecord;
+
+	private volatile Worker scheduler;
 
 	public KclMessageDrivenChannelAdapter(String streams) {
 		this(streams, AmazonKinesisClientBuilder.defaultClient(),
@@ -207,14 +211,14 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	protected void onInit() {
 		super.onInit();
 
-		KinesisClientLibConfiguration config =
-				new KinesisClientLibConfiguration(
-						this.consumerGroup,
+		this.config =
+				new KinesisClientLibConfiguration(this.consumerGroup,
 						this.stream,
 						null,
 						this.streamInitialSequence,
 						this.kinesisProxyCredentialsProvider,
-						null, null,
+						null,
+						null,
 						KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
 						this.workerId,
 						KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
@@ -232,20 +236,22 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 						KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
 						null,
 						KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS);
-
-		this.scheduler = new Worker.Builder()
-				.kinesisClient(this.kinesisClient)
-				.dynamoDBClient(this.dynamoDBClient)
-				.cloudWatchClient(this.cloudWatchClient)
-				.recordProcessorFactory(new RecordProcessorFactory())
-				.execService(new ExecutorServiceAdapter(this.executor))
-				.config(config)
-				.build();
 	}
 
 	@Override
 	protected void doStart() {
 		super.doStart();
+		this.scheduler =
+				new Worker
+						.Builder()
+						.kinesisClient(this.kinesisClient)
+						.dynamoDBClient(this.dynamoDBClient)
+						.cloudWatchClient(this.cloudWatchClient)
+						.recordProcessorFactory(this.recordProcessorFactory)
+						.execService(new ExecutorServiceAdapter(this.executor))
+						.config(this.config)
+						.build();
+
 		this.executor.execute(this.scheduler);
 	}
 
@@ -258,6 +264,12 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		super.doStop();
 		this.scheduler.shutdown();
 
+	}
+
+	@Override
+	public void destroy() {
+		super.destroy();
+		this.scheduler.shutdown();
 	}
 
 	@Override
