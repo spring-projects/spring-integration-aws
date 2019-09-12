@@ -32,6 +32,7 @@ import org.springframework.integration.support.MutableMessage;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConversionException;
+import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -49,7 +50,9 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
  *
  * @author Artem Bilan
  * @author Jacob Severson
+ *
  * @since 1.1
+ *
  * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
  * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
@@ -58,7 +61,7 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 
 	private final AmazonKinesisAsync amazonKinesis;
 
-	private Converter<Object, byte[]> converter = new SerializingConverter();
+	private MessageConverter messageConverter = new ConvertingFromMessageConverter(new SerializingConverter());
 
 	private Expression streamExpression;
 
@@ -79,10 +82,21 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 	 * Specify a {@link Converter} to serialize {@code payload} to the {@code byte[]} if
 	 * that isn't {@code byte[]} already.
 	 * @param converter the {@link Converter} to use; cannot be null.
+	 * @deprecated since 2.3 in favor of {@link #setMessageConverter}
 	 */
+	@Deprecated
 	public void setConverter(Converter<Object, byte[]> converter) {
-		Assert.notNull(converter, "'converter' must not be null.");
-		this.converter = converter;
+		setMessageConverter(new ConvertingFromMessageConverter(converter));
+	}
+
+	/**
+	 * Configure a {@link MessageConverter} for converting payload to {@code byte[]} for Kinesis record.
+	 * @param messageConverter the {@link MessageConverter} to use.
+	 * @since 2.3
+	 */
+	public void setMessageConverter(MessageConverter messageConverter) {
+		Assert.notNull(messageConverter, "'messageConverter' must not be null.");
+		this.messageConverter = messageConverter;
 	}
 
 	public void setStream(String stream) {
@@ -211,7 +225,10 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 			}
 		}
 		else {
-			byte[] bytes = payload instanceof byte[] ? (byte[]) payload : this.converter.convert(payload);
+			byte[] bytes =
+					(byte[]) (payload instanceof byte[]
+							? payload
+							: this.messageConverter.fromMessage(message, byte[].class));
 			Assert.notNull(bytes, "payload cannot be null");
 			if (this.embeddedHeadersMapper != null) {
 				messageToEmbed = new MutableMessage<>(bytes, messageHeaders);

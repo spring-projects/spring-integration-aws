@@ -34,7 +34,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -44,6 +43,8 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessageHandlingException;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.annotation.DirtiesContext;
@@ -178,18 +179,24 @@ public class KinesisMessageHandlerTests {
 			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis());
 			kinesisMessageHandler.setSync(true);
 			kinesisMessageHandler.setAsyncHandler(asyncHandler());
-			kinesisMessageHandler.setConverter(new Converter<Object, byte[]>() {
+			kinesisMessageHandler.setMessageConverter(new MessageConverter() {
 
 				private SerializingConverter serializingConverter = new SerializingConverter();
 
 				@Override
-				public byte[] convert(Object source) {
+				public Object fromMessage(Message<?> message, Class<?> targetClass) {
+					Object source = message.getPayload();
 					if (source instanceof String) {
 						return ((String) source).getBytes();
 					}
 					else {
 						return this.serializingConverter.convert(source);
 					}
+				}
+
+				@Override
+				public Message<?> toMessage(Object payload, MessageHeaders headers) {
+					return null;
 				}
 
 			});

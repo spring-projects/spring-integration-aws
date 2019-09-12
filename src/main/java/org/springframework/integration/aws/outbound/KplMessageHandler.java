@@ -17,8 +17,11 @@
 package org.springframework.integration.aws.outbound;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 
+import org.springframework.context.Lifecycle;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.expression.Expression;
@@ -33,6 +36,7 @@ import org.springframework.integration.support.MutableMessage;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConversionException;
+import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -56,16 +60,18 @@ import com.google.common.util.concurrent.MoreExecutors;
  *
  * @author Arnaud Lecollaire
  * @author Artem Bilan
- * @since 2.2.0
+ *
+ * @since 2.2
+ *
  * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
  * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
  */
-public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
+public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implements Lifecycle {
 
 	private final KinesisProducer kinesisProducer;
 
-	private Converter<Object, byte[]> converter = new SerializingConverter();
+	private MessageConverter messageConverter = new ConvertingFromMessageConverter(new SerializingConverter());
 
 	private Expression streamExpression;
 
@@ -77,6 +83,12 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 
 	private OutboundMessageMapper<byte[]> embeddedHeadersMapper;
 
+	private Duration flushDuration = Duration.ofMillis(0);
+
+	private volatile boolean running;
+
+	private volatile ScheduledFuture<?> flushFuture;
+
 	public KplMessageHandler(KinesisProducer kinesisProducer) {
 		Assert.notNull(kinesisProducer, "'kinesisProducer' must not be null.");
 		this.kinesisProducer = kinesisProducer;
@@ -86,10 +98,21 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 	 * Specify a {@link Converter} to serialize {@code payload} to the {@code byte[]} if
 	 * that isn't {@code byte[]} already.
 	 * @param converter the {@link Converter} to use; cannot be null.
+	 @deprecated since 2.3 in favor of {@link #setMessageConverter}
 	 */
+	@Deprecated
 	public void setConverter(Converter<Object, byte[]> converter) {
-		Assert.notNull(converter, "'converter' must not be null.");
-		this.converter = converter;
+		setMessageConverter(new ConvertingFromMessageConverter(converter));
+	}
+
+	/**
+	 * Configure a {@link MessageConverter} for converting payload to {@code byte[]} for Kinesis record.
+	 * @param messageConverter the {@link MessageConverter} to use.
+	 * @since 2.3
+	 */
+	public void setMessageConverter(MessageConverter messageConverter) {
+		Assert.notNull(messageConverter, "'messageConverter' must not be null.");
+		this.messageConverter = messageConverter;
 	}
 
 	public void setStream(String stream) {
@@ -159,25 +182,59 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 				+ "Consider to use 'OutboundMessageMapper<byte[]>' for embedding headers into the record data.");
 	}
 
+
+	@Override
+	public synchronized void start() {
+		if (!this.running) {
+			if (this.flushDuration.toMillis() > 0) {
+				this.flushFuture = getTaskScheduler()
+						.scheduleAtFixedRate(this.kinesisProducer::flush, this.flushDuration);
+			}
+			this.running = true;
+		}
+	}
+
+	@Override
+	public synchronized void stop() {
+		if (this.running) {
+			this.running = false;
+			if (this.flushFuture != null) {
+				this.flushFuture.cancel(true);
+			}
+		}
+	}
+
+	@Override
+	public boolean isRunning() {
+		return this.running;
+	}
+
 	@Override
 	protected Future<?> handleMessageToAws(Message<?> message) {
-		if (message.getPayload() instanceof PutRecordsRequest) {
-			throw new UnsupportedOperationException("not implemented");
-		}
-		else if (message.getPayload() instanceof UserRecord) {
-			return handleUserRecord(message, buildPutRecordRequest(message), (UserRecord) message.getPayload());
-		}
-		else {
-			final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
-					? (PutRecordRequest) message.getPayload() : buildPutRecordRequest(message);
+		try {
+			if (message.getPayload() instanceof PutRecordsRequest) {
+				throw new UnsupportedOperationException("not implemented");
+			}
+			else if (message.getPayload() instanceof UserRecord) {
+				return handleUserRecord(message, buildPutRecordRequest(message), (UserRecord) message.getPayload());
+			}
+			else {
+				final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
+						? (PutRecordRequest) message.getPayload() : buildPutRecordRequest(message);
 
-			// convert the PutRecordRequest to a UserRecord
-			UserRecord userRecord = new UserRecord();
-			userRecord.setExplicitHashKey(putRecordRequest.getExplicitHashKey());
-			userRecord.setData(putRecordRequest.getData());
-			userRecord.setPartitionKey(putRecordRequest.getPartitionKey());
-			userRecord.setStreamName(putRecordRequest.getStreamName());
-			return handleUserRecord(message, putRecordRequest, userRecord);
+				// convert the PutRecordRequest to a UserRecord
+				UserRecord userRecord = new UserRecord();
+				userRecord.setExplicitHashKey(putRecordRequest.getExplicitHashKey());
+				userRecord.setData(putRecordRequest.getData());
+				userRecord.setPartitionKey(putRecordRequest.getPartitionKey());
+				userRecord.setStreamName(putRecordRequest.getStreamName());
+				return handleUserRecord(message, putRecordRequest, userRecord);
+			}
+		}
+		finally {
+			if (this.flushDuration.toMillis() <= 0) {
+				this.kinesisProducer.flush();
+			}
 		}
 	}
 
@@ -245,7 +302,10 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> {
 			}
 		}
 		else {
-			byte[] bytes = payload instanceof byte[] ? (byte[]) payload : this.converter.convert(payload);
+			byte[] bytes =
+					(byte[]) (payload instanceof byte[]
+							? payload
+							: this.messageConverter.fromMessage(message, byte[].class));
 			Assert.notNull(bytes, "payload cannot be null");
 			if (this.embeddedHeadersMapper != null) {
 				messageToEmbed = new MutableMessage<>(bytes, messageHeaders);
