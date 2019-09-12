@@ -1191,6 +1191,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 					}
 				}
 			}
+			synchronized (KinesisMessageDrivenChannelAdapter.this.consumerInvokers) {
+				KinesisMessageDrivenChannelAdapter.this.consumerInvokers.remove(this);
+			}
 		}
 
 		@Override
