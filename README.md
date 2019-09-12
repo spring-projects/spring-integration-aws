@@ -45,7 +45,9 @@ These dependencies are optional in the project:
 * `org.springframework.cloud:spring-cloud-aws-messaging` - for SQS and SNS channel adapters
 * `org.springframework.integration:spring-integration-file` - for S3 channel adapters
 * `org.springframework.integration:spring-integration-http` - for SNS inbound channel adapter
-* `compile('com.amazonaws:aws-java-sdk-kinesis` - for Kinesis channel adapters
+* `com.amazonaws:aws-java-sdk-kinesis` - for Kinesis channel adapters
+* `com.amazonaws:amazon-kinesis-client` - for KCL-based inbound channel adapter 
+* `com.amazonaws:amazon-kinesis-producer` - for KPL-based `MessageHandler` 
 * `com.amazonaws:aws-java-sdk-dynamodb` - for `DynamoDbMetadataStore` and `DynamoDbLockRegistry`
 * `com.amazonaws:dynamodb-lock-client` - for `DynamoDbLockRegistry`
 
@@ -530,7 +532,6 @@ If the provided `timeToLive` value is non-positive, the TTL functionality is dis
 ## Amazon Kinesis
 
 Amazon Kinesis is a platform for streaming data on AWS, making it easy to load and analyze streaming data, and also providing the ability for you to build custom streaming data applications for specialized needs.
-The Spring Integration solution is fully based on the Standard `aws-java-sdk-kinesis` and doesn't use [Kinesis Client Library][] and isn't compatible with it.  
 
 ### Inbound Channel Adapter
 
@@ -579,6 +580,8 @@ Starting with _version 2.0_, the `KinesisMessageDrivenChannelAdapter` can be con
 The `KinesisMessageDrivenChannelAdapter` iterates over its shards and tries to acquire a distributed lock for the shard in its consumer group.
 If `LockRegistry` is not provided, no exclusive locking happens and all the shards are consumed by this `KinesisMessageDrivenChannelAdapter`. 
 See also `DynamoDbLockRegistry` for more information.
+
+Also the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][]. 
 
 ### Outbound Channel Adapter
 
@@ -646,6 +649,8 @@ this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
 Where you should specify the port on which you have ran the Kinesalite service.
 Also you can use for you testing purpose a copy of `org.springframework.integration.aws.KinesisLocalRunning` in the `/test` directory of this project.    
 
+Also the `KplMessageHandler` is provided for performing streams consumption by [Kinesis Producer Library][].
+
 ## Lock Registry for Amazon DynamoDB
 
 Starting with _version 2.0_, the `DynamoDbLockRegistry` implementation is available.
@@ -667,9 +672,10 @@ The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `D
 [administrator guidelines]: https://github.com/spring-projects/spring-integration/wiki/Administrator-Guidelines
 [Dynalite]: https://github.com/mhart/dynalite
 [DynamoDB TTL]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html
-[Kinesis Client Library]: https://github.com/awslabs/amazon-kinesis-client
+[Kinesis Client Library]: https://docs.aws.amazon.com/streams/latest/dev/developing-consumers-with-kcl.html
 [Kinesalite]: https://github.com/mhart/kinesalite
 [Amazon SQS Message Attributes]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-attributes.html
 [Amazon SNS Message Attributes]: https://docs.aws.amazon.com/sns/latest/dg/SNSMessageAttributes.html
 [Leader Election]: https://docs.spring.io/spring-integration/docs/current/reference/html/messaging-endpoints-chapter.html#leadership-event-handling
+[Kinesis Producer Library]: https://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-kpl.html 
 [LockRegistryLeaderInitiator]: https://docs.spring.io/spring-integration/docs/current/reference/html/messaging-endpoints-chapter.html#leadership-event-handling 
