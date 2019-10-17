@@ -18,8 +18,12 @@ package org.springframework.integration.aws.outbound;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import org.springframework.context.Lifecycle;
 import org.springframework.core.convert.converter.Converter;
@@ -46,6 +50,8 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
 import com.amazonaws.services.kinesis.model.PutRecordResult;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
+import com.amazonaws.services.kinesis.model.PutRecordsResult;
+import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.UserRecord;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
@@ -53,6 +59,9 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer
@@ -213,7 +222,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	protected Future<?> handleMessageToAws(Message<?> message) {
 		try {
 			if (message.getPayload() instanceof PutRecordsRequest) {
-				throw new UnsupportedOperationException("not implemented");
+				return handlePutRecordsRequest(message, (PutRecordsRequest) message.getPayload());
 			}
 			else if (message.getPayload() instanceof UserRecord) {
 				return handleUserRecord(message, buildPutRecordRequest(message), (UserRecord) message.getPayload());
@@ -238,28 +247,79 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		}
 	}
 
-	private Future<?> handleUserRecord(Message<?> message, final PutRecordRequest putRecordRequest,
-			UserRecord userRecord) {
+	private Future<PutRecordsResult> handlePutRecordsRequest(Message<?> message, PutRecordsRequest putRecordsRequest) {
+		PutRecordsResult putRecordsResult = new PutRecordsResult();
+		SettableFuture<PutRecordsResult> putRecordsResultFuture = SettableFuture.create();
+		AtomicInteger failedRecordsCount = new AtomicInteger();
+		Flux.fromIterable(putRecordsRequest.getRecords())
+				.map((putRecordsRequestEntry) -> {
+					UserRecord userRecord = new UserRecord();
+					userRecord.setExplicitHashKey(putRecordsRequestEntry.getExplicitHashKey());
+					userRecord.setData(putRecordsRequestEntry.getData());
+					userRecord.setPartitionKey(putRecordsRequestEntry.getPartitionKey());
+					userRecord.setStreamName(putRecordsRequest.getStreamName());
+					return userRecord;
+				})
+				.concatMap((userRecord) ->
+						Mono.fromFuture(listenableFutureToCompletableFuture(
+								this.kinesisProducer.addUserRecord(userRecord))))
+				.map((userRecordResult) -> {
+					PutRecordsResultEntry putRecordsResultEntry =
+							new PutRecordsResultEntry()
+									.withSequenceNumber(userRecordResult.getSequenceNumber())
+									.withShardId(userRecordResult.getShardId());
+
+					if (!userRecordResult.isSuccessful()) {
+						failedRecordsCount.incrementAndGet();
+						userRecordResult.getAttempts()
+								.stream()
+								.reduce((left, right) -> right)
+								.ifPresent((attempt) ->
+										putRecordsResultEntry
+												.withErrorMessage(attempt.getErrorMessage())
+												.withErrorCode(attempt.getErrorCode()));
+					}
+
+					return putRecordsResultEntry;
+				})
+				.collectList()
+				.map((putRecordsResultList) ->
+						putRecordsResult.withRecords(putRecordsResultList)
+								.withFailedRecordCount(failedRecordsCount.get()))
+				.subscribe(putRecordsResultFuture::set, putRecordsResultFuture::setException);
+
+		applyCallbackForAsyncHandler(message, putRecordsRequest, putRecordsResultFuture);
+
+		return putRecordsResultFuture;
+	}
+
+	private Future<?> handleUserRecord(Message<?> message, PutRecordRequest putRecordRequest, UserRecord userRecord) {
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
-
-		final AsyncHandler<PutRecordRequest, UserRecordResult> asyncHandler = obtainAsyncHandler(message,
-				putRecordRequest);
-		final FutureCallback<UserRecordResult> callback = new FutureCallback<UserRecordResult>() {
-
-			@Override
-			public void onFailure(Throwable ex) {
-				asyncHandler.onError(ex instanceof Exception ? (Exception) ex
-						: new AwsRequestFailureException(message, putRecordRequest, ex));
-			}
-
-			@Override
-			public void onSuccess(UserRecordResult result) {
-				asyncHandler.onSuccess(putRecordRequest, result);
-			}
-		};
-		Futures.addCallback(recordResult, callback, MoreExecutors.directExecutor());
-
+		applyCallbackForAsyncHandler(message, putRecordRequest, recordResult);
 		return recordResult;
+	}
+
+	private <R> void applyCallbackForAsyncHandler(Message<?> message, AmazonWebServiceRequest serviceRequest,
+			ListenableFuture<R> result) {
+
+		AsyncHandler<AmazonWebServiceRequest, R> asyncHandler = obtainAsyncHandler(message, serviceRequest);
+		FutureCallback<R> callback =
+				new FutureCallback<R>() {
+
+					@Override
+					public void onFailure(Throwable ex) {
+						asyncHandler.onError(ex instanceof Exception ? (Exception) ex
+								: new AwsRequestFailureException(message, serviceRequest, ex));
+					}
+
+					@Override
+					public void onSuccess(R result) {
+						asyncHandler.onSuccess(serviceRequest, result);
+					}
+
+				};
+
+		Futures.addCallback(result, callback, MoreExecutors.directExecutor());
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
@@ -338,6 +398,36 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 			messageBuilder.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
 					.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber());
 		}
+	}
+
+	private static <T> CompletableFuture<T> listenableFutureToCompletableFuture(ListenableFuture<T> listenableFuture) {
+		CompletableFuture<T> completable = new CompletableFuture<T>() {
+
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				// propagate cancel to the listenable future
+				boolean result = listenableFuture.cancel(mayInterruptIfRunning);
+				super.cancel(mayInterruptIfRunning);
+				return result;
+			}
+
+		};
+
+		// add callback
+		Futures.addCallback(listenableFuture, new FutureCallback<T>() {
+
+			@Override
+			public void onSuccess(@Nullable T result) {
+				completable.complete(result);
+			}
+
+			@Override
+			public void onFailure(Throwable ex) {
+				completable.completeExceptionally(ex);
+			}
+		}, MoreExecutors.directExecutor());
+
+		return completable;
 	}
 
 }

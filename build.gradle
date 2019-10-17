@@ -26,11 +26,11 @@ ext {
 	assertjVersion = '3.13.2'
 	awaitilityVersion = '4.0.1'
 	dynamodbLockClientVersion = '1.1.0'
-	jacksonVersion = '2.9.9.20190807'
+	jacksonVersion = '2.10.0'
 	servletApiVersion = '4.0.1'
 	log4jVersion = '2.12.1'
 	springCloudAwsVersion = '2.2.0.BUILD-SNAPSHOT'
-	springIntegrationVersion = '5.2.0.BUILD-SNAPSHOT'
+	springIntegrationVersion = '5.2.1.BUILD-SNAPSHOT'
 	kinesisClientVersion = '1.11.2'
 	kinesisProducerVersion = '0.13.1'
 
