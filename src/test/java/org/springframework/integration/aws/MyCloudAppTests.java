@@ -21,17 +21,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import cloud.localstack.LocalstackTestRunner;
-import cloud.localstack.TestUtils;
+import cloud.localstack.DockerTestUtils;
+import cloud.localstack.docker.LocalstackDockerTestRunner;
+import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.s3.AmazonS3;
 
-@RunWith(LocalstackTestRunner.class)
+@RunWith(LocalstackDockerTestRunner.class)
+@LocalstackDockerProperties(randomizePorts = true)
 public class MyCloudAppTests {
 
 
 	@Test
 	public void testLocalS3API() {
-		AmazonS3 s3 = TestUtils.getClientS3();
+		AmazonS3 s3 = DockerTestUtils.getClientS3();
 		assertThat(s3).isNotNull();
 	}
 
