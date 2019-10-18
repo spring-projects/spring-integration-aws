@@ -27,7 +27,7 @@ import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.s3.AmazonS3;
 
 @RunWith(LocalstackDockerTestRunner.class)
-@LocalstackDockerProperties(randomizePorts = true)
+@LocalstackDockerProperties(randomizePorts = true, services = { "sqs", "kinesis", "s3", "sns", "dynamodb", "cloudwatch" })
 public class MyCloudAppTests {
 
 
