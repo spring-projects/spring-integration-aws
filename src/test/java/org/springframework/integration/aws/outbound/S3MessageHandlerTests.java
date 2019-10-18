@@ -17,8 +17,8 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Fail.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
@@ -33,8 +33,10 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -44,10 +46,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.client.methods.HttpRequestBase;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,8 +70,7 @@ import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.util.FileCopyUtils;
 
 import com.amazonaws.event.ProgressEvent;
@@ -108,8 +107,7 @@ import com.amazonaws.util.StringUtils;
  * @author John Logan
  * @author Jim Krygowski
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
 public class S3MessageHandlerTests {
 
@@ -122,8 +120,8 @@ public class S3MessageHandlerTests {
 
 	private static final String S3_FILE_KEY_FOO = "subdir/foo";
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	@TempDir
+	static Path temporaryFolder;
 
 	@Autowired
 	private AmazonS3 amazonS3;
@@ -148,8 +146,9 @@ public class S3MessageHandlerTests {
 	private S3MessageHandler s3MessageHandler;
 
 	@Test
-	public void testUploadFile() throws IOException, InterruptedException {
-		File file = this.temporaryFolder.newFile("foo.mp3");
+	void testUploadFile() throws IOException, InterruptedException {
+		File file = new File(temporaryFolder.toFile(), "foo.mp3");
+		file.createNewFile();
 		Message<?> message = MessageBuilder.withPayload(file)
 				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).build();
 
@@ -189,7 +188,7 @@ public class S3MessageHandlerTests {
 	}
 
 	@Test
-	public void testUploadInputStream() throws IOException {
+	void testUploadInputStream() throws IOException {
 		Expression actualKeyExpression = TestUtils.getPropertyValue(this.s3MessageHandler, "keyExpression",
 				Expression.class);
 
@@ -225,25 +224,23 @@ public class S3MessageHandlerTests {
 	}
 
 	@Test
-	public void testUploadInputStreamNoMarkSupported() throws IOException, InterruptedException {
-		File file = this.temporaryFolder.newFile("foo.mp3");
+	void testUploadInputStreamNoMarkSupported() throws IOException {
+		File file = new File(temporaryFolder.toFile(), "foo.mp3");
+		file.createNewFile();
 		FileInputStream fileInputStream = new FileInputStream(file);
 		Message<?> message = MessageBuilder.withPayload(fileInputStream)
 				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).setHeader("key", "myStream").build();
 
-		try {
-			this.s3SendChannel.send(message);
-			fail("Expected send() failure with FileInputStream, got success.");
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(MessageHandlingException.class);
-			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
-		}
+		assertThatExceptionOfType(MessageHandlingException.class)
+				.isThrownBy(() -> this.s3SendChannel.send(message))
+				.withCauseInstanceOf(IllegalStateException.class);
+
+		fileInputStream.close();
 	}
 
 	@Test
-	public void testUploadByteArray() throws IOException {
-		byte[] payload = "b".getBytes("UTF-8");
+	void testUploadByteArray() {
+		byte[] payload = "b".getBytes(StandardCharsets.UTF_8);
 		Message<?> message = MessageBuilder.withPayload(payload)
 				.setHeader("s3Command", S3MessageHandler.Command.UPLOAD.name()).setHeader("key", "myStream").build();
 
@@ -267,8 +264,9 @@ public class S3MessageHandlerTests {
 	}
 
 	@Test
-	public void testDownloadDirectory() throws IOException {
-		File directoryForDownload = this.temporaryFolder.newFolder("myFolder");
+	void testDownloadDirectory() throws IOException {
+		File directoryForDownload = new File(temporaryFolder.toFile(), "myFolder");
+		directoryForDownload.mkdir();
 		Message<?> message = MessageBuilder.withPayload(directoryForDownload)
 				.setHeader("s3Command", S3MessageHandler.Command.DOWNLOAD).build();
 
@@ -288,7 +286,7 @@ public class S3MessageHandlerTests {
 		assertThat(fileArray.length).isEqualTo(2);
 
 		List<File> files = Arrays.asList(fileArray);
-		Collections.sort(files, (o1, o2) -> o1.getName().compareTo(o2.getName()));
+		files.sort(Comparator.comparing(File::getName));
 
 		File file1 = files.get(0);
 		assertThat(file1.getName()).isEqualTo(S3_FILE_KEY_BAR.split("/", 2)[1]);
@@ -300,7 +298,7 @@ public class S3MessageHandlerTests {
 	}
 
 	@Test
-	public void testCopy() throws InterruptedException {
+	void testCopy() throws InterruptedException {
 		Map<String, String> payload = new HashMap<>();
 		payload.put("key", "mySource");
 		payload.put("destination", "theirBucket");

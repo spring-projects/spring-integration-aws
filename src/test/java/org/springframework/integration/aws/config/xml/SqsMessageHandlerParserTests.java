@@ -18,8 +18,7 @@ package org.springframework.integration.aws.config.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,8 +30,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQS;
@@ -40,10 +38,9 @@ import com.amazonaws.services.sqs.AmazonSQS;
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
-public class SqsMessageHandlerParserTests {
+class SqsMessageHandlerParserTests {
 
 	@Autowired
 	private AmazonSQS amazonSqs;
@@ -77,7 +74,7 @@ public class SqsMessageHandlerParserTests {
 	private MessageHandler sqsOutboundChannelAdapterHandler;
 
 	@Test
-	public void testSqsMessageHandlerParser() {
+	void testSqsMessageHandlerParser() {
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "amazonSqs"))
 				.isSameAs(this.amazonSqs);
 		assertThat(TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler,
@@ -120,7 +117,7 @@ public class SqsMessageHandlerParserTests {
 
 		assertThat(
 				TestUtils.getPropertyValue(this.sqsOutboundChannelAdapterHandler, "sendTimeoutExpression.literalValue"))
-						.isEqualTo("202");
+				.isEqualTo("202");
 	}
 
 }

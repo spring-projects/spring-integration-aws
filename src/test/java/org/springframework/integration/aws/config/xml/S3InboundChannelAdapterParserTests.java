@@ -27,8 +27,7 @@ import java.util.Set;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.Expression;
@@ -45,17 +44,15 @@ import org.springframework.integration.file.remote.synchronizer.AbstractInboundF
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.util.ReflectionUtils;
 
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
-public class S3InboundChannelAdapterParserTests {
+class S3InboundChannelAdapterParserTests {
 
 	@Autowired
 	private SourcePollingChannelAdapter s3Inbound;
@@ -74,7 +71,7 @@ public class S3InboundChannelAdapterParserTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testS3InboundChannelAdapterComplete() throws Exception {
+	void testS3InboundChannelAdapterComplete() throws Exception {
 		assertThat(TestUtils.getPropertyValue(this.s3Inbound, "autoStartup", Boolean.class)).isFalse();
 		PriorityBlockingQueue<?> blockingQueue = TestUtils.getPropertyValue(this.s3Inbound,
 				"source.fileSource.toBeReceived", PriorityBlockingQueue.class);
@@ -91,7 +88,7 @@ public class S3InboundChannelAdapterParserTests {
 				S3InboundFileSynchronizer.class);
 		assertThat(
 				TestUtils.getPropertyValue(fisync, "remoteDirectoryExpression", Expression.class).getExpressionString())
-						.isEqualTo("'foo/bar'");
+				.isEqualTo("'foo/bar'");
 		assertThat(TestUtils.getPropertyValue(fisync, "localFilenameGeneratorExpression")).isNotNull();
 		assertThat(TestUtils.getPropertyValue(fisync, "preserveTimestamp", Boolean.class)).isTrue();
 		assertThat(TestUtils.getPropertyValue(fisync, "temporaryFileSuffix", String.class)).isEqualTo(".foo");
@@ -112,18 +109,14 @@ public class S3InboundChannelAdapterParserTests {
 				.isSameAs(this.s3SessionFactory);
 		assertThat(TestUtils.getPropertyValue(inbound, "fileSource.scanner.filter.fileFilters", Collection.class)
 				.contains(this.acceptAllFilter)).isTrue();
-		final AtomicReference<Method> genMethod = new AtomicReference<Method>();
-		ReflectionUtils.doWithMethods(AbstractInboundFileSynchronizer.class, new ReflectionUtils.MethodCallback() {
-
-			@Override
-			public void doWith(Method method) throws IllegalArgumentException, IllegalAccessException {
-				if ("generateLocalFileName".equals(method.getName())) {
-					method.setAccessible(true);
-					genMethod.set(method);
-				}
-			}
-
-		});
+		final AtomicReference<Method> genMethod = new AtomicReference<>();
+		ReflectionUtils.doWithMethods(AbstractInboundFileSynchronizer.class,
+				method -> {
+					if ("generateLocalFileName".equals(method.getName())) {
+						method.setAccessible(true);
+						genMethod.set(method);
+					}
+				});
 		assertThat(genMethod.get().invoke(fisync, "foo")).isEqualTo("FOO.afoo");
 	}
 

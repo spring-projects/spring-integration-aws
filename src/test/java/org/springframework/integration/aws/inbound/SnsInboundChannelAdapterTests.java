@@ -23,9 +23,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.BDDMockito;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,9 +40,7 @@ import org.springframework.integration.config.EnableIntegration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.web.WebAppConfiguration;
+import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.StreamUtils;
@@ -56,9 +53,7 @@ import com.amazonaws.services.sns.AmazonSNS;
  * @author Artem Bilan
  * @author Kamil Przerwa
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
-@WebAppConfiguration
+@SpringJUnitWebConfig
 @DirtiesContext
 public class SnsInboundChannelAdapterTests {
 
@@ -82,13 +77,13 @@ public class SnsInboundChannelAdapterTests {
 
 	private MockMvc mockMvc;
 
-	@Before
-	public void setUp() throws Exception {
+	@BeforeEach
+	void setUp() {
 		this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context).build();
 	}
 
 	@Test
-	public void testSubscriptionConfirmation() throws Exception {
+	void testSubscriptionConfirmation() throws Exception {
 		this.mockMvc
 				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "SubscriptionConfirmation")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +106,7 @@ public class SnsInboundChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testNotification() throws Exception {
+	void testNotification() throws Exception {
 		this.mockMvc
 				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "Notification")
 						.contentType(MediaType.TEXT_PLAIN)
@@ -127,7 +122,7 @@ public class SnsInboundChannelAdapterTests {
 	}
 
 	@Test
-	public void testUnsubscribe() throws Exception {
+	void testUnsubscribe() throws Exception {
 		this.mockMvc
 				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "UnsubscribeConfirmation")
 						.contentType(MediaType.TEXT_PLAIN)

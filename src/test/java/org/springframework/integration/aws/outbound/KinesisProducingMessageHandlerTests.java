@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -24,8 +25,7 @@ import static org.mockito.Mockito.mock;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Future;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -46,7 +46,7 @@ import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
@@ -58,9 +58,11 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
 
 /**
  * @author Jacob Severson
+ * @author Artem Bilan
+ *
  * @since 1.1
  */
-@RunWith(SpringRunner.class)
+@SpringJUnitConfig
 @DirtiesContext
 public class KinesisProducingMessageHandlerTests {
 
@@ -79,40 +81,34 @@ public class KinesisProducingMessageHandlerTests {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testKinesisMessageHandler() {
-		Message<?> message = MessageBuilder.withPayload("message").build();
-		try {
-			this.kinesisSendChannel.send(message);
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(MessageHandlingException.class);
-			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
-			assertThat(e.getMessage()).contains("'stream' must not be null for sending a Kinesis record");
-		}
+		final Message<?> message = MessageBuilder.withPayload("message").build();
+
+		assertThatExceptionOfType(MessageHandlingException.class)
+				.isThrownBy(() -> this.kinesisSendChannel.send(message))
+				.withCauseInstanceOf(IllegalStateException.class)
+				.withMessageContaining("'stream' must not be null for sending a Kinesis record");
 
 		this.kinesisMessageHandler.setStream("foo");
-		try {
-			this.kinesisSendChannel.send(message);
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(MessageHandlingException.class);
-			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
-			assertThat(e.getMessage()).contains("'partitionKey' must not be null for sending a Kinesis record");
-		}
 
-		message = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+		assertThatExceptionOfType(MessageHandlingException.class)
+				.isThrownBy(() -> this.kinesisSendChannel.send(message))
+				.withCauseInstanceOf(IllegalStateException.class)
+				.withMessageContaining("'partitionKey' must not be null for sending a Kinesis record");
+
+		Message<?> message2 = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
 				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();
 
-		this.kinesisSendChannel.send(message);
+		this.kinesisSendChannel.send(message2);
 
 		Message<?> success = this.successChannel.receive(10000);
 		assertThat(success.getHeaders().get(AwsHeaders.PARTITION_KEY)).isEqualTo("fooKey");
 		assertThat(success.getHeaders().get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("10");
 		assertThat(success.getPayload()).isEqualTo("message");
 
-		message = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+		message2 = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
 				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();
 
-		this.kinesisSendChannel.send(message);
+		this.kinesisSendChannel.send(message2);
 
 		Message<?> failed = this.errorChannel.receive(10000);
 		AwsRequestFailureException putRecordFailure = (AwsRequestFailureException) failed.getPayload();
@@ -124,19 +120,19 @@ public class KinesisProducingMessageHandlerTests {
 		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getData())
 				.isEqualTo(ByteBuffer.wrap("message".getBytes()));
 
-		message = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
+		message2 = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
 				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
 
-		this.kinesisSendChannel.send(message);
+		this.kinesisSendChannel.send(message2);
 
 		success = this.successChannel.receive(10000);
 		assertThat(((PutRecordsRequest) success.getPayload()).getRecords()).containsExactlyInAnyOrder(
 				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
 
-		message = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
+		message2 = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
 				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
 
-		this.kinesisSendChannel.send(message);
+		this.kinesisSendChannel.send(message2);
 
 		failed = this.errorChannel.receive(10000);
 		AwsRequestFailureException putRecordsFailure = (AwsRequestFailureException) failed.getPayload();

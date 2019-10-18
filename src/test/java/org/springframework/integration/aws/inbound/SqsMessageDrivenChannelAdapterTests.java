@@ -22,8 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.mock;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -39,8 +38,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.sqs.AmazonSQSAsync;
 import com.amazonaws.services.sqs.model.GetQueueAttributesRequest;
@@ -54,8 +52,7 @@ import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
 public class SqsMessageDrivenChannelAdapterTests {
 
@@ -72,10 +69,10 @@ public class SqsMessageDrivenChannelAdapterTests {
 	private PollableChannel controlBusOutput;
 
 	@Test
-	public void testSqsMessageDrivenChannelAdapter() {
+	void testSqsMessageDrivenChannelAdapter() {
 		assertThat(
 				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "listenerContainer.queueStopTimeout"))
-						.isEqualTo(10000L);
+				.isEqualTo(10000L);
 		org.springframework.messaging.Message<?> receive = this.inputChannel.receive(1000);
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");
@@ -107,8 +104,8 @@ public class SqsMessageDrivenChannelAdapterTests {
 
 		assertThatThrownBy(
 				() -> this.controlBusInput.send(new GenericMessage<>("@sqsMessageDrivenChannelAdapter.start('foo')")))
-						.hasCauseExactlyInstanceOf(IllegalArgumentException.class)
-						.hasMessageContaining("Queue with name 'foo' does not exist");
+				.hasCauseExactlyInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Queue with name 'foo' does not exist");
 
 		assertThat(this.sqsMessageDrivenChannelAdapter.getQueues()).isEqualTo(new String[] { "testQueue" });
 	}
@@ -126,10 +123,10 @@ public class SqsMessageDrivenChannelAdapterTests {
 			given(sqs.receiveMessage(
 					new ReceiveMessageRequest("http://testQueue.amazonaws.com").withAttributeNames("All")
 							.withMessageAttributeNames("All").withMaxNumberOfMessages(10).withWaitTimeSeconds(20)))
-									.willReturn(new ReceiveMessageResult().withMessages(
-											new Message().withBody("messageContent"),
-											new Message().withBody("messageContent2")))
-									.willReturn(new ReceiveMessageResult());
+					.willReturn(new ReceiveMessageResult().withMessages(
+							new Message().withBody("messageContent"),
+							new Message().withBody("messageContent2")))
+					.willReturn(new ReceiveMessageResult());
 
 			given(sqs.getQueueAttributes(any(GetQueueAttributesRequest.class)))
 					.willReturn(new GetQueueAttributesResult());

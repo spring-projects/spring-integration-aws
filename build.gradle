@@ -27,6 +27,7 @@ ext {
 	awaitilityVersion = '4.0.1'
 	dynamodbLockClientVersion = '1.1.0'
 	jacksonVersion = '2.10.0'
+	junitVersion = '5.5.2'
 	servletApiVersion = '4.0.1'
     localstackVersion = '0.1.22'
 	log4jVersion = '2.12.1'
@@ -77,6 +78,7 @@ dependencyManagement {
 		mavenBom "org.springframework.cloud:spring-cloud-aws-dependencies:$springCloudAwsVersion"
 		mavenBom "org.springframework.integration:spring-integration-bom:$springIntegrationVersion"
 		mavenBom "com.fasterxml.jackson:jackson-bom:$jacksonVersion"
+		mavenBom "org.junit:junit-bom:$junitVersion"
 	}
 }
 
@@ -107,16 +109,22 @@ dependencies {
 
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
-	testCompile 'org.springframework.integration:spring-integration-test'
+	testCompile ('org.springframework.integration:spring-integration-test') {
+		exclude group: 'junit'
+	}
+
 	testCompile "org.assertj:assertj-core:$assertjVersion"
 	testCompile "cloud.localstack:localstack-utils:$localstackVersion"
 
 	testCompile ("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
+	compile 'org.junit.jupiter:junit-jupiter-api'
 
 	testRuntime "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
 	testRuntime "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
+	testRuntime 'org.junit.jupiter:junit-jupiter-engine'
+	testRuntime 'org.junit.platform:junit-platform-launcher'
 }
 
 eclipse.project.natures += 'org.springframework.ide.eclipse.core.springnature'

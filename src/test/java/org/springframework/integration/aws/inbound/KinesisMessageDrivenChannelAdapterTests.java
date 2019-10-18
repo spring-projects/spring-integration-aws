@@ -29,9 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +54,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
@@ -75,7 +74,7 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  * @author Artem Bilan
  * @since 1.1
  */
-@RunWith(SpringRunner.class)
+@SpringJUnitConfig
 @DirtiesContext
 public class KinesisMessageDrivenChannelAdapterTests {
 
@@ -98,14 +97,14 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	@Autowired
 	private AmazonKinesis amazonKinesisForResharding;
 
-	@Before
-	public void setup() {
+	@BeforeEach
+	void setup() {
 		this.kinesisChannel.purge(null);
 	}
 
 	@Test
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void testKinesisMessageDrivenChannelAdapter() {
+	void testKinesisMessageDrivenChannelAdapter() {
 		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"shardOffsets", Set.class);
@@ -195,7 +194,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings("rawtypes")
-	public void testResharding() throws InterruptedException {
+	void testResharding() throws InterruptedException {
 		this.reshardingChannelAdapter.start();
 
 		assertThat(this.kinesisChannel.receive(10000)).isNotNull();
@@ -269,7 +268,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "1").toShardIteratorRequest()))
-							.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator4));
+					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator4));
 
 			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator4).withLimit(25)))
 					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator3)
@@ -329,7 +328,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "closedShard").toShardIteratorRequest()))
-							.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator1));
+					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator1));
 
 			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator1).withLimit(25)))
 					.willReturn(new GetRecordsResult().withNextShardIterator(null)

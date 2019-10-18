@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,8 +28,7 @@ import static org.mockito.Mockito.verify;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Future;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +48,7 @@ import org.springframework.messaging.converter.MessageConverter;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
@@ -59,9 +59,10 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 
 /**
  * @author Artem Bilan
+ *
  * @since 1.1
  */
-@RunWith(SpringRunner.class)
+@SpringJUnitConfig
 @DirtiesContext
 public class KinesisMessageHandlerTests {
 
@@ -79,31 +80,25 @@ public class KinesisMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testKinesisMessageHandler() throws Exception {
-		Message<?> message = MessageBuilder.withPayload("message").build();
-		try {
-			this.kinesisSendChannel.send(message);
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(MessageHandlingException.class);
-			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
-			assertThat(e.getMessage()).contains("'stream' must not be null for sending a Kinesis record");
-		}
+	void testKinesisMessageHandler() {
+		final Message<?> message = MessageBuilder.withPayload("message").build();
+
+		assertThatExceptionOfType(MessageHandlingException.class)
+				.isThrownBy(() -> this.kinesisSendChannel.send(message))
+				.withCauseInstanceOf(IllegalStateException.class)
+				.withMessageContaining("'stream' must not be null for sending a Kinesis record");
 
 		this.kinesisMessageHandler.setStream("foo");
-		try {
-			this.kinesisSendChannel.send(message);
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(MessageHandlingException.class);
-			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
-			assertThat(e.getMessage()).contains("'partitionKey' must not be null for sending a Kinesis record");
-		}
 
-		message = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+		assertThatExceptionOfType(MessageHandlingException.class)
+				.isThrownBy(() -> this.kinesisSendChannel.send(message))
+				.withCauseInstanceOf(IllegalStateException.class)
+				.withMessageContaining("'partitionKey' must not be null for sending a Kinesis record");
+
+		Message<?> message2 = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
 				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").setHeader("foo", "bar").build();
 
-		this.kinesisSendChannel.send(message);
+		this.kinesisSendChannel.send(message2);
 
 		ArgumentCaptor<PutRecordRequest> putRecordRequestArgumentCaptor = ArgumentCaptor
 				.forClass(PutRecordRequest.class);
@@ -133,10 +128,10 @@ public class KinesisMessageHandlerTests {
 
 		verify(this.asyncHandler).onError(eq(testingException));
 
-		message = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
+		message2 = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
 				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
 
-		this.kinesisSendChannel.send(message);
+		this.kinesisSendChannel.send(message2);
 
 		ArgumentCaptor<PutRecordsRequest> putRecordsRequestArgumentCaptor = ArgumentCaptor
 				.forClass(PutRecordsRequest.class);

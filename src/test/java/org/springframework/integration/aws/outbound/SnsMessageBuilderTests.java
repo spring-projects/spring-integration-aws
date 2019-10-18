@@ -17,47 +17,33 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.integration.aws.support.SnsBodyBuilder;
 
 /**
  * @author Artem Bilan
  */
-public class SnsMessageBuilderTests {
+class SnsMessageBuilderTests {
 
 	@Test
-	public void testSnsMessageBuilder() {
-		try {
-			SnsBodyBuilder.withDefault("");
-			fail("IllegalArgumentException expected");
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(IllegalArgumentException.class);
-			assertThat(e.getMessage()).contains("defaultMessage must not be empty.");
-		}
+	void testSnsMessageBuilder() {
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> SnsBodyBuilder.withDefault(""))
+				.withMessageContaining("defaultMessage must not be empty.");
 
 		String message = SnsBodyBuilder.withDefault("foo").build();
 		assertThat(message).isEqualTo("{\"default\":\"foo\"}");
 
-		try {
-			SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}").build();
-			fail("IllegalArgumentException expected");
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(IllegalArgumentException.class);
-			assertThat(e.getMessage()).contains("protocols must not be empty.");
-		}
-		try {
-			SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "").build();
-			fail("IllegalArgumentException expected");
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(IllegalArgumentException.class);
-			assertThat(e.getMessage()).contains("protocols must not contain empty elements.");
-		}
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}").build())
+				.withMessageContaining("protocols must not be empty.");
+
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "").build())
+				.withMessageContaining("protocols must not contain empty elements.");
 
 		message = SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "sms").build();
 

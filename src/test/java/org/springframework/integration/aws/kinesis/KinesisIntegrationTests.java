@@ -23,11 +23,12 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.integration.aws.KinesisLocalRunning;
+import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
 import org.springframework.integration.aws.outbound.KinesisMessageHandler;
@@ -55,20 +56,26 @@ import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+
+import cloud.localstack.docker.LocalstackDockerExtension;
+import cloud.localstack.docker.annotation.LocalstackDockerProperties;
+import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 
 /**
  * @author Artem Bilan
  * @since 1.1
  */
-@RunWith(SpringRunner.class)
+@DisabledOnOs(OS.WINDOWS)
+@SpringJUnitConfig
+@ExtendWith(LocalstackDockerExtension.class)
+@LocalstackDockerProperties(services = "kinesis")
 @DirtiesContext
 public class KinesisIntegrationTests {
 
-	@ClassRule
-	public static final KinesisLocalRunning KINESIS_LOCAL_RUNNING = KinesisLocalRunning.isRunning();
-
 	private static final String TEST_STREAM = "TestStream";
+
+	private static AmazonKinesisAsync AMAZON_KINESIS_ASYNC;
 
 	@Autowired
 	private MessageChannel kinesisSendChannel;
@@ -79,18 +86,19 @@ public class KinesisIntegrationTests {
 	@Autowired
 	private PollableChannel errorChannel;
 
-	@BeforeClass
-	public static void setup() {
-		KINESIS_LOCAL_RUNNING.getKinesis().createStream(TEST_STREAM, 1);
+	@BeforeAll
+	static void setup() {
+		AMAZON_KINESIS_ASYNC = ExtendedDockerTestUtils.getClientKinesisAsync();
+		AMAZON_KINESIS_ASYNC.createStream(TEST_STREAM, 1);
 	}
 
-	@AfterClass
-	public static void tearDown() {
-		KINESIS_LOCAL_RUNNING.getKinesis().deleteStream(TEST_STREAM);
+	@AfterAll
+	static void tearDown() {
+		AMAZON_KINESIS_ASYNC.deleteStream(TEST_STREAM);
 	}
 
 	@Test
-	public void testKinesisInboundOutbound() {
+	void testKinesisInboundOutbound() {
 		this.kinesisSendChannel
 				.send(MessageBuilder.withPayload("foo").setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 
@@ -138,7 +146,7 @@ public class KinesisIntegrationTests {
 		@Bean
 		@ServiceActivator(inputChannel = "kinesisSendChannel")
 		public MessageHandler kinesisMessageHandler() {
-			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(KINESIS_LOCAL_RUNNING.getKinesis());
+			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(AMAZON_KINESIS_ASYNC);
 			kinesisMessageHandler.setPartitionKey("1");
 			kinesisMessageHandler.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return kinesisMessageHandler;
@@ -156,7 +164,7 @@ public class KinesisIntegrationTests {
 
 		private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter = new KinesisMessageDrivenChannelAdapter(
-					KINESIS_LOCAL_RUNNING.getKinesis(), TEST_STREAM);
+					AMAZON_KINESIS_ASYNC, TEST_STREAM);
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());

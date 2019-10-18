@@ -18,8 +18,7 @@ package org.springframework.integration.aws.config.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,18 +27,16 @@ import org.springframework.integration.channel.NullChannel;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.sns.AmazonSNS;
 
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
-public class SnsInboundChannelAdapterParserTests {
+class SnsInboundChannelAdapterParserTests {
 
 	@Autowired
 	private AmazonSNS amazonSns;
@@ -55,7 +52,7 @@ public class SnsInboundChannelAdapterParserTests {
 	private SnsInboundChannelAdapter snsInboundChannelAdapter;
 
 	@Test
-	public void testSnsInboundChannelAdapterParser() {
+	void testSnsInboundChannelAdapterParser() {
 		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "notificationStatusResolver.amazonSns"))
 				.isSameAs(this.amazonSns);
 		assertThat(TestUtils.getPropertyValue(this.snsInboundChannelAdapter, "handleNotificationStatus", Boolean.class))

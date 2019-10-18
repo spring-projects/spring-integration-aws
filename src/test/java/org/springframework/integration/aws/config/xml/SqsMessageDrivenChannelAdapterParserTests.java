@@ -20,8 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.willThrow;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +36,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.core.DestinationResolutionException;
 import org.springframework.messaging.core.DestinationResolver;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.sqs.AmazonSQS;
 
@@ -46,8 +44,7 @@ import com.amazonaws.services.sqs.AmazonSQS;
  * @author Artem Bilan
  * @author Patrick Fitzsimons
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
 public class SqsMessageDrivenChannelAdapterParserTests {
 
@@ -73,14 +70,14 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 	private SqsMessageDrivenChannelAdapter sqsMessageDrivenChannelAdapter;
 
 	@Bean
-	public DestinationResolver<?> destinationResolver() {
+	DestinationResolver<?> destinationResolver() {
 		DestinationResolver<?> destinationResolver = Mockito.mock(DestinationResolver.class);
 		willThrow(DestinationResolutionException.class).given(destinationResolver).resolveDestination(anyString());
 		return destinationResolver;
 	}
 
 	@Test
-	public void testSqsMessageDrivenChannelAdapterParser() {
+	void testSqsMessageDrivenChannelAdapterParser() {
 		SimpleMessageListenerContainer listenerContainer = TestUtils.getPropertyValue(
 				this.sqsMessageDrivenChannelAdapter, "listenerContainer", SimpleMessageListenerContainer.class);
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "amazonSqs")).isSameAs(this.amazonSqs);

@@ -25,22 +25,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
-import org.springframework.integration.aws.DynamoDbLocalRunning;
+import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
+import cloud.localstack.docker.LocalstackDockerExtension;
+import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
@@ -51,46 +54,49 @@ import com.amazonaws.waiters.WaiterParameters;
 
 /**
  * @author Artem Bilan
+ *
  * @since 2.0
  */
-@RunWith(SpringRunner.class)
+@DisabledOnOs(OS.WINDOWS)
+@SpringJUnitConfig
+@ExtendWith(LocalstackDockerExtension.class)
+@LocalstackDockerProperties(services = "dynamodb")
 @DirtiesContext
 public class DynamoDbLockRegistryTests {
 
-	@ClassRule
-	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning();
-
 	private final AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
+
+	private static AmazonDynamoDBAsync DYNAMO_DB;
 
 	@Autowired
 	private DynamoDbLockRegistry dynamoDbLockRegistry;
 
-	@BeforeClass
-	public static void setup() {
-		AmazonDynamoDBAsync dynamoDB = DYNAMO_DB_RUNNING.getDynamoDB();
+	@BeforeAll
+	static void setup() {
+		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsync();
 
 		try {
-			dynamoDB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
+			DYNAMO_DB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 
-			Waiter<DescribeTableRequest> waiter = dynamoDB.waiters().tableNotExists();
+			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
 
 			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRegistry.DEFAULT_TABLE_NAME))
 					.withPollingStrategy(
 							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
 		catch (Exception e) {
-
+			// Ignore
 		}
 	}
 
-	@Before
-	public void clear() {
+	@BeforeEach
+	void clear() {
 		this.dynamoDbLockRegistry.expireUnusedOlderThan(0);
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testLock() {
+	void testLock() {
 		for (int i = 0; i < 10; i++) {
 			Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 			lock.lock();
@@ -105,7 +111,7 @@ public class DynamoDbLockRegistryTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testLockInterruptibly() throws Exception {
+	void testLockInterruptibly() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 			lock.lockInterruptibly();
@@ -119,7 +125,7 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testReentrantLock() {
+	void testReentrantLock() {
 		for (int i = 0; i < 10; i++) {
 			Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 			lock1.lock();
@@ -136,7 +142,7 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testReentrantLockInterruptibly() throws Exception {
+	void testReentrantLockInterruptibly() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 			lock1.lockInterruptibly();
@@ -153,7 +159,7 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testTwoLocks() throws Exception {
+	void testTwoLocks() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 			lock1.lockInterruptibly();
@@ -170,13 +176,13 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testTwoThreadsSecondFailsToGetLock() throws Exception {
+	void testTwoThreadsSecondFailsToGetLock() throws Exception {
 		final Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 		lock1.lockInterruptibly();
 		final AtomicBoolean locked = new AtomicBoolean();
 		final CountDownLatch latch = new CountDownLatch(1);
 		Future<Object> result = this.taskExecutor.submit(() -> {
-			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB);
 			registry2.setHeartbeatPeriod(1);
 			registry2.setRefreshPeriod(10);
 			registry2.setLeaseDuration(2);
@@ -204,7 +210,7 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testTwoThreads() throws Exception {
+	void testTwoThreads() throws Exception {
 		final Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 		final AtomicBoolean locked = new AtomicBoolean();
 		final CountDownLatch latch1 = new CountDownLatch(1);
@@ -212,7 +218,7 @@ public class DynamoDbLockRegistryTests {
 		final CountDownLatch latch3 = new CountDownLatch(1);
 		lock1.lockInterruptibly();
 		this.taskExecutor.submit(() -> {
-			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB);
 			registry2.setHeartbeatPeriod(1);
 			registry2.setRefreshPeriod(10);
 			registry2.setLeaseDuration(2);
@@ -246,14 +252,14 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testTwoThreadsDifferentRegistries() throws Exception {
-		final DynamoDbLockRegistry registry1 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+	void testTwoThreadsDifferentRegistries() throws Exception {
+		final DynamoDbLockRegistry registry1 = new DynamoDbLockRegistry(DYNAMO_DB);
 		registry1.setHeartbeatPeriod(1);
 		registry1.setRefreshPeriod(10);
 		registry1.setLeaseDuration(2);
 		registry1.afterPropertiesSet();
 
-		final DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+		final DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB);
 		registry2.setHeartbeatPeriod(1);
 		registry2.setRefreshPeriod(10);
 		registry2.setLeaseDuration(2);
@@ -295,7 +301,7 @@ public class DynamoDbLockRegistryTests {
 	}
 
 	@Test
-	public void testTwoThreadsWrongOneUnlocks() throws Exception {
+	void testTwoThreadsWrongOneUnlocks() throws Exception {
 		final Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 		lock.lockInterruptibly();
 		final AtomicBoolean locked = new AtomicBoolean();
@@ -325,7 +331,7 @@ public class DynamoDbLockRegistryTests {
 
 		@Bean
 		public DynamoDbLockRegistry dynamoDbLockRegistry() {
-			DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(DYNAMO_DB_RUNNING.getDynamoDB());
+			DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(DYNAMO_DB);
 			dynamoDbLockRegistry.setHeartbeatPeriod(1);
 			dynamoDbLockRegistry.setRefreshPeriod(10);
 			dynamoDbLockRegistry.setLeaseDuration(2);

@@ -18,8 +18,7 @@ package org.springframework.integration.aws.config.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,8 +29,7 @@ import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sns.AmazonSNSAsync;
@@ -39,10 +37,9 @@ import com.amazonaws.services.sns.AmazonSNSAsync;
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
-public class SnsOutboundChannelAdapterParserTests {
+class SnsOutboundChannelAdapterParserTests {
 
 	@Autowired
 	private AmazonSNSAsync amazonSns;
@@ -76,9 +73,7 @@ public class SnsOutboundChannelAdapterParserTests {
 	private MessageChannel successChannel;
 
 	@Test
-	public void testSnsOutboundChannelAdapterDefaultParser() {
-		Object handler = TestUtils.getPropertyValue(this.defaultAdapter, "handler");
-
+	void testSnsOutboundChannelAdapterDefaultParser() {
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapter, "inputChannel")).isSameAs(this.notificationChannel);
 
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "amazonSns")).isSameAs(this.amazonSns);
@@ -106,7 +101,6 @@ public class SnsOutboundChannelAdapterParserTests {
 
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "sendTimeoutExpression.literalValue"))
 				.isEqualTo("202");
-
 	}
 
 }

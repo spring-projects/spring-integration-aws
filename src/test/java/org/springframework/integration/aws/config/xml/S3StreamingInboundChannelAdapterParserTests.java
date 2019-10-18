@@ -22,8 +22,7 @@ import java.lang.reflect.Method;
 import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.expression.Expression;
@@ -35,17 +34,16 @@ import org.springframework.integration.file.remote.synchronizer.AbstractInboundF
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.util.ReflectionUtils;
 
 /**
  * @author Christian Tzolov
+ * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
-public class S3StreamingInboundChannelAdapterParserTests {
+class S3StreamingInboundChannelAdapterParserTests {
 
 	@Autowired
 	private SourcePollingChannelAdapter s3Inbound;
@@ -63,7 +61,7 @@ public class S3StreamingInboundChannelAdapterParserTests {
 	private SessionFactory<?> s3SessionFactory;
 
 	@Test
-	public void testS3StreamingInboundChannelAdapterComplete() throws Exception {
+	void testS3StreamingInboundChannelAdapterComplete() {
 
 		assertThat(TestUtils.getPropertyValue(this.s3Inbound, "autoStartup", Boolean.class)).isFalse();
 		assertThat(this.s3Inbound.getComponentName()).isEqualTo("s3Inbound");
@@ -75,7 +73,7 @@ public class S3StreamingInboundChannelAdapterParserTests {
 
 		assertThat(
 				TestUtils.getPropertyValue(source, "remoteDirectoryExpression", Expression.class).getExpressionString())
-						.isEqualTo("foo/bar");
+				.isEqualTo("foo/bar");
 
 		assertThat(TestUtils.getPropertyValue(source, "comparator")).isSameAs(this.comparator);
 		String remoteFileSeparator = (String) TestUtils.getPropertyValue(source, "remoteFileSeparator");
@@ -89,17 +87,13 @@ public class S3StreamingInboundChannelAdapterParserTests {
 				.isSameAs(this.s3SessionFactory);
 
 		final AtomicReference<Method> genMethod = new AtomicReference<Method>();
-		ReflectionUtils.doWithMethods(AbstractInboundFileSynchronizer.class, new ReflectionUtils.MethodCallback() {
-
-			@Override
-			public void doWith(Method method) throws IllegalArgumentException, IllegalAccessException {
-				if ("generateLocalFileName".equals(method.getName())) {
-					method.setAccessible(true);
-					genMethod.set(method);
-				}
-			}
-
-		});
+		ReflectionUtils.doWithMethods(AbstractInboundFileSynchronizer.class,
+				method -> {
+					if ("generateLocalFileName".equals(method.getName())) {
+						method.setAccessible(true);
+						genMethod.set(method);
+					}
+				});
 	}
 
 }

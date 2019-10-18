@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.outbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.mock;
@@ -25,8 +26,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.Map;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,8 +45,7 @@ import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
@@ -64,8 +63,7 @@ import com.amazonaws.services.sqs.model.SendMessageRequest;
  * @author Rahul Pilani
  * @author Seth Kelly
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class SqsMessageHandlerTests {
 
@@ -86,15 +84,12 @@ public class SqsMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testSqsMessageHandler() {
-		Message<String> message = MessageBuilder.withPayload("message").build();
-		try {
-			this.sqsSendChannel.send(message);
-		}
-		catch (Exception e) {
-			assertThat(e).isInstanceOf(MessageHandlingException.class);
-			assertThat(e.getCause()).isInstanceOf(IllegalStateException.class);
-		}
+	void testSqsMessageHandler() {
+		final Message<String> message = MessageBuilder.withPayload("message").build();
+
+		assertThatExceptionOfType(MessageHandlingException.class)
+				.isThrownBy(() -> this.sqsSendChannel.send(message))
+				.withCauseInstanceOf(IllegalStateException.class);
 
 		this.sqsMessageHandler.setQueue("foo");
 		this.sqsSendChannel.send(message);
@@ -103,8 +98,8 @@ public class SqsMessageHandlerTests {
 		verify(this.amazonSqs).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(), any(AsyncHandler.class));
 		assertThat(sendMessageRequestArgumentCaptor.getValue().getQueueUrl()).isEqualTo("https://queue-url.com/foo");
 
-		message = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
-		this.sqsSendChannel.send(message);
+		Message<String> message2 = MessageBuilder.withPayload("message").setHeader(AwsHeaders.QUEUE, "bar").build();
+		this.sqsSendChannel.send(message2);
 		verify(this.amazonSqs, times(2)).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(),
 				any(AsyncHandler.class));
 
@@ -113,8 +108,8 @@ public class SqsMessageHandlerTests {
 		SpelExpressionParser spelExpressionParser = new SpelExpressionParser();
 		Expression expression = spelExpressionParser.parseExpression("headers.foo");
 		this.sqsMessageHandler.setQueueExpression(expression);
-		message = MessageBuilder.withPayload("message").setHeader("foo", "baz").build();
-		this.sqsSendChannel.send(message);
+		message2 = MessageBuilder.withPayload("message").setHeader("foo", "baz").build();
+		this.sqsSendChannel.send(message2);
 		verify(this.amazonSqs, times(3)).sendMessageAsync(sendMessageRequestArgumentCaptor.capture(),
 				any(AsyncHandler.class));
 
@@ -128,12 +123,11 @@ public class SqsMessageHandlerTests {
 		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
 		assertThat(messageAttributes).containsKey("foo");
 		assertThat(messageAttributes.get("foo").getStringValue()).isEqualTo("baz");
-
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testSqsMessageHandlerWithAutoQueueCreate() {
+	void testSqsMessageHandlerWithAutoQueueCreate() {
 		Message<String> message = MessageBuilder.withPayload("message").build();
 
 		this.sqsMessageHandlerWithAutoQueueCreate.setQueue("foo");

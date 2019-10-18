@@ -18,8 +18,7 @@ package org.springframework.integration.aws.config.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +33,7 @@ import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.transfer.TransferManager;
@@ -44,10 +42,9 @@ import com.amazonaws.services.s3.transfer.internal.S3ProgressListener;
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
-public class S3MessageHandlerParserTests {
+class S3MessageHandlerParserTests {
 
 	@Autowired
 	private AmazonS3 amazonS3;
@@ -88,7 +85,7 @@ public class S3MessageHandlerParserTests {
 	private BeanFactory beanFactory;
 
 	@Test
-	public void testS3OutboundChannelAdapterParser() {
+	void testS3OutboundChannelAdapterParser() {
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "transferManager.s3"))
 				.isSameAs(this.amazonS3);
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "bucketExpression.literalValue"))
@@ -97,7 +94,7 @@ public class S3MessageHandlerParserTests {
 				"destinationBucketExpression.expression")).isEqualTo("'bar'");
 		assertThat(
 				TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "destinationKeyExpression.expression"))
-						.isEqualTo("'baz'");
+				.isEqualTo("'baz'");
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "keyExpression.expression"))
 				.isEqualTo("payload.name");
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundChannelAdapterHandler, "objectAclExpression.expression"))
@@ -125,7 +122,7 @@ public class S3MessageHandlerParserTests {
 	}
 
 	@Test
-	public void testS3OutboundGatewayParser() {
+	void testS3OutboundGatewayParser() {
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "transferManager"))
 				.isSameAs(this.transferManager);
 		assertThat(TestUtils.getPropertyValue(this.s3OutboundGatewayHandler, "bucketExpression.expression"))

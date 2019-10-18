@@ -26,17 +26,16 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,8 +53,7 @@ import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.util.FileCopyUtils;
 
 import com.amazonaws.services.s3.AmazonS3;
@@ -68,15 +66,15 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 /**
  * @author Christian Tzolov
  * @author Artem Bilan
+ *
  * @since 1.1
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
 public class S3StreamingChannelAdapterTests {
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+	@TempDir
+	static Path TEMPORARY_FOLDER;
 
 	private static final String S3_BUCKET = "S3_BUCKET";
 
@@ -85,13 +83,15 @@ public class S3StreamingChannelAdapterTests {
 	@Autowired
 	private PollableChannel s3FilesChannel;
 
-	@BeforeClass
-	public static void setup() throws IOException {
-		File remoteFolder = TEMPORARY_FOLDER.newFolder("remote");
-
+	@BeforeAll
+	static void setup() throws IOException {
+		File remoteFolder = new File(TEMPORARY_FOLDER.toFile(), "remote");
+		remoteFolder.mkdir();
 		File aFile = new File(remoteFolder, "a.test");
+		aFile.createNewFile();
 		FileCopyUtils.copy("Hello".getBytes(), aFile);
 		File bFile = new File(remoteFolder, "b.test");
+		bFile.createNewFile();
 		FileCopyUtils.copy("Bye".getBytes(), bFile);
 
 		S3_OBJECTS = new ArrayList<>();
@@ -107,7 +107,7 @@ public class S3StreamingChannelAdapterTests {
 	}
 
 	@Test
-	public void testS3InboundStreamingChannelAdapter() throws IOException {
+	void testS3InboundStreamingChannelAdapter() throws IOException {
 		Message<?> message = this.s3FilesChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(InputStream.class);
@@ -116,6 +116,7 @@ public class S3StreamingChannelAdapterTests {
 		InputStream inputStreamA = (InputStream) message.getPayload();
 		assertThat(inputStreamA).isNotNull();
 		assertThat(IOUtils.toString(inputStreamA, Charset.defaultCharset())).isEqualTo("Hello");
+		inputStreamA.close();
 
 		message = this.s3FilesChannel.receive(10000);
 		assertThat(message).isNotNull();
@@ -127,6 +128,8 @@ public class S3StreamingChannelAdapterTests {
 		assertThat(IOUtils.toString(inputStreamB, Charset.defaultCharset())).isEqualTo("Bye");
 
 		assertThat(this.s3FilesChannel.receive(10)).isNull();
+
+		inputStreamB.close();
 	}
 
 	@Configuration

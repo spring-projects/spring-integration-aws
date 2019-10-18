@@ -24,8 +24,7 @@ import static org.mockito.Mockito.verify;
 
 import java.util.Map;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,8 +45,7 @@ import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sns.AmazonSNSAsync;
@@ -58,8 +56,7 @@ import com.amazonaws.services.sns.model.PublishResult;
 /**
  * @author Artem Bilan
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration
+@SpringJUnitConfig
 @DirtiesContext
 public class SnsMessageHandlerTests {
 
@@ -76,7 +73,7 @@ public class SnsMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testSnsMessageHandler() {
+	void testSnsMessageHandler() {
 		SnsBodyBuilder payload = SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "sms");
 
 		Message<?> message = MessageBuilder.withPayload(payload).setHeader("topic", "topic")

@@ -16,7 +16,9 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
@@ -25,26 +27,38 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  * @author Rahul Pilani
  * @author Artem Bilan
  */
-public class SqsOutboundChannelAdapterParserTests {
+class SqsOutboundChannelAdapterParserTests {
 
-	@Test(expected = BeanDefinitionStoreException.class)
-	public void test_sqs_resource_resolver_defined_with_queue_messaging_template() {
-		new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad.xml", getClass()).close();
+	@Test
+	void test_sqs_resource_resolver_defined_with_queue_messaging_template() {
+		assertThatExceptionOfType(BeanDefinitionStoreException.class)
+				.isThrownBy(() ->
+						new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad.xml",
+								getClass()));
 	}
 
-	@Test(expected = BeanDefinitionStoreException.class)
-	public void test_sqs_defined_with_queue_messaging_template() {
-		new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad2.xml", getClass()).close();
+	@Test
+	void test_sqs_defined_with_queue_messaging_template() {
+		assertThatExceptionOfType(BeanDefinitionStoreException.class)
+				.isThrownBy(() ->
+						new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad2.xml",
+								getClass()));
 	}
 
-	@Test(expected = BeanDefinitionStoreException.class)
-	public void test_resource_resolver_defined_with_queue_messaging_template() {
-		new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad3.xml", getClass()).close();
+	@Test
+	void test_resource_resolver_defined_with_queue_messaging_template() {
+		assertThatExceptionOfType(BeanDefinitionStoreException.class)
+				.isThrownBy(() ->
+						new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad3.xml",
+								getClass()));
 	}
 
-	@Test(expected = BeanDefinitionStoreException.class)
-	public void test_neither_sqs_nor_queue_messaging_template_defined() {
-		new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad4.xml", getClass()).close();
+	@Test
+	void test_neither_sqs_nor_queue_messaging_template_defined() {
+		assertThatExceptionOfType(BeanDefinitionStoreException.class)
+				.isThrownBy(() ->
+						new ClassPathXmlApplicationContext("SqsOutboundChannelAdapterParserTests-context-bad4.xml",
+								getClass()));
 	}
 
 }

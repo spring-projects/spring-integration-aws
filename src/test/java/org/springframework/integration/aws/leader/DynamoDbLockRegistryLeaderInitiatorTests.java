@@ -24,12 +24,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.springframework.integration.aws.DynamoDbLocalRunning;
+import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.aws.lock.DynamoDbLockRegistry;
 import org.springframework.integration.leader.Context;
 import org.springframework.integration.leader.DefaultCandidate;
@@ -37,6 +39,8 @@ import org.springframework.integration.leader.event.LeaderEventPublisher;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 
+import cloud.localstack.docker.LocalstackDockerExtension;
+import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
@@ -47,46 +51,47 @@ import com.amazonaws.waiters.WaiterParameters;
 
 /**
  * @author Artem Bilan
+ *
  * @since 2.0
  */
-public class DynamoDbLockRegistryLeaderInitiatorTests {
+@DisabledOnOs(OS.WINDOWS)
+@ExtendWith(LocalstackDockerExtension.class)
+@LocalstackDockerProperties(services = "dynamodb")
+class DynamoDbLockRegistryLeaderInitiatorTests {
 
-	@ClassRule
-	public static final DynamoDbLocalRunning DYNAMO_DB_RUNNING = DynamoDbLocalRunning.isRunning();
+	private static AmazonDynamoDBAsync DYNAMO_DB;
 
-	private static AmazonDynamoDBAsync dynamoDB;
-
-	@BeforeClass
-	public static void init() {
-		dynamoDB = DYNAMO_DB_RUNNING.getDynamoDB();
+	@BeforeAll
+	static void init() {
+		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsync();
 
 		try {
-			dynamoDB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
+			DYNAMO_DB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 
-			Waiter<DescribeTableRequest> waiter = dynamoDB.waiters().tableNotExists();
+			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
 
 			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRegistry.DEFAULT_TABLE_NAME))
 					.withPollingStrategy(
 							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
 		catch (Exception e) {
-
+			// Ignore
 		}
 	}
 
-	@AfterClass
-	public static void destroy() {
-		dynamoDB.deleteTable(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
+	@AfterAll
+	static void destroy() {
+		DYNAMO_DB.deleteTable(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 	}
 
 	@Test
-	public void testDistributedLeaderElection() throws Exception {
+	void testDistributedLeaderElection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);
 		CountingPublisher countingPublisher = new CountingPublisher(granted);
 		List<DynamoDbLockRegistry> registries = new ArrayList<>();
 		List<LockRegistryLeaderInitiator> initiators = new ArrayList<>();
 		for (int i = 0; i < 2; i++) {
-			DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDB);
+			DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(DYNAMO_DB);
 			lockRepository.afterPropertiesSet();
 			registries.add(lockRepository);
 
@@ -173,11 +178,11 @@ public class DynamoDbLockRegistryLeaderInitiatorTests {
 	}
 
 	@Test
-	public void testLostConnection() throws Exception {
+	void testLostConnection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);
 		CountingPublisher countingPublisher = new CountingPublisher(granted);
 
-		DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDB);
+		DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(DYNAMO_DB);
 		lockRepository.afterPropertiesSet();
 
 		LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository);
