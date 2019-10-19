@@ -49,7 +49,7 @@ import com.amazonaws.waiters.WaiterParameters;
  */
 @DisabledOnOs(OS.WINDOWS)
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(services = "dynamodb")
+@LocalstackDockerProperties(randomizePorts = true, services = "dynamodb")
 class DynamoDbMetadataStoreTests {
 
 	private static AmazonDynamoDBAsync DYNAMO_DB;

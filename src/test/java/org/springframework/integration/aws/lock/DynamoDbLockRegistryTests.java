@@ -60,7 +60,7 @@ import com.amazonaws.waiters.WaiterParameters;
 @DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(services = "dynamodb")
+@LocalstackDockerProperties(randomizePorts = true, services = "dynamodb")
 @DirtiesContext
 public class DynamoDbLockRegistryTests {
 

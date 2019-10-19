@@ -69,7 +69,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 @DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(services = "kinesis")
+@LocalstackDockerProperties(randomizePorts = true, services = "kinesis")
 @DirtiesContext
 public class KinesisIntegrationTests {
 

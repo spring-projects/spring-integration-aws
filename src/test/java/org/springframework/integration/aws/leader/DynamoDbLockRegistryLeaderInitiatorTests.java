@@ -56,7 +56,7 @@ import com.amazonaws.waiters.WaiterParameters;
  */
 @DisabledOnOs(OS.WINDOWS)
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(services = "dynamodb")
+@LocalstackDockerProperties(randomizePorts = true, services = "dynamodb")
 class DynamoDbLockRegistryLeaderInitiatorTests {
 
 	private static AmazonDynamoDBAsync DYNAMO_DB;
