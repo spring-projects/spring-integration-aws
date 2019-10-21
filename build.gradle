@@ -125,6 +125,9 @@ dependencies {
 	testRuntime "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
 	testRuntime 'org.junit.jupiter:junit-jupiter-engine'
 	testRuntime 'org.junit.platform:junit-platform-launcher'
+
+	// To support JUnit 4 tests
+	testRuntime 'org.junit.vintage:junit-vintage-engine'
 }
 
 eclipse.project.natures += 'org.springframework.ide.eclipse.core.springnature'
