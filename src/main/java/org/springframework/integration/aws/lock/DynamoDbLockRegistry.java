@@ -52,6 +52,7 @@ import com.amazonaws.services.dynamodbv2.CreateDynamoDBTableOptions;
 import com.amazonaws.services.dynamodbv2.LockItem;
 import com.amazonaws.services.dynamodbv2.model.LockTableDoesNotExistException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
+import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
 
 /**
  * An {@link ExpirableLockRegistry} implementation for the AWS DynamoDB. The algorithm is
@@ -244,7 +245,12 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 									this.tableName)
 							.withPartitionKeyName(this.partitionKey).withSortKeyName(this.sortKeyName).build();
 
-					AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
+					try {
+						AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
+					}
+					catch (ResourceInUseException ex) {
+						// Swallow an exception and check for table existence
+					}
 				}
 
 				int i = 0;

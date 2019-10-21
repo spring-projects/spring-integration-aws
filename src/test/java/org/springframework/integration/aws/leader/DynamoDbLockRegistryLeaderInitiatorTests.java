@@ -18,6 +18,7 @@ package org.springframework.integration.aws.leader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -28,10 +29,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.springframework.integration.aws.EnvironmentHostNameResolver;
 import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.aws.lock.DynamoDbLockRegistry;
 import org.springframework.integration.leader.Context;
@@ -39,6 +40,7 @@ import org.springframework.integration.leader.DefaultCandidate;
 import org.springframework.integration.leader.event.LeaderEventPublisher;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
+import org.springframework.util.ReflectionUtils;
 
 import cloud.localstack.docker.LocalstackDockerExtension;
 import cloud.localstack.docker.annotation.LocalstackDockerProperties;
@@ -55,10 +57,11 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 2.0
  */
-@Disabled
-@DisabledOnOs(OS.WINDOWS)
+@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(randomizePorts = true, services = "dynamodb")
+@LocalstackDockerProperties(randomizePorts = true,
+		hostNameResolver = EnvironmentHostNameResolver.class,
+		services = "dynamodb")
 class DynamoDbLockRegistryLeaderInitiatorTests {
 
 	private static AmazonDynamoDBAsync DYNAMO_DB;
@@ -86,6 +89,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests {
 		DYNAMO_DB.deleteTable(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 	}
 
+	@Disabled("Doesn't work properly against Local Stack when two instances try to lock in table")
 	@Test
 	void testDistributedLeaderElection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);
@@ -140,7 +144,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests {
 
 		// It's hard to see round-robin election, so let's make the yielding initiator to
 		// sleep long before restarting
-		initiator1.setBusyWaitMillis(1000);
+		initiator1.setBusyWaitMillis(10000);
 
 		initiator1.getContext().yield();
 

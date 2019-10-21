@@ -21,15 +21,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.springframework.integration.aws.EnvironmentHostNameResolver;
 import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.test.util.TestUtils;
 
-import cloud.localstack.docker.LocalstackDockerTestRunner;
+import cloud.localstack.docker.LocalstackDockerExtension;
 import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
@@ -45,10 +47,12 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 1.1
  */
-//@DisabledOnOs(OS.WINDOWS)
-@RunWith(LocalstackDockerTestRunner.class)
-@LocalstackDockerProperties(services = "dynamodb")
-public class DynamoDbMetadataStoreTests {
+@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
+@ExtendWith(LocalstackDockerExtension.class)
+@LocalstackDockerProperties(randomizePorts = true,
+		hostNameResolver = EnvironmentHostNameResolver.class,
+		services = "dynamodb")
+class DynamoDbMetadataStoreTests {
 
 	private static AmazonDynamoDBAsync DYNAMO_DB;
 
@@ -60,8 +64,8 @@ public class DynamoDbMetadataStoreTests {
 
 	private final String file1Id = "12345";
 
-	@BeforeClass
-	public static void setup() {
+	@BeforeAll
+	static void setup() {
 		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsync();
 
 		try {
@@ -69,8 +73,10 @@ public class DynamoDbMetadataStoreTests {
 
 			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
 
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(TEST_TABLE)).withPollingStrategy(
-					new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
+			waiter.run(new WaiterParameters<>(new DescribeTableRequest(TEST_TABLE))
+					.withPollingStrategy(
+							new PollingStrategy(new MaxAttemptsRetryStrategy(25),
+									new FixedDelayStrategy(1))));
 		}
 		catch (Exception e) {
 			// Ignore
@@ -81,8 +87,8 @@ public class DynamoDbMetadataStoreTests {
 		store.afterPropertiesSet();
 	}
 
-	@Before
-	public void clear() throws InterruptedException {
+	@BeforeEach
+	void clear() throws InterruptedException {
 		CountDownLatch createTableLatch = TestUtils.getPropertyValue(store, "createTableLatch", CountDownLatch.class);
 
 		createTableLatch.await();
@@ -91,7 +97,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testGetFromStore() {
+	void testGetFromStore() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).isNull();
 
@@ -103,7 +109,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testPutIfAbsent() {
+	void testPutIfAbsent() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).describedAs("Get First time, Value must not exist").isNull();
 
@@ -118,7 +124,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testRemove() {
+	void testRemove() {
 		String fileID = store.remove(this.file1);
 		assertThat(fileID).isNull();
 
@@ -134,7 +140,7 @@ public class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	public void testReplace() {
+	void testReplace() {
 		boolean removedValue = store.replace(this.file1, this.file1Id, "4567");
 		assertThat(removedValue).isFalse();
 

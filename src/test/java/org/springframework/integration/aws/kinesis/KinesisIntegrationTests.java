@@ -27,8 +27,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.DirectFieldAccessor;
@@ -37,6 +36,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.aws.EnvironmentHostNameResolver;
 import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
@@ -65,13 +65,16 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 
 /**
  * @author Artem Bilan
+ *
  * @since 1.1
  */
-@Disabled
-@DisabledOnOs(OS.WINDOWS)
+@Disabled("Looks like Kinesis is not supported well in Local Stack")
 @SpringJUnitConfig
+@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(randomizePorts = true, services = "kinesis")
+@LocalstackDockerProperties(randomizePorts = true,
+		hostNameResolver = EnvironmentHostNameResolver.class,
+		services = "kinesis")
 @DirtiesContext
 public class KinesisIntegrationTests {
 

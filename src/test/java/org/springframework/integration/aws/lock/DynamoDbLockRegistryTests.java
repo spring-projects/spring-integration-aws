@@ -27,10 +27,8 @@ import java.util.concurrent.locks.Lock;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +36,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.integration.aws.EnvironmentHostNameResolver;
 import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.test.annotation.DirtiesContext;
@@ -58,11 +57,12 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 2.0
  */
-@Disabled
-@DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
+@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(randomizePorts = true, services = "dynamodb")
+@LocalstackDockerProperties(randomizePorts = true,
+		hostNameResolver = EnvironmentHostNameResolver.class,
+		services = "dynamodb")
 @DirtiesContext
 public class DynamoDbLockRegistryTests {
 
