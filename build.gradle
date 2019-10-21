@@ -110,7 +110,7 @@ dependencies {
 	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
 
 	testCompile ('org.springframework.integration:spring-integration-test') {
-		exclude group: 'junit'
+//		exclude group: 'junit'
 	}
 
 	testCompile "org.assertj:assertj-core:$assertjVersion"

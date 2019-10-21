@@ -21,17 +21,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.test.util.TestUtils;
 
-import cloud.localstack.docker.LocalstackDockerExtension;
+import cloud.localstack.docker.LocalstackDockerTestRunner;
 import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
@@ -47,10 +45,10 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 1.1
  */
-@DisabledOnOs(OS.WINDOWS)
-@ExtendWith(LocalstackDockerExtension.class)
+//@DisabledOnOs(OS.WINDOWS)
+@RunWith(LocalstackDockerTestRunner.class)
 @LocalstackDockerProperties(randomizePorts = true, services = "dynamodb")
-class DynamoDbMetadataStoreTests {
+public class DynamoDbMetadataStoreTests {
 
 	private static AmazonDynamoDBAsync DYNAMO_DB;
 
@@ -62,8 +60,8 @@ class DynamoDbMetadataStoreTests {
 
 	private final String file1Id = "12345";
 
-	@BeforeAll
-	static void setup() {
+	@BeforeClass
+	public static void setup() {
 		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsync();
 
 		try {
@@ -79,12 +77,12 @@ class DynamoDbMetadataStoreTests {
 		}
 
 		store = new DynamoDbMetadataStore(DYNAMO_DB, TEST_TABLE);
-		store.setTimeToLive(10); // Dynalite doesn't support TTL
+		store.setTimeToLive(10);
 		store.afterPropertiesSet();
 	}
 
-	@BeforeEach
-	void clear() throws InterruptedException {
+	@Before
+	public void clear() throws InterruptedException {
 		CountDownLatch createTableLatch = TestUtils.getPropertyValue(store, "createTableLatch", CountDownLatch.class);
 
 		createTableLatch.await();
@@ -93,7 +91,7 @@ class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	void testGetFromStore() {
+	public void testGetFromStore() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).isNull();
 
@@ -105,7 +103,7 @@ class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	void testPutIfAbsent() {
+	public void testPutIfAbsent() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).describedAs("Get First time, Value must not exist").isNull();
 
@@ -120,7 +118,7 @@ class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	void testRemove() {
+	public void testRemove() {
 		String fileID = store.remove(this.file1);
 		assertThat(fileID).isNull();
 
@@ -136,7 +134,7 @@ class DynamoDbMetadataStoreTests {
 	}
 
 	@Test
-	void testReplace() {
+	public void testReplace() {
 		boolean removedValue = store.replace(this.file1, this.file1Id, "4567");
 		assertThat(removedValue).isFalse();
 

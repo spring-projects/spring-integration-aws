@@ -27,6 +27,7 @@ import java.util.concurrent.locks.Lock;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -57,6 +58,7 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 2.0
  */
+@Disabled
 @DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
 @ExtendWith(LocalstackDockerExtension.class)

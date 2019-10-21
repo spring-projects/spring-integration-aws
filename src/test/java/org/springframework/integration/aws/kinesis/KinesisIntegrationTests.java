@@ -25,6 +25,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -66,6 +67,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
  * @author Artem Bilan
  * @since 1.1
  */
+@Disabled
 @DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
 @ExtendWith(LocalstackDockerExtension.class)
