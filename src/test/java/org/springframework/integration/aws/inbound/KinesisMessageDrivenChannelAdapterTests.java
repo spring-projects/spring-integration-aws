@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,9 @@ import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.serializer.support.SerializingConverter;
+import org.springframework.integration.aws.event.KinesisShardEndedEvent;
 import org.springframework.integration.aws.inbound.kinesis.CheckpointMode;
 import org.springframework.integration.aws.inbound.kinesis.Checkpointer;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
@@ -96,6 +99,9 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Autowired
 	private AmazonKinesis amazonKinesisForResharding;
+
+	@Autowired
+	private Config config;
 
 	@BeforeEach
 	void setup() {
@@ -211,6 +217,12 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		verify(this.amazonKinesisForResharding, atLeast(1)).describeStream(any(DescribeStreamRequest.class));
 
 		this.reshardingChannelAdapter.stop();
+
+		KinesisShardEndedEvent kinesisShardEndedEvent = this.config.shardEndedEventReference.get();
+
+		assertThat(kinesisShardEndedEvent).isNotNull()
+		.extracting(KinesisShardEndedEvent::getShardKey)
+		.isEqualTo("SpringIntegration:streamForResharding:closedShard");
 	}
 
 	@Configuration
@@ -356,6 +368,13 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			adapter.setConverter(String::new);
 
 			return adapter;
+		}
+
+		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
+
+		@EventListener
+		public void handleKinesisShardEndedEvent(KinesisShardEndedEvent event) {
+			this.shardEndedEventReference.set(event);
 		}
 
 	}

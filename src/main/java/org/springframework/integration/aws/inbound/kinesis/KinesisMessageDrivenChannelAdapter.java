@@ -45,10 +45,13 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
+import org.springframework.integration.aws.event.KinesisShardEndedEvent;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.mapping.InboundMessageMapper;
@@ -93,7 +96,8 @@ import com.amazonaws.services.kinesis.model.StreamStatus;
  */
 @ManagedResource
 @IntegrationManagedResource
-public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
+public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
+		implements DisposableBean, ApplicationEventPublisherAware {
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
@@ -166,6 +170,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 
 	private volatile Future<?> shardConsumerManagerFuture;
 
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		Assert.notEmpty(streams, "'streams' must not be null.");
@@ -185,6 +191,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 		}
 		this.amazonKinesis = amazonKinesis;
 		this.streams = null;
+	}
+
+	@Override
+	public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+		this.applicationEventPublisher = applicationEventPublisher;
 	}
 
 	public void setConsumerGroup(String consumerGroup) {
@@ -918,6 +929,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport i
 						if (this.shardIterator == null) {
 							// Shard is closed: nothing to consume any more.
 							// Resharding is possible.
+							if (KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
+								KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher
+										.publishEvent(new KinesisShardEndedEvent(KinesisMessageDrivenChannelAdapter.this,
+												this.key));
+							}
 							stop();
 						}
 
