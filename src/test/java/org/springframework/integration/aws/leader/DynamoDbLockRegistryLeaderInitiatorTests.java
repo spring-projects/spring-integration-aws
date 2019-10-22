@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,7 +86,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests {
 		DYNAMO_DB.deleteTable(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 	}
 
-	@Disabled("Doesn't work properly against Local Stack when two instances try to lock in table")
+	//	@Disabled("Doesn't work properly against Local Stack when two instances try to lock in table")
 	@Test
 	void testDistributedLeaderElection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);

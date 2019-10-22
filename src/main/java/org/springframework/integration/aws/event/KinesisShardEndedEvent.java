@@ -23,6 +23,7 @@ package org.springframework.integration.aws.event;
  *
  * @since 2.3
  */
+@SuppressWarnings("serial")
 public class KinesisShardEndedEvent extends KinesisIntegrationEvent {
 
 	private final String shardKey;

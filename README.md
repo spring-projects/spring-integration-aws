@@ -522,8 +522,7 @@ this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
 ````
 
 Where you should specify the port on which you have ran the Dynalite service.
-Also you can use for your testing purpose a copy of `org.springframework.integration.aws.DynamoDbLocalRunning` in the `/test` directory of this project.
-The default port is expected as `4568`, because the `4567` is reserved for the `KinesisLocalRunning` against local Kinesalite npm service. 
+Also you can use for you testing purpose a [Local Stack][] library. 
 
 Starting with _version 2.0_, the `DynamoDbMetadataStore` can be configured with the `timeToLive` option to enable the [DynamoDB TTL][] feature.
 The `TTL` attribute is added to each item with the value based on the sum of current time and provided `timeToLive` in seconds.
@@ -647,7 +646,7 @@ this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
 ````
 
 Where you should specify the port on which you have ran the Kinesalite service.
-Also you can use for you testing purpose a copy of `org.springframework.integration.aws.KinesisLocalRunning` in the `/test` directory of this project.    
+Also you can use for you testing purpose a [Local Stack][] library.    
 
 Also the `KplMessageHandler` is provided for performing streams consumption by [Kinesis Producer Library][].
 
@@ -679,3 +678,4 @@ The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `D
 [Leader Election]: https://docs.spring.io/spring-integration/docs/current/reference/html/messaging-endpoints-chapter.html#leadership-event-handling
 [Kinesis Producer Library]: https://docs.aws.amazon.com/streams/latest/dev/developing-producers-with-kpl.html 
 [LockRegistryLeaderInitiator]: https://docs.spring.io/spring-integration/docs/current/reference/html/messaging-endpoints-chapter.html#leadership-event-handling 
+[Local Stack]: https://localstack.cloud

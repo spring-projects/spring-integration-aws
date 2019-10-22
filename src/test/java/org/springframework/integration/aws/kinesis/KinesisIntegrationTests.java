@@ -25,7 +25,6 @@ import java.util.Set;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,7 +67,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
  *
  * @since 1.1
  */
-@Disabled("Looks like Kinesis is not supported well in Local Stack")
+//@Disabled("Looks like Kinesis is not supported well in Local Stack")
 @SpringJUnitConfig
 @EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)
@@ -124,21 +123,21 @@ public class KinesisIntegrationTests {
 				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types "
 						+ "[class java.util.Date], but received [class java.lang.String]");
 
-		for (int i = 0; i < 1000; i++) {
+		for (int i = 0; i < 10; i++) {
 			this.kinesisSendChannel
 					.send(MessageBuilder.withPayload(new Date()).setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 		}
 
 		Set<String> receivedSequences = new HashSet<>();
 
-		for (int i = 0; i < 1000; i++) {
-			receive = this.kinesisReceiveChannel.receive(10_000);
+		for (int i = 0; i < 10; i++) {
+			receive = this.kinesisReceiveChannel.receive(20_000);
 			assertThat(receive).isNotNull();
 			String sequenceNumber = receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class);
 			assertThat(receivedSequences.add(sequenceNumber)).isTrue();
 		}
 
-		assertThat(receivedSequences.size()).isEqualTo(1000);
+		assertThat(receivedSequences.size()).isEqualTo(10);
 
 		receive = this.kinesisReceiveChannel.receive(10);
 		assertThat(receive).isNull();

@@ -119,7 +119,7 @@ dependencies {
 	testCompile ("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
-	compile 'org.junit.jupiter:junit-jupiter-api'
+	testCompile 'org.junit.jupiter:junit-jupiter-api'
 
 	testRuntime "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
 	testRuntime "org.apache.logging.log4j:log4j-jcl:$log4jVersion"

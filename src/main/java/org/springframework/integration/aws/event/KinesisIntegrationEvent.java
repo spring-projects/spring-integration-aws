@@ -23,6 +23,7 @@ package org.springframework.integration.aws.event;
  *
  * @since 2.3
  */
+@SuppressWarnings("serial")
 public abstract class KinesisIntegrationEvent extends AwsIntegrationEvent {
 
 	public KinesisIntegrationEvent(Object source) {

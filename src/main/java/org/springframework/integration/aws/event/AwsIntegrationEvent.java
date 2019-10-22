@@ -25,6 +25,7 @@ import org.springframework.integration.events.IntegrationEvent;
  *
  * @since 2.3
  */
+@SuppressWarnings("serial")
 public abstract class AwsIntegrationEvent extends IntegrationEvent {
 
 	public AwsIntegrationEvent(Object source) {
