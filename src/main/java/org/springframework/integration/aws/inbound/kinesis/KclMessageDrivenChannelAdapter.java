@@ -105,9 +105,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private InitialPositionInStream streamInitialSequence = InitialPositionInStream.LATEST;
 
-	private int idleBetweenPolls;
+	private int idleBetweenPolls = 1000;
 
-	private int consumerBackoff;
+	private int consumerBackoff = 1000;
 
 	private Converter<byte[], Object> converter = new DeserializingConverter();
 
@@ -298,7 +298,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	@Override
 	public void destroy() {
 		super.destroy();
-		this.scheduler.shutdown();
+		if (isRunning()) {
+			this.scheduler.shutdown();
+		}
 	}
 
 	@Override

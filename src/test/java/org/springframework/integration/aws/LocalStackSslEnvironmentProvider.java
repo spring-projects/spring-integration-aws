@@ -16,30 +16,31 @@
 
 package org.springframework.integration.aws;
 
-import cloud.localstack.docker.annotation.IHostNameResolver;
+import java.util.Collections;
+import java.util.Map;
+
+import cloud.localstack.docker.annotation.IEnvironmentVariableProvider;
 import com.amazonaws.SDKGlobalConfiguration;
 
 /**
- * An {@link IHostNameResolver} implementation for {@value EnvironmentHostNameResolver#DOCKER_HOST_NAME}
- * environment variable to resolve for Local Stack Docker instance.
- * Also this class places an {@value SDKGlobalConfiguration#AWS_CBOR_DISABLE_SYSTEM_PROPERTY}
- * system property to disable CBOR for services requests.
+ * An {@link IEnvironmentVariableProvider} implementation to provide a {@code USE_SSL}
+ * environment variable for docker to start a Local Stack in TLS mode.
+ * Also this class populates a {@value SDKGlobalConfiguration#DISABLE_CERT_CHECKING_SYSTEM_PROPERTY}
+ * system property to disable SSL certificates validation.
  *
  * @author Artem Bilan
  *
  * @since 2.3
  */
-public class EnvironmentHostNameResolver implements IHostNameResolver {
-
-	public static final String DOCKER_HOST_NAME = "DOCKER_HOST_NAME";
+public class LocalStackSslEnvironmentProvider implements IEnvironmentVariableProvider {
 
 	static {
-		System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
+		System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
 	}
 
 	@Override
-	public String getHostName() {
-		return System.getenv(DOCKER_HOST_NAME);
+	public Map<String, String> getEnvironmentVariables() {
+		return Collections.singletonMap("USE_SSL", "true");
 	}
 
 }

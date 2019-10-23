@@ -86,7 +86,6 @@ class DynamoDbLockRegistryLeaderInitiatorTests {
 		DYNAMO_DB.deleteTable(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 	}
 
-	//	@Disabled("Doesn't work properly against Local Stack when two instances try to lock in table")
 	@Test
 	void testDistributedLeaderElection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);

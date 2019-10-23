@@ -25,12 +25,18 @@ import cloud.localstack.docker.LocalstackDocker;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.client.builder.AwsAsyncClientBuilder;
 import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsync;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsyncClientBuilder;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
 
 /**
+ * An utility class for providing AWS {@code async} clients based on the Local Stack Docker instance.
+ * In addition it provides SSL-based async clients.
+ *
+ *
  * @author Artem Bilan
  *
  * @since 2.3
@@ -38,23 +44,61 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
 public final class ExtendedDockerTestUtils {
 
 	public static AmazonKinesisAsync getClientKinesisAsync() {
+		return doGetClientKinesisAsync(false);
+	}
+
+	public static AmazonKinesisAsync getClientKinesisAsyncSsl() {
+		return doGetClientKinesisAsync(true);
+	}
+
+	private static AmazonKinesisAsync doGetClientKinesisAsync(boolean ssl) {
 		AmazonKinesisAsyncClientBuilder amazonKinesisAsyncClientBuilder =
 				AmazonKinesisAsyncClientBuilder.standard()
 						.withEndpointConfiguration(
-								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointKinesis));
+								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointKinesis, ssl));
 		return applyConfigurationAndBuild(amazonKinesisAsyncClientBuilder);
 	}
 
 	public static AmazonDynamoDBAsync getClientDynamoDbAsync() {
+		return doClientDynamoDbAsync(false);
+	}
+
+	public static AmazonDynamoDBAsync getClientDynamoDbAsyncSsl() {
+		return doClientDynamoDbAsync(true);
+	}
+
+	private static AmazonDynamoDBAsync doClientDynamoDbAsync(boolean ssl) {
 		AmazonDynamoDBAsyncClientBuilder dynamoDBAsyncClientBuilder =
 				AmazonDynamoDBAsyncClientBuilder.standard()
 						.withEndpointConfiguration(
-								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointDynamoDB));
+								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointDynamoDB, ssl));
 		return applyConfigurationAndBuild(dynamoDBAsyncClientBuilder);
 	}
 
-	private static AwsClientBuilder.EndpointConfiguration createEndpointConfiguration(Supplier<String> supplier) {
-		return new AwsClientBuilder.EndpointConfiguration(supplier.get(), DEFAULT_REGION);
+	public static AmazonCloudWatchAsync getClientCloudWatchAsync() {
+		return doClientCloudWatchAsync(false);
+	}
+
+	public static AmazonCloudWatchAsync getClientCloudWatchAsyncSsl() {
+		return doClientCloudWatchAsync(true);
+	}
+
+	private static AmazonCloudWatchAsync doClientCloudWatchAsync(boolean ssl) {
+		AmazonCloudWatchAsyncClientBuilder cloudWatchAsyncClientBuilder =
+				AmazonCloudWatchAsyncClientBuilder.standard()
+						.withEndpointConfiguration(
+								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointCloudWatch, ssl));
+		return applyConfigurationAndBuild(cloudWatchAsyncClientBuilder);
+	}
+
+	private static AwsClientBuilder.EndpointConfiguration createEndpointConfiguration(Supplier<String> supplier,
+			boolean ssl) {
+
+		String serviceEndpoint = supplier.get();
+		if (ssl) {
+			serviceEndpoint = serviceEndpoint.replaceFirst("http", "https");
+		}
+		return new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, DEFAULT_REGION);
 	}
 
 	private static <T, C extends AwsAsyncClientBuilder<C, T>> T applyConfigurationAndBuild(C builder) {

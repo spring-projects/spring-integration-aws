@@ -19,9 +19,9 @@ package org.springframework.integration.aws.kinesis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,18 +36,15 @@ import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.EnvironmentHostNameResolver;
 import org.springframework.integration.aws.ExtendedDockerTestUtils;
-import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
+import org.springframework.integration.aws.LocalStackSslEnvironmentProvider;
+import org.springframework.integration.aws.inbound.kinesis.KclMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
-import org.springframework.integration.aws.outbound.KinesisMessageHandler;
+import org.springframework.integration.aws.outbound.KplMessageHandler;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
-import org.springframework.integration.metadata.ConcurrentMetadataStore;
-import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper;
-import org.springframework.integration.support.locks.DefaultLockRegistry;
-import org.springframework.integration.support.locks.LockRegistry;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -58,9 +54,16 @@ import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
+import cloud.localstack.TestUtils;
+import cloud.localstack.docker.LocalstackDocker;
 import cloud.localstack.docker.LocalstackDockerExtension;
 import cloud.localstack.docker.annotation.LocalstackDockerProperties;
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.amazonaws.services.kinesis.producer.KinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 
 /**
  * @author Artem Bilan
@@ -72,13 +75,18 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 @ExtendWith(LocalstackDockerExtension.class)
 @LocalstackDockerProperties(randomizePorts = true,
 		hostNameResolver = EnvironmentHostNameResolver.class,
-		services = "kinesis")
+		environmentVariableProvider = LocalStackSslEnvironmentProvider.class,
+		services = { "kinesis", "dynamodb", "cloudwatch" })
 @DirtiesContext
-public class KinesisIntegrationTests {
+public class KplKclIntegrationTests {
 
 	private static final String TEST_STREAM = "TestStream";
 
-	private static AmazonKinesisAsync AMAZON_KINESIS_ASYNC;
+	private static AmazonKinesis AMAZON_KINESIS;
+
+	private static AmazonDynamoDB DYNAMO_DB;
+
+	private static AmazonCloudWatch CLOUD_WATCH;
 
 	@Autowired
 	private MessageChannel kinesisSendChannel;
@@ -91,13 +99,15 @@ public class KinesisIntegrationTests {
 
 	@BeforeAll
 	static void setup() {
-		AMAZON_KINESIS_ASYNC = ExtendedDockerTestUtils.getClientKinesisAsync();
-		AMAZON_KINESIS_ASYNC.createStream(TEST_STREAM, 1);
+		AMAZON_KINESIS = ExtendedDockerTestUtils.getClientKinesisAsyncSsl();
+		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsyncSsl();
+		CLOUD_WATCH = ExtendedDockerTestUtils.getClientCloudWatchAsyncSsl();
+		AMAZON_KINESIS.createStream(TEST_STREAM, 1);
 	}
 
 	@AfterAll
 	static void tearDown() {
-		AMAZON_KINESIS_ASYNC.deleteStream(TEST_STREAM);
+		AMAZON_KINESIS.deleteStream(TEST_STREAM);
 	}
 
 	@Test
@@ -109,7 +119,7 @@ public class KinesisIntegrationTests {
 		this.kinesisSendChannel.send(MessageBuilder.withPayload(now).setHeader(AwsHeaders.STREAM, TEST_STREAM)
 				.setHeader("foo", "BAR").build());
 
-		Message<?> receive = this.kinesisReceiveChannel.receive(10_000);
+		Message<?> receive = this.kinesisReceiveChannel.receive(20_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
 		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));
@@ -122,21 +132,12 @@ public class KinesisIntegrationTests {
 				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types "
 						+ "[class java.util.Date], but received [class java.lang.String]");
 
-		for (int i = 0; i < 2; i++) {
-			this.kinesisSendChannel
-					.send(MessageBuilder.withPayload(new Date()).setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
-		}
+		this.kinesisSendChannel
+				.send(MessageBuilder.withPayload(new Date()).setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 
-		Set<String> receivedSequences = new HashSet<>();
-
-		for (int i = 0; i < 2; i++) {
-			receive = this.kinesisReceiveChannel.receive(20_000);
-			assertThat(receive).isNotNull();
-			String sequenceNumber = receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class);
-			assertThat(receivedSequences.add(sequenceNumber)).isTrue();
-		}
-
-		assertThat(receivedSequences.size()).isEqualTo(2);
+		receive = this.kinesisReceiveChannel.receive(20_000);
+		assertThat(receive).isNotNull();
+		assertThat(receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class)).isNotEmpty();
 
 		receive = this.kinesisReceiveChannel.receive(10);
 		assertThat(receive).isNull();
@@ -147,61 +148,40 @@ public class KinesisIntegrationTests {
 	public static class TestConfiguration {
 
 		@Bean
+		public KinesisProducerConfiguration kinesisProducerConfiguration() throws URISyntaxException {
+			URI kinesisUri = new URI(LocalstackDocker.INSTANCE.getEndpointKinesis());
+			URI cloudWatchUri = new URI(LocalstackDocker.INSTANCE.getEndpointCloudWatch());
+			return new KinesisProducerConfiguration()
+					.setCredentialsProvider(TestUtils.getCredentialsProvider())
+					.setRegion(TestUtils.DEFAULT_REGION)
+					.setKinesisEndpoint(kinesisUri.getHost())
+					.setKinesisPort(kinesisUri.getPort())
+					.setCloudwatchEndpoint(cloudWatchUri.getHost())
+					.setCloudwatchPort(cloudWatchUri.getPort())
+					.setVerifyCertificate(false);
+		}
+
+		@Bean
 		@ServiceActivator(inputChannel = "kinesisSendChannel")
-		public MessageHandler kinesisMessageHandler() {
-			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(AMAZON_KINESIS_ASYNC);
+		public MessageHandler kplMessageHandler(KinesisProducerConfiguration kinesisProducerConfiguration) {
+			KplMessageHandler kinesisMessageHandler =
+					new KplMessageHandler(new KinesisProducer(kinesisProducerConfiguration));
 			kinesisMessageHandler.setPartitionKey("1");
 			kinesisMessageHandler.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return kinesisMessageHandler;
 		}
 
 		@Bean
-		public ConcurrentMetadataStore checkpointStore() {
-			return new SimpleMetadataStore();
-		}
-
-		@Bean
-		public LockRegistry lockRegistry() {
-			return new DefaultLockRegistry();
-		}
-
-		private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
-			KinesisMessageDrivenChannelAdapter adapter = new KinesisMessageDrivenChannelAdapter(
-					AMAZON_KINESIS_ASYNC, TEST_STREAM);
+		public KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter() {
+			KclMessageDrivenChannelAdapter adapter = new KclMessageDrivenChannelAdapter(
+					TEST_STREAM, AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB, TestUtils.getCredentialsProvider());
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
-			adapter.setCheckpointStore(checkpointStore());
-			adapter.setLockRegistry(lockRegistry());
 			adapter.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
+			adapter.setStreamInitialSequence(InitialPositionInStream.TRIM_HORIZON);
 			adapter.setBindSourceRecord(true);
-
-			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
-			dfa.setPropertyValue("describeStreamBackoff", 10);
-			dfa.setPropertyValue("consumerBackoff", 10);
-			dfa.setPropertyValue("idleBetweenPolls", 1);
-
 			return adapter;
-		}
-
-		@Bean
-		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel1() {
-			return kinesisMessageDrivenChannelAdapter();
-		}
-
-		@Bean
-		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel2() {
-			return kinesisMessageDrivenChannelAdapter();
-		}
-
-		@Bean
-		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel3() {
-			return kinesisMessageDrivenChannelAdapter();
-		}
-
-		@Bean
-		public KinesisMessageDrivenChannelAdapter kinesisInboundChannelChannel4() {
-			return kinesisMessageDrivenChannelAdapter();
 		}
 
 		@Bean
