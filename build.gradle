@@ -1,5 +1,5 @@
 plugins {
-	id 'java'
+	id 'java-library'
 	id 'eclipse'
 	id 'idea'
 	id 'jacoco'
@@ -58,6 +58,11 @@ compileJava {
 	targetCompatibility = 1.8
 }
 
+java {
+	withJavadocJar()
+	withSourcesJar()
+}
+
 sourceSets {
 	test {
 		resources {
@@ -88,43 +93,43 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = '8.25'
+	toolVersion = '8.26'
 }
 
 dependencies {
-	compile 'org.springframework.integration:spring-integration-core'
-	compile 'org.springframework.cloud:spring-cloud-aws-core'
-	compile 'com.fasterxml.jackson.core:jackson-databind'
+	api 'org.springframework.integration:spring-integration-core'
+	api 'org.springframework.cloud:spring-cloud-aws-core'
+	api 'com.fasterxml.jackson.core:jackson-databind'
 
-	compile('org.springframework.cloud:spring-cloud-aws-messaging', optional)
-	compile('org.springframework.integration:spring-integration-file', optional)
-	compile('org.springframework.integration:spring-integration-http', optional)
+	implementation 'org.springframework.cloud:spring-cloud-aws-messaging'
+	implementation 'org.springframework.integration:spring-integration-file'
+	implementation 'org.springframework.integration:spring-integration-http'
 
-	compile("com.amazonaws:amazon-kinesis-client:$kinesisClientVersion", optional)
-	compile("com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion", optional)
+	implementation "com.amazonaws:amazon-kinesis-client:$kinesisClientVersion"
+	implementation "com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion"
 
-	compile('com.amazonaws:aws-java-sdk-kinesis', optional)
-	compile('com.amazonaws:aws-java-sdk-dynamodb', optional)
-	compile("com.amazonaws:dynamodb-lock-client:$dynamodbLockClientVersion", optional)
+	implementation 'com.amazonaws:aws-java-sdk-kinesis'
+	implementation 'com.amazonaws:aws-java-sdk-dynamodb'
+	implementation "com.amazonaws:dynamodb-lock-client:$dynamodbLockClientVersion"
 
-	compile("javax.servlet:javax.servlet-api:$servletApiVersion", provided)
+	implementation "javax.servlet:javax.servlet-api:$servletApiVersion"
 
-	testCompile ('org.springframework.integration:spring-integration-test') {
+	testImplementation ('org.springframework.integration:spring-integration-test') {
 		exclude group: 'junit'
 	}
 
-	testCompile "org.assertj:assertj-core:$assertjVersion"
-	testCompile "cloud.localstack:localstack-utils:$localstackVersion"
+	testImplementation "org.assertj:assertj-core:$assertjVersion"
+	testImplementation "cloud.localstack:localstack-utils:$localstackVersion"
 
-	testCompile ("org.awaitility:awaitility:$awaitilityVersion") {
+	testImplementation ("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
-	testCompile 'org.junit.jupiter:junit-jupiter-api'
+	testImplementation 'org.junit.jupiter:junit-jupiter-api'
 
-	testRuntime "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
-	testRuntime "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
-	testRuntime 'org.junit.jupiter:junit-jupiter-engine'
-	testRuntime 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
+	testRuntimeOnly "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
+	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 eclipse.project.natures += 'org.springframework.ide.eclipse.core.springnature'
@@ -159,7 +164,6 @@ ext.xLintArg = '-Xlint:all,-options'
 test {
 	maxHeapSize = '1024m'
 	jacoco {
-		append = false
 		destinationFile = file("$buildDir/jacoco.exec")
 	}
     useJUnitPlatform()
@@ -209,21 +213,6 @@ task updateCopyrights {
 }
 
 compileJava.dependsOn updateCopyrights
-
-task sourcesJar(type: Jar) {
-	archiveClassifier = 'sources'
-	from sourceSets.main.allJava
-}
-
-task javadocJar(type: Jar) {
-	archiveClassifier = 'javadoc'
-	from javadoc
-}
-
-artifacts {
-	archives sourcesJar
-	archives javadocJar
-}
 
 sonarqube {
 	properties {
@@ -338,6 +327,8 @@ task depsZip(type: Zip, dependsOn: distZip) { zipTask ->
 }
 
 artifacts {
+	archives sourcesJar
+	archives javadocJar
 	archives distZip
 	archives docsZip
 	archives schemaZip
