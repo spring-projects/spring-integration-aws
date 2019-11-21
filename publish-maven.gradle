@@ -13,10 +13,10 @@ publishing {
                     name = project.description
                     description = project.description
                 }
-                url = 'https://github.com/spring-projects/spring-amqp'
+                url = linkScmUrl
                 organization {
                     name = 'Spring IO'
-                    url = 'https://spring.io/projects/spring-ampq'
+                    url = 'https://spring.io/projects/spring-integration'
                 }
                 licenses {
                     license {
@@ -26,9 +26,9 @@ publishing {
                     }
                 }
                 scm {
-                    url = 'https://github.com/spring-projects/spring-integration-aws'
-                    connection = 'scm:git:git://github.com/spring-projects/spring-integration-aws'
-                    developerConnection = 'scm:git:git://github.com/spring-projects/spring-integration-aws'
+                    url = linkScmUrl
+                    connection = linkScmConnection
+                    developerConnection = linkScmDevConnection
                 }
                 developers {
                     developer {
@@ -40,7 +40,7 @@ publishing {
                 }
                 issueManagement {
                     system = 'GitHub'
-                    url = 'https://github.com/spring-projects/spring-amqp/issues'
+                    url = linkIssue
                 }
             }
             versionMapping {

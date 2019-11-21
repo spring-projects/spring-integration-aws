@@ -5,13 +5,12 @@ plugins {
 	id 'jacoco'
 	id 'org.sonarqube' version '2.8'
 	id 'checkstyle'
-	id 'org.ajoberstar.grgit' version '3.1.1'
+	id 'org.ajoberstar.grgit' version '4.0.0'
 	id "io.spring.dependency-management" version '1.0.8.RELEASE'
-	id 'com.jfrog.artifactory' version '4.9.8' apply false
+	id 'com.jfrog.artifactory' version '4.10.0' apply false
 }
-description = 'Spring Integration AWS Support'
 
-apply from: "${rootProject.projectDir}/publish-maven.gradle"
+description = 'Spring Integration AWS Support'
 
 group = 'org.springframework.integration'
 
@@ -24,18 +23,18 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.13.2'
+	assertjVersion = '3.14.0'
 	awaitilityVersion = '4.0.1'
 	dynamodbLockClientVersion = '1.1.0'
-	jacksonVersion = '2.10.0'
+	jacksonVersion = '2.10.1'
 	junitVersion = '5.5.2'
 	servletApiVersion = '4.0.1'
     localstackVersion = '0.1.22'
 	log4jVersion = '2.12.1'
-	springCloudAwsVersion = '2.2.0.RC1'
-	springIntegrationVersion = '5.2.1.BUILD-SNAPSHOT'
-	kinesisClientVersion = '1.12.0'
-	kinesisProducerVersion = '0.13.1'
+	springCloudAwsVersion = '2.2.0.BUILD-SNAPSHOT'
+	springIntegrationVersion = '5.2.2.BUILD-SNAPSHOT'
+	kinesisClientVersion = '1.13.0'
+	kinesisProducerVersion = '0.14.0'
 
 	idPrefix = 'aws'
 
@@ -46,8 +45,7 @@ ext {
 	linkScmConnection = 'https://github.com/spring-projects/spring-integration-aws.git'
 	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
 
-	modifiedFiles =
-			files(grgit.status().unstaged.modified).filter{ f -> f.name.endsWith('.java') }
+	modifiedFiles = files(grgit.status().unstaged.modified).filter{ f -> f.name.endsWith('.java') }
 }
 
 ext.javadocLinks = [
@@ -89,7 +87,7 @@ dependencyManagement {
 }
 
 jacoco {
-	toolVersion = '0.8.4'
+	toolVersion = '0.8.5'
 }
 
 checkstyle {
@@ -249,7 +247,6 @@ task schemaZip(type: Zip) {
 			from xsdFile.path
 		}
 	}
-
 }
 
 task docsZip(type: Zip) {
@@ -265,7 +262,6 @@ task docsZip(type: Zip) {
 	from(javadoc) {
 		into 'api'
 	}
-
 }
 
 task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
@@ -302,3 +298,5 @@ task dist(dependsOn: assemble) {
 	group = 'Distribution'
 	description = 'Builds -dist, -docs and -schema distribution archives.'
 }
+
+apply from: "${rootProject.projectDir}/publish-maven.gradle"
