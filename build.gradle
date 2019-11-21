@@ -298,43 +298,6 @@ task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
 	}
 }
 
-// Create an optional "with dependencies" distribution.
-// Not published by default; only for use when building from source.
-task depsZip(type: Zip, dependsOn: distZip) { zipTask ->
-	group = 'Distribution'
-	archiveClassifier = 'dist-with-deps'
-	description = "Builds -${archiveClassifier} archive, containing everything " +
-			"in the -${distZip.archiveClassifier} archive plus all dependencies."
-
-	from zipTree(distZip.archiveFile)
-
-	gradle.taskGraph.whenReady { taskGraph ->
-		if (taskGraph.hasTask(":${zipTask.name}")) {
-			def projectName = rootProject.name
-			def artifacts = new HashSet()
-
-			rootProject.configurations.runtime.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-				def dependency = artifact.moduleVersion.id
-				if (!projectName.equals(dependency.name)) {
-					artifacts << artifact.file
-				}
-			}
-
-			zipTask.from(artifacts) {
-				into "${distZip.baseDir}/deps"
-			}
-		}
-	}
-}
-
-artifacts {
-//	archives sourcesJar
-//	archives javadocJar
-	archives distZip
-	archives docsZip
-	archives schemaZip
-}
-
 task dist(dependsOn: assemble) {
 	group = 'Distribution'
 	description = 'Builds -dist, -docs and -schema distribution archives.'

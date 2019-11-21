@@ -5,6 +5,9 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
+            artifact docsZip
+            artifact schemaZip
+            artifact distZip
             pom {
                 afterEvaluate {
                     name = project.description
