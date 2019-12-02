@@ -1,9 +1,9 @@
 apply plugin: 'maven-publish'
-apply plugin: 'com.jfrog.artifactory'
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            suppressAllPomMetadataWarnings()
             from components.java
             artifact docsZip
             artifact schemaZip

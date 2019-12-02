@@ -7,7 +7,7 @@ plugins {
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '4.0.0'
 	id "io.spring.dependency-management" version '1.0.8.RELEASE'
-	id 'com.jfrog.artifactory' version '4.10.0' apply false
+	id 'com.jfrog.artifactory' version '4.11.0'
 }
 
 description = 'Spring Integration AWS Support'
@@ -60,6 +60,9 @@ compileJava {
 java {
 	withJavadocJar()
 	withSourcesJar()
+	registerFeature('optional') {
+		usingSourceSet(sourceSets.main)
+	}
 }
 
 sourceSets {
@@ -100,18 +103,18 @@ dependencies {
 	api 'org.springframework.cloud:spring-cloud-aws-core'
 	api 'com.fasterxml.jackson.core:jackson-databind'
 
-	implementation 'org.springframework.cloud:spring-cloud-aws-messaging'
-	implementation 'org.springframework.integration:spring-integration-file'
-	implementation 'org.springframework.integration:spring-integration-http'
+	optionalApi 'org.springframework.cloud:spring-cloud-aws-messaging'
+	optionalApi 'org.springframework.integration:spring-integration-file'
+	optionalApi 'org.springframework.integration:spring-integration-http'
 
-	implementation "com.amazonaws:amazon-kinesis-client:$kinesisClientVersion"
-	implementation "com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion"
+	optionalApi "com.amazonaws:amazon-kinesis-client:$kinesisClientVersion"
+	optionalApi "com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion"
 
-	implementation 'com.amazonaws:aws-java-sdk-kinesis'
-	implementation 'com.amazonaws:aws-java-sdk-dynamodb'
-	implementation "com.amazonaws:dynamodb-lock-client:$dynamodbLockClientVersion"
+	optionalApi 'com.amazonaws:aws-java-sdk-kinesis'
+	optionalApi 'com.amazonaws:aws-java-sdk-dynamodb'
+	optionalApi "com.amazonaws:dynamodb-lock-client:$dynamodbLockClientVersion"
 
-	implementation "javax.servlet:javax.servlet-api:$servletApiVersion"
+	optionalApi "javax.servlet:javax.servlet-api:$servletApiVersion"
 
 	testImplementation ('org.springframework.integration:spring-integration-test') {
 		exclude group: 'junit'
@@ -231,7 +234,9 @@ task schemaZip(type: Zip) {
 	description = "Builds -${archiveClassifier} archive containing all " +
 			"XSDs for deployment at static.springframework.org/schema."
 
-	def Properties schemas = new Properties();
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	Properties schemas = new Properties();
 	def shortName = idPrefix.replaceFirst("${idPrefix}-", '')
 
 	project.sourceSets.main.resources.find {
