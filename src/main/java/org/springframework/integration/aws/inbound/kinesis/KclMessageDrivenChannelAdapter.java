@@ -183,6 +183,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		this.consumerGroup = consumerGroup;
 	}
 
+	public String getConsumerGroup() {
+		return this.consumerGroup;
+	}
+
 	/**
 	 * Specify an {@link InboundMessageMapper} to extract message headers embedded into
 	 * the record data.
