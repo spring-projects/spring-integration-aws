@@ -30,9 +30,9 @@ ext {
 	junitVersion = '5.5.2'
 	servletApiVersion = '4.0.1'
     localstackVersion = '0.1.22'
-	log4jVersion = '2.12.1'
-	springCloudAwsVersion = '2.2.0.RELEASE'
-	springIntegrationVersion = '5.2.1.RELEASE'
+	log4jVersion = '2.13.0'
+	springCloudAwsVersion = '2.2.1.RELEASE'
+	springIntegrationVersion = '5.2.2.RELEASE'
 	kinesisClientVersion = '1.13.0'
 	kinesisProducerVersion = '0.14.0'
 
@@ -95,7 +95,7 @@ jacoco {
 
 checkstyle {
 	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = '8.26'
+	toolVersion = '8.27'
 }
 
 dependencies {

@@ -521,7 +521,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		 */
 		private void checkpoint(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
 			if (logger.isInfoEnabled()) {
-				logger.info("Checkpointing shard " + shardId);
+				logger.info("Checkpointing shard " + this.shardId);
 			}
 			try {
 				if (record == null) {
@@ -564,9 +564,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 		private void checkpointIfPeriodicMode(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
 			if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)
-					&& System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+					&& System.currentTimeMillis() > this.nextCheckpointTimeInMillis) {
 				checkpoint(checkpointer, record);
-				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+				this.nextCheckpointTimeInMillis =
+						System.currentTimeMillis() + KclMessageDrivenChannelAdapter.this.checkpointsInterval;
 			}
 		}
 

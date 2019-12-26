@@ -1110,14 +1110,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		private void checkpointIfPeriodicMode(@Nullable Record record) {
 			if (CheckpointMode.periodic.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
-					&& System.currentTimeMillis() > nextCheckpointTimeInMillis) {
+					&& System.currentTimeMillis() > this.nextCheckpointTimeInMillis) {
 				if (record == null) {
 					this.checkpointer.checkpoint();
 				}
 				else {
 					this.checkpointer.checkpoint(record.getSequenceNumber());
 				}
-				this.nextCheckpointTimeInMillis = System.currentTimeMillis() + checkpointsInterval;
+				this.nextCheckpointTimeInMillis =
+						System.currentTimeMillis() + KinesisMessageDrivenChannelAdapter.this.checkpointsInterval;
 			}
 		}
 
