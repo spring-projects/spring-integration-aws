@@ -149,6 +149,28 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		this.kinesisProxyCredentialsProvider = kinesisProxyCredentialsProvider;
 	}
 
+	public KclMessageDrivenChannelAdapter(KinesisClientLibConfiguration kinesisClientLibConfiguration) {
+		this(kinesisClientLibConfiguration,
+				AmazonKinesisClientBuilder.defaultClient(),
+				AmazonCloudWatchClientBuilder.defaultClient(),
+				AmazonDynamoDBClientBuilder.defaultClient());
+	}
+
+	public KclMessageDrivenChannelAdapter(KinesisClientLibConfiguration kinesisClientLibConfiguration,
+			AmazonKinesis kinesisClient, AmazonCloudWatch cloudWatchClient, AmazonDynamoDB dynamoDBClient) {
+
+		Assert.notNull(kinesisClientLibConfiguration, "'kinesisClientLibConfiguration' must not be null.");
+		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
+		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
+		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
+		this.config = kinesisClientLibConfiguration;
+		this.stream = this.config.getStreamName();
+		this.kinesisClient = kinesisClient;
+		this.cloudWatchClient = cloudWatchClient;
+		this.dynamoDBClient = dynamoDBClient;
+		this.kinesisProxyCredentialsProvider = null;
+	}
+
 	public void setExecutor(TaskExecutor executor) {
 		Assert.notNull(executor, "'executor' must not be null.");
 		this.executor = executor;
@@ -156,6 +178,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	public void setConsumerGroup(String consumerGroup) {
 		Assert.hasText(consumerGroup, "'consumerGroup' must not be empty");
+		Assert.isNull(this.config, "'consumerGroup' must be configured as an application name " +
+						"on the provided KinesisClientLibConfiguration");
 		this.consumerGroup = consumerGroup;
 	}
 
@@ -170,14 +194,20 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	public void setStreamInitialSequence(InitialPositionInStream streamInitialSequence) {
 		Assert.notNull(streamInitialSequence, "'streamInitialSequence' must not be null");
+		Assert.isNull(this.config, "'streamInitialSequence' must be configured as an 'initialPositionInStream' " +
+				"on the provided KinesisClientLibConfiguration");
 		this.streamInitialSequence = streamInitialSequence;
 	}
 
 	public void setIdleBetweenPolls(int idleBetweenPolls) {
+		Assert.isNull(this.config, "'idleBetweenPolls' must be configured as an 'idleTimeBetweenReadsInMillis' " +
+				"on the provided KinesisClientLibConfiguration");
 		this.idleBetweenPolls = Math.max(250, idleBetweenPolls);
 	}
 
 	public void setConsumerBackoff(int consumerBackoff) {
+		Assert.isNull(this.config, "'consumerBackoff' must be configured as an 'taskBackoffTimeMillis' " +
+				"on the provided KinesisClientLibConfiguration");
 		this.consumerBackoff = Math.max(1000, consumerBackoff);
 	}
 
@@ -215,6 +245,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	 */
 	public void setWorkerId(String workerId) {
 		Assert.hasText(workerId, "'workerId' must not be null or empty");
+		Assert.isNull(this.config, "'workerId' must be configured on the provided KinesisClientLibConfiguration");
 		this.workerId = workerId;
 	}
 
@@ -233,31 +264,35 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	protected void onInit() {
 		super.onInit();
 
-		this.config =
-				new KinesisClientLibConfiguration(this.consumerGroup,
-						this.stream,
-						null,
-						this.streamInitialSequence,
-						this.kinesisProxyCredentialsProvider,
-						null,
-						null,
-						KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
-						this.workerId,
-						KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
-						this.idleBetweenPolls,
-						false,
-						KinesisClientLibConfiguration.DEFAULT_PARENT_SHARD_POLL_INTERVAL_MILLIS,
-						KinesisClientLibConfiguration.DEFAULT_SHARD_SYNC_INTERVAL_MILLIS,
-						KinesisClientLibConfiguration.DEFAULT_CLEANUP_LEASES_UPON_SHARDS_COMPLETION,
-						new ClientConfiguration(),
-						new ClientConfiguration(),
-						new ClientConfiguration(),
-						this.consumerBackoff,
-						KinesisClientLibConfiguration.DEFAULT_METRICS_BUFFER_TIME_MILLIS,
-						KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
-						KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
-						null,
-						KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS);
+		if (this.config == null) {
+			this.config =
+					new KinesisClientLibConfiguration(this.consumerGroup,
+							this.stream,
+							null,
+							this.streamInitialSequence,
+							this.kinesisProxyCredentialsProvider,
+							null,
+							null,
+							KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
+							this.workerId,
+							KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
+							this.idleBetweenPolls,
+							false,
+							KinesisClientLibConfiguration.DEFAULT_PARENT_SHARD_POLL_INTERVAL_MILLIS,
+							KinesisClientLibConfiguration.DEFAULT_SHARD_SYNC_INTERVAL_MILLIS,
+							KinesisClientLibConfiguration.DEFAULT_CLEANUP_LEASES_UPON_SHARDS_COMPLETION,
+							new ClientConfiguration(),
+							new ClientConfiguration(),
+							new ClientConfiguration(),
+							this.consumerBackoff,
+							KinesisClientLibConfiguration.DEFAULT_METRICS_BUFFER_TIME_MILLIS,
+							KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
+							KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
+							null,
+							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS);
+		}
+
+		this.consumerGroup = this.config.getApplicationName();
 	}
 
 	@Override
