@@ -580,7 +580,8 @@ The `KinesisMessageDrivenChannelAdapter` iterates over its shards and tries to a
 If `LockRegistry` is not provided, no exclusive locking happens and all the shards are consumed by this `KinesisMessageDrivenChannelAdapter`. 
 See also `DynamoDbLockRegistry` for more information.
 
-Also the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][]. 
+Also the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][].
+See its JavaDocs for more information. 
 
 ### Outbound Channel Adapter
 
