@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -927,6 +927,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.shardIterator = result.getNextShardIterator();
 
 						if (this.shardIterator == null) {
+							if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
+								KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.shardOffsetsToConsumer
+										.remove(this.key);
+							}
 							// Shard is closed: nothing to consume any more.
 							// Resharding is possible.
 							if (KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
