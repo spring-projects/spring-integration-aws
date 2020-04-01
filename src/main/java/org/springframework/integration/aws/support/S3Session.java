@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 the original author or authors.
+ * Copyright 2002-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * @author Artem Bilan
  * @author Jim Krygowski
  * @author Anwar Chirakkattil
+ * @author Xavier FRANCOIS
  */
 public class S3Session implements Session<S3ObjectSummary> {
 
@@ -54,14 +55,21 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private final ResourceIdResolver resourceIdResolver;
 
+	private final String endpoint;
+
 	public S3Session(AmazonS3 amazonS3) {
 		this(amazonS3, null);
 	}
 
 	public S3Session(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
+		this(amazonS3, resourceIdResolver, null);
+	}
+
+	public S3Session(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver, String endpoint) {
 		this.resourceIdResolver = resourceIdResolver;
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
 		this.amazonS3 = amazonS3;
+		this.endpoint = endpoint;
 	}
 
 	@Override
@@ -225,8 +233,13 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	@Override
 	public String getHostPort() {
-		Region region = this.amazonS3.getRegion().toAWSRegion();
-		return String.format("%s.%s.%s:%d", AmazonS3.ENDPOINT_PREFIX, region.getName(), region.getDomain(), 443);
+		if (this.endpoint != null) {
+			return this.endpoint;
+		}
+		else {
+			Region region = this.amazonS3.getRegion().toAWSRegion();
+			return String.format("%s.%s.%s:%d", AmazonS3.ENDPOINT_PREFIX, region.getName(), region.getDomain(), 443);
+		}
 	}
 
 	public String normalizeBucketName(String path) {

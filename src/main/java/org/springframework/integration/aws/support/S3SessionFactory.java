@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * simple thread-safe wrapper for the {@link AmazonS3}.
  *
  * @author Artem Bilan
+ * @author Xavier FRANCOIS
  */
 public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, SharedSessionCapable {
 
@@ -45,8 +46,12 @@ public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, Shared
 	}
 
 	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
+		this(amazonS3, resourceIdResolver, null);
+	}
+
+	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver, String endpoint) {
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
-		this.s3Session = new S3Session(amazonS3, resourceIdResolver);
+		this.s3Session = new S3Session(amazonS3, resourceIdResolver, endpoint);
 	}
 
 	@Override
