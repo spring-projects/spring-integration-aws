@@ -31,7 +31,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * simple thread-safe wrapper for the {@link AmazonS3}.
  *
  * @author Artem Bilan
- * @author Xavier FRANCOIS
+ * @author Xavier François
  */
 public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, SharedSessionCapable {
 
@@ -46,12 +46,8 @@ public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, Shared
 	}
 
 	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
-		this(amazonS3, resourceIdResolver, null);
-	}
-
-	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver, String endpoint) {
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
-		this.s3Session = new S3Session(amazonS3, resourceIdResolver, endpoint);
+		this.s3Session = new S3Session(amazonS3, resourceIdResolver);
 	}
 
 	@Override
@@ -69,4 +65,7 @@ public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, Shared
 		// No-op. The S3Session is stateless and can be used concurrently.
 	}
 
+	public void setEndpoint(String endpoint) {
+		this.s3Session.setEndpoint(endpoint);
+	}
 }

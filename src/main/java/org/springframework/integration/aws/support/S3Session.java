@@ -47,7 +47,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
  * @author Artem Bilan
  * @author Jim Krygowski
  * @author Anwar Chirakkattil
- * @author Xavier FRANCOIS
+ * @author Xavier François
  */
 public class S3Session implements Session<S3ObjectSummary> {
 
@@ -55,20 +55,19 @@ public class S3Session implements Session<S3ObjectSummary> {
 
 	private final ResourceIdResolver resourceIdResolver;
 
-	private final String endpoint;
+	private String endpoint;
 
 	public S3Session(AmazonS3 amazonS3) {
 		this(amazonS3, null);
 	}
 
 	public S3Session(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
-		this(amazonS3, resourceIdResolver, null);
-	}
-
-	public S3Session(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver, String endpoint) {
 		this.resourceIdResolver = resourceIdResolver;
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
 		this.amazonS3 = amazonS3;
+	}
+
+	public void setEndpoint(String endpoint) {
 		this.endpoint = endpoint;
 	}
 
