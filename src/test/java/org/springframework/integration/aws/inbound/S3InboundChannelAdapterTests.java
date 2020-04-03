@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.Poller;
+import org.springframework.integration.aws.support.S3SessionFactory;
 import org.springframework.integration.aws.support.filters.S3RegexPatternFileListFilter;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
@@ -64,6 +65,7 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 /**
  * @author Artem Bilan
  * @author Jim Krygowski
+ * @author Xavier François
  */
 @SpringJUnitConfig
 @DirtiesContext
@@ -148,6 +150,15 @@ public class S3InboundChannelAdapterTests {
 		assertThat(content).isEqualTo("Bye");
 
 		assertThat(new File(LOCAL_FOLDER, "otherFile.a").exists()).isFalse();
+	}
+
+	@Test
+	void getHostPortWithEndpoint() {
+		AmazonS3 amazonS3 = Mockito.mock(AmazonS3.class);
+		S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
+		s3SessionFactory.setEndpoint("s3-url.com:8000");
+
+		assertThat(s3SessionFactory.getSession().getHostPort()).isEqualTo("s3-url.com:8000");
 	}
 
 	@Configuration
