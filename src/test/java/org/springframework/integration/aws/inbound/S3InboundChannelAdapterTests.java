@@ -137,6 +137,8 @@ public class S3InboundChannelAdapterTests {
 		assertThat(message.getHeaders())
 				.containsKeys(FileHeaders.REMOTE_DIRECTORY, FileHeaders.REMOTE_HOST_PORT, FileHeaders.REMOTE_FILE);
 
+		assertThat(message.getHeaders().get(FileHeaders.REMOTE_HOST_PORT)).isEqualTo("s3-url.com:8000");
+
 		assertThat(this.s3FilesChannel.receive(10)).isNull();
 
 		File file = new File(LOCAL_FOLDER, "A.TEST.a");
@@ -150,15 +152,6 @@ public class S3InboundChannelAdapterTests {
 		assertThat(content).isEqualTo("Bye");
 
 		assertThat(new File(LOCAL_FOLDER, "otherFile.a").exists()).isFalse();
-	}
-
-	@Test
-	void getHostPortWithEndpoint() {
-		AmazonS3 amazonS3 = Mockito.mock(AmazonS3.class);
-		S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
-		s3SessionFactory.setEndpoint("s3-url.com:8000");
-
-		assertThat(s3SessionFactory.getSession().getHostPort()).isEqualTo("s3-url.com:8000");
 	}
 
 	@Configuration
@@ -194,8 +187,15 @@ public class S3InboundChannelAdapterTests {
 		}
 
 		@Bean
+		public S3SessionFactory s3SessionFactory() {
+			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3());
+			s3SessionFactory.setEndpoint("s3-url.com:8000");
+			return s3SessionFactory;
+		}
+
+		@Bean
 		public S3InboundFileSynchronizer s3InboundFileSynchronizer() {
-			S3InboundFileSynchronizer synchronizer = new S3InboundFileSynchronizer(amazonS3());
+			S3InboundFileSynchronizer synchronizer = new S3InboundFileSynchronizer(s3SessionFactory());
 			synchronizer.setDeleteRemoteFiles(true);
 			synchronizer.setPreserveTimestamp(true);
 			synchronizer.setRemoteDirectory(S3_BUCKET);
