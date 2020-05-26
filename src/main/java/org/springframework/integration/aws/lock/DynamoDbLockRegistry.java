@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 the original author or authors.
+ * Copyright 2018-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -96,11 +95,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	private static final Log logger = LogFactory.getLog(DynamoDbLockRegistry.class);
 
+	private final ThreadFactory customizableThreadFactory = new CustomizableThreadFactory("dynamodb-lock-registry-");
+
 	private final Map<String, DynamoDbLock> locks = new ConcurrentHashMap<>();
 
 	private final CountDownLatch createTableLatch = new CountDownLatch(1);
-
-	private final AtomicBoolean running = new AtomicBoolean();
 
 	private final AmazonDynamoDB dynamoDB;
 
@@ -125,13 +124,6 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	private long leaseDuration = 20L;
 
 	private long heartbeatPeriod = 5L;
-
-	/**
-	 * An {@link ExecutorService} to call
-	 * {@link AmazonDynamoDBLockClient#releaseLock(LockItem)} in the separate thread when
-	 * the current one is interrupted.
-	 */
-	private Executor executor = Executors.newCachedThreadPool(new CustomizableThreadFactory("dynamodb-lock-registry-"));
 
 	/**
 	 * Flag to denote whether the {@link ExecutorService} was provided via the setter and
@@ -207,10 +199,10 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	 * Set the {@link Executor}, where is not provided then a default of cached thread
 	 * pool Executor will be used.
 	 * @param executor the executor service
+	 * @deprecated with no-op in favor of internally created unmanaged threads.
 	 */
+	@Deprecated
 	public void setExecutor(Executor executor) {
-		this.executor = executor;
-		this.executorExplicitlySet = true;
 	}
 
 	@Override
@@ -227,59 +219,62 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		this.leaseDuration = (long) new DirectFieldAccessor(this.dynamoDBLockClient)
 				.getPropertyValue("leaseDurationInMilliseconds");
 
-		this.executor.execute(() -> {
-			try {
-				if (!this.dynamoDBLockClientExplicitlySet) {
+		this.customizableThreadFactory
+				.newThread(() -> {
 					try {
-						this.dynamoDBLockClient.assertLockTableExists();
-						return;
-					}
-					catch (LockTableDoesNotExistException e) {
-						if (logger.isInfoEnabled()) {
-							logger.info("No table '" + this.tableName + "'. Creating one...");
+						if (!this.dynamoDBLockClientExplicitlySet) {
+							try {
+								this.dynamoDBLockClient.assertLockTableExists();
+								return;
+							}
+							catch (LockTableDoesNotExistException e) {
+								if (logger.isInfoEnabled()) {
+									logger.info("No table '" + this.tableName + "'. Creating one...");
+								}
+							}
+
+							CreateDynamoDBTableOptions createDynamoDBTableOptions = CreateDynamoDBTableOptions
+									.builder(this.dynamoDB, new ProvisionedThroughput(this.readCapacity,
+													this.writeCapacity),
+											this.tableName)
+									.withPartitionKeyName(this.partitionKey).withSortKeyName(this.sortKeyName).build();
+
+							try {
+								AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
+							}
+							catch (ResourceInUseException ex) {
+								// Swallow an exception and check for table existence
+							}
 						}
-					}
 
-					CreateDynamoDBTableOptions createDynamoDBTableOptions = CreateDynamoDBTableOptions
-							.builder(this.dynamoDB, new ProvisionedThroughput(this.readCapacity, this.writeCapacity),
-									this.tableName)
-							.withPartitionKeyName(this.partitionKey).withSortKeyName(this.sortKeyName).build();
-
-					try {
-						AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
-					}
-					catch (ResourceInUseException ex) {
-						// Swallow an exception and check for table existence
-					}
-				}
-
-				int i = 0;
-				// We need up to one minute to wait until table is created on AWS.
-				while (i++ < 60) {
-					if (this.dynamoDBLockClient.lockTableExists()) {
-						return;
-					}
-					else {
-						try {
-							// This is allowed minimum for constant AWS requests.
-							Thread.sleep(1000);
+						int i = 0;
+						// We need up to one minute to wait until table is created on AWS.
+						while (i++ < 60) {
+							if (this.dynamoDBLockClient.lockTableExists()) {
+								return;
+							}
+							else {
+								try {
+									// This is allowed minimum for constant AWS requests.
+									Thread.sleep(1000);
+								}
+								catch (InterruptedException e) {
+									ReflectionUtils.rethrowRuntimeException(e);
+								}
+							}
 						}
-						catch (InterruptedException e) {
-							ReflectionUtils.rethrowRuntimeException(e);
-						}
-					}
-				}
 
-				logger.error("Cannot describe DynamoDb table: " + this.tableName);
-			}
-			finally {
-				// Release create table barrier either way.
-				// If there is an error during creation/description,
-				// we deffer the actual ResourceNotFoundException to the end-user active
-				// calls.
-				this.createTableLatch.countDown();
-			}
-		});
+						logger.error("Cannot describe DynamoDb table: " + this.tableName);
+					}
+					finally {
+						// Release create table barrier either way.
+						// If there is an error during creation/description,
+						// we deffer the actual ResourceNotFoundException to the end-user active
+						// calls.
+						this.createTableLatch.countDown();
+					}
+				})
+				.start();
 
 		this.initialized = true;
 	}
@@ -303,10 +298,6 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	@Override
 	public void destroy() throws Exception {
-		if (!this.executorExplicitlySet) {
-			((ExecutorService) this.executor).shutdown();
-		}
-
 		if (!this.dynamoDBLockClientExplicitlySet) {
 			this.dynamoDBLockClient.close();
 		}
@@ -515,8 +506,10 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 			try {
 				if (Thread.currentThread().isInterrupted()) {
 					LockItem lockItemToRelease = this.lockItem;
-					DynamoDbLockRegistry.this.executor
-							.execute(() -> DynamoDbLockRegistry.this.dynamoDBLockClient.releaseLock(lockItemToRelease));
+					DynamoDbLockRegistry.this.customizableThreadFactory
+							.newThread(() ->
+									DynamoDbLockRegistry.this.dynamoDBLockClient.releaseLock(lockItemToRelease))
+							.start();
 				}
 				else {
 					DynamoDbLockRegistry.this.dynamoDBLockClient.releaseLock(this.lockItem);
@@ -538,7 +531,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 		@Override
 		public String toString() {
-			SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-dd@HH:mm:ss.SSS");
+			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd@HH:mm:ss.SSS");
 			return "DynamoDbLock [lockKey=" + this.key + ",lockedAt=" + dateFormat.format(new Date(this.lastUsed))
 					+ ", lockItem=" + this.lockItem + "]";
 		}
