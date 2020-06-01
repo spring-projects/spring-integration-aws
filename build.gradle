@@ -5,9 +5,9 @@ plugins {
 	id 'jacoco'
 	id 'org.sonarqube' version '2.8'
 	id 'checkstyle'
-	id 'org.ajoberstar.grgit' version '4.0.0'
-	id "io.spring.dependency-management" version '1.0.8.RELEASE'
-	id 'com.jfrog.artifactory' version '4.11.0'
+	id 'org.ajoberstar.grgit' version '4.0.2'
+	id "io.spring.dependency-management" version '1.0.9.RELEASE'
+	id 'com.jfrog.artifactory' version '4.15.2'
 }
 
 description = 'Spring Integration AWS Support'
@@ -23,16 +23,16 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.14.0'
-	awaitilityVersion = '4.0.1'
+	assertjVersion = '3.16.1'
+	awaitilityVersion = '4.0.3'
 	dynamodbLockClientVersion = '1.1.0'
-	jacksonVersion = '2.10.2'
+	jacksonVersion = '2.10.4'
 	junitVersion = '5.5.2'
 	servletApiVersion = '4.0.1'
     localstackVersion = '0.1.22'
-	log4jVersion = '2.13.0'
-	springCloudAwsVersion = '2.2.1.RELEASE'
-	springIntegrationVersion = '5.2.3.RELEASE'
+	log4jVersion = '2.13.3'
+	springCloudAwsVersion = '2.2.2.RELEASE'
+	springIntegrationVersion = '5.2.6.RELEASE'
 	kinesisClientVersion = '1.13.0'
 	kinesisProducerVersion = '0.14.0'
 
@@ -94,8 +94,8 @@ jacoco {
 }
 
 checkstyle {
-	configFile = file("${rootDir}/src/checkstyle/checkstyle.xml")
-	toolVersion = '8.27'
+	configDirectory.set(rootProject.file("src/checkstyle"))
+	toolVersion = '8.32'
 }
 
 dependencies {
@@ -144,11 +144,11 @@ javadoc {
 	options.memberLevel = org.gradle.external.javadoc.JavadocMemberLevel.PROTECTED
 	options.author = true
 	options.header = project.description
-	options.overview = 'src/api/overview.html'
+	options.overview = file('src/api/overview.html')
 	options.stylesheetFile = file('src/api/stylesheet.css')
 	options.splitIndex = true
 	options.links(project.ext.javadocLinks)
-
+	options.addStringOption('Xdoclint:none', '-quiet')
 	source = sourceSets.main.allJava
 	classpath = project.sourceSets.main.compileClasspath
 	destinationDir = file("$buildDir/api")
