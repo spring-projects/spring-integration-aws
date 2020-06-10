@@ -34,13 +34,13 @@ import com.amazonaws.SDKGlobalConfiguration;
  */
 public class LocalStackSslEnvironmentProvider implements IEnvironmentVariableProvider {
 
+	static {
+		System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
+	}
+
 	@Override
 	public Map<String, String> getEnvironmentVariables() {
 		return Collections.singletonMap("USE_SSL", "true");
-	}
-
-	static {
-		System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
 	}
 
 }
