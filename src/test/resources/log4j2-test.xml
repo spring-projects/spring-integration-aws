@@ -2,7 +2,7 @@
 <Configuration status="WARN">
 	<Appenders>
 		<Console name="STDOUT" target="SYSTEM_OUT">
-			<PatternLayout pattern="%d %p [%t] [%c] - %m%n" />
+			<PatternLayout pattern="%d %p [%t] [%c] - %m%n"/>
 		</Console>
 	</Appenders>
 	<Loggers>
@@ -10,7 +10,7 @@
 		<Logger name="org.springframework.integration" level="warn"/>
 		<Logger name="org.springframework.integration.aws" level="info"/>
 		<Root level="warn">
-			<AppenderRef ref="STDOUT" />
+			<AppenderRef ref="STDOUT"/>
 		</Root>
 	</Loggers>
 </Configuration>

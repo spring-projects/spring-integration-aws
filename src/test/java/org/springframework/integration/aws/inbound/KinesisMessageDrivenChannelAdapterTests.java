@@ -227,6 +227,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	@EnableIntegration
 	public static class Config {
 
+		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
+
 		@Bean
 		public AmazonKinesis amazonKinesis() {
 			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
@@ -363,8 +365,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			return adapter;
 		}
-
-		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
 
 		@EventListener
 		public void handleKinesisShardEndedEvent(KinesisShardEndedEvent event) {

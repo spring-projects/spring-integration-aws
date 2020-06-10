@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,10 +73,10 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 @DirtiesContext
 public class S3StreamingChannelAdapterTests {
 
+	private static final String S3_BUCKET = "S3_BUCKET";
+
 	@TempDir
 	static Path TEMPORARY_FOLDER;
-
-	private static final String S3_BUCKET = "S3_BUCKET";
 
 	private static List<S3Object> S3_OBJECTS;
 

@@ -44,19 +44,6 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-import com.amazonaws.services.kinesis.model.GetRecordsRequest;
-import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
-import com.amazonaws.services.kinesis.model.LimitExceededException;
-import com.amazonaws.services.kinesis.model.ListShardsRequest;
-import com.amazonaws.services.kinesis.model.ListShardsResult;
-import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
-import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.kinesis.model.Shard;
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
-
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
@@ -82,6 +69,19 @@ import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
+
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+import com.amazonaws.services.kinesis.model.GetRecordsRequest;
+import com.amazonaws.services.kinesis.model.GetRecordsResult;
+import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
+import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.ListShardsRequest;
+import com.amazonaws.services.kinesis.model.ListShardsResult;
+import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
+import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
 
 /**
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon Kinesis
@@ -791,6 +791,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				+ '}';
 	}
 
+	private enum ConsumerState {
+		NEW,
+		EXPIRED,
+		CONSUME,
+		SLEEP,
+		STOP
+	}
+
 	private final class ConsumerDispatcher implements SchedulingAwareRunnable {
 
 		private final Set<String> inReshardingProcess = new HashSet<>();
@@ -849,11 +857,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		private final ShardCheckpointer checkpointer;
 
-		private long nextCheckpointTimeInMillis;
-
-		private final Runnable processTask = processTask();
-
 		private final String key;
+
+		private long nextCheckpointTimeInMillis;
 
 		private Runnable notifier;
 
@@ -864,6 +870,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		private volatile String shardIterator;
 
 		private volatile long sleepUntil;
+
+		private final Runnable processTask = processTask();
 
 		ShardConsumer(KinesisShardOffset shardOffset) {
 			this.shardOffset = new KinesisShardOffset(shardOffset);
@@ -1227,14 +1235,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		public String toString() {
 			return "ShardConsumer{" + "shardOffset=" + this.shardOffset + ", state=" + this.state + '}';
 		}
-	}
-
-	private enum ConsumerState {
-		NEW,
-		EXPIRED,
-		CONSUME,
-		SLEEP,
-		STOP
 	}
 
 	private final class ConsumerInvoker implements SchedulingAwareRunnable {
