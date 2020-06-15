@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
  * A model to represent a sequence in the shard for particular {@link ShardIteratorType}.
  *
  * @author Artem Bilan
- * @author Matthias Wesolowski
  * @since 1.1
  */
 public class KinesisShardOffset {
@@ -57,6 +56,91 @@ public class KinesisShardOffset {
 		this.sequenceNumber = other.getSequenceNumber();
 		this.timestamp = other.getTimestamp();
 		this.reset = other.isReset();
+	}
+
+	public void setIteratorType(ShardIteratorType iteratorType) {
+		this.iteratorType = iteratorType;
+	}
+
+	public ShardIteratorType getIteratorType() {
+		return this.iteratorType;
+	}
+
+	public void setSequenceNumber(String sequenceNumber) {
+		this.sequenceNumber = sequenceNumber;
+	}
+
+	public void setTimestamp(Date timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public void setStream(String stream) {
+		this.stream = stream;
+	}
+
+	public void setShard(String shard) {
+		this.shard = shard;
+	}
+
+	public void setReset(boolean reset) {
+		this.reset = reset;
+	}
+
+	public String getSequenceNumber() {
+		return this.sequenceNumber;
+	}
+
+	public Date getTimestamp() {
+		return this.timestamp;
+	}
+
+	public String getStream() {
+		return this.stream;
+	}
+
+	public String getShard() {
+		return this.shard;
+	}
+
+	public boolean isReset() {
+		return this.reset;
+	}
+
+	public KinesisShardOffset reset() {
+		this.reset = true;
+		return this;
+	}
+
+	public GetShardIteratorRequest toShardIteratorRequest() {
+		Assert.state(this.stream != null && this.shard != null,
+				"'stream' and 'shard' must not be null for conversion to the GetShardIteratorRequest.");
+		return new GetShardIteratorRequest().withStreamName(this.stream).withShardId(this.shard)
+				.withShardIteratorType(this.iteratorType).withStartingSequenceNumber(this.sequenceNumber)
+				.withTimestamp(this.timestamp);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		KinesisShardOffset that = (KinesisShardOffset) o;
+		return Objects.equals(this.stream, that.stream) && Objects.equals(this.shard, that.shard);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.stream, this.shard);
+	}
+
+	@Override
+	public String toString() {
+		return "KinesisShardOffset{" + "iteratorType=" + this.iteratorType + ", sequenceNumber='" + this.sequenceNumber
+				+ '\'' + ", timestamp=" + this.timestamp + ", stream='" + this.stream + '\'' + ", shard='" + this.shard
+				+ '\'' + ", reset=" + this.reset + '}';
 	}
 
 	public static KinesisShardOffset latest() {
@@ -115,91 +199,6 @@ public class KinesisShardOffset {
 		kinesisShardOffset.shard = shard;
 		kinesisShardOffset.timestamp = timestamp;
 		return kinesisShardOffset;
-	}
-
-	public ShardIteratorType getIteratorType() {
-		return this.iteratorType;
-	}
-
-	public void setIteratorType(ShardIteratorType iteratorType) {
-		this.iteratorType = iteratorType;
-	}
-
-	public String getSequenceNumber() {
-		return this.sequenceNumber;
-	}
-
-	public void setSequenceNumber(String sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
-	}
-
-	public Date getTimestamp() {
-		return this.timestamp;
-	}
-
-	public void setTimestamp(Date timestamp) {
-		this.timestamp = timestamp;
-	}
-
-	public String getStream() {
-		return this.stream;
-	}
-
-	public void setStream(String stream) {
-		this.stream = stream;
-	}
-
-	public String getShard() {
-		return this.shard;
-	}
-
-	public void setShard(String shard) {
-		this.shard = shard;
-	}
-
-	public boolean isReset() {
-		return this.reset;
-	}
-
-	public void setReset(boolean reset) {
-		this.reset = reset;
-	}
-
-	public KinesisShardOffset reset() {
-		this.reset = true;
-		return this;
-	}
-
-	public GetShardIteratorRequest toShardIteratorRequest() {
-		Assert.state(this.stream != null && this.shard != null,
-				"'stream' and 'shard' must not be null for conversion to the GetShardIteratorRequest.");
-		return new GetShardIteratorRequest().withStreamName(this.stream).withShardId(this.shard)
-				.withShardIteratorType(this.iteratorType).withStartingSequenceNumber(this.sequenceNumber)
-				.withTimestamp(this.timestamp);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		KinesisShardOffset that = (KinesisShardOffset) o;
-		return Objects.equals(this.stream, that.stream) && Objects.equals(this.shard, that.shard);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(this.stream, this.shard);
-	}
-
-	@Override
-	public String toString() {
-		return "KinesisShardOffset{" + "iteratorType=" + this.iteratorType + ", sequenceNumber='" + this.sequenceNumber
-				+ '\'' + ", timestamp=" + this.timestamp + ", stream='" + this.stream + '\'' + ", shard='" + this.shard
-				+ '\'' + ", reset=" + this.reset + '}';
 	}
 
 }

@@ -231,7 +231,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * Specify a {@link Converter} to deserialize the {@code byte[]} from record's body. Can be {@code
 	 * null} meaning no deserialization.
-	 *
 	 * @param converter the {@link Converter} to use or null
 	 */
 	public void setConverter(Converter<byte[], Object> converter) {
@@ -250,7 +249,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	/**
 	 * Sets the interval between 2 checkpoints. Only used when checkpointMode is periodic.
-	 *
 	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
 	 * @since 2.2
 	 */
@@ -260,7 +258,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	/**
 	 * The maximum record to poll per on get-records request. Not greater then {@code 10000}.
-	 *
 	 * @param recordsLimit the number of records to for per on get-records request.
 	 * @see GetRecordsRequest#setLimit
 	 */
@@ -538,7 +535,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		if (retryCount > this.describeStreamRetries) {
 			throw new IllegalStateException(
-					"Kinesis could not read shards from stream with name:[" + stream + "] ");
+					"Kinesis could not read shards from stream with name [" + stream + "] ");
 		}
 
 		ListShardsRequest listShardsRequest = new ListShardsRequest().withStreamName(stream);
