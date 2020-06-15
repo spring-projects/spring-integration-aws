@@ -107,7 +107,7 @@ public class SqsMessageDrivenChannelAdapterTests {
 				.hasCauseExactlyInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("Queue with name 'foo' does not exist");
 
-		assertThat(this.sqsMessageDrivenChannelAdapter.getQueues()).isEqualTo(new String[] { "testQueue" });
+		assertThat(this.sqsMessageDrivenChannelAdapter.getQueues()).isEqualTo(new String[] {"testQueue"});
 	}
 
 	@Configuration

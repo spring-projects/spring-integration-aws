@@ -66,9 +66,9 @@ import com.amazonaws.waiters.WaiterParameters;
 @DirtiesContext
 public class DynamoDbLockRegistryTests {
 
-	private final AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
-
 	private static AmazonDynamoDBAsync DYNAMO_DB;
+
+	private final AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
 
 	@Autowired
 	private DynamoDbLockRegistry dynamoDbLockRegistry;

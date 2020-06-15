@@ -60,21 +60,20 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
-import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
+import com.amazonaws.services.kinesis.model.ListShardsRequest;
+import com.amazonaws.services.kinesis.model.ListShardsResult;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import com.amazonaws.services.kinesis.model.StreamDescription;
-import com.amazonaws.services.kinesis.model.StreamStatus;
 
 /**
  * @author Artem Bilan
+ * @author Matthias Wesolowski
  * @since 1.1
  */
 @SpringJUnitConfig
@@ -109,7 +108,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	}
 
 	@Test
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	void testKinesisMessageDrivenChannelAdapter() {
 		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
@@ -214,34 +213,35 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(n).isLessThan(100);
 
 		// When resharding happens the describeStream() is performed again
-		verify(this.amazonKinesisForResharding, atLeast(1)).describeStream(any(DescribeStreamRequest.class));
+		verify(this.amazonKinesisForResharding, atLeast(1))
+				.listShards(any(ListShardsRequest.class));
 
 		this.reshardingChannelAdapter.stop();
 
 		KinesisShardEndedEvent kinesisShardEndedEvent = this.config.shardEndedEventReference.get();
 
 		assertThat(kinesisShardEndedEvent).isNotNull()
-		.extracting(KinesisShardEndedEvent::getShardKey)
-		.isEqualTo("SpringIntegration:streamForResharding:closedShard");
+				.extracting(KinesisShardEndedEvent::getShardKey)
+				.isEqualTo("SpringIntegration:streamForResharding:closedShard");
 	}
 
 	@Configuration
 	@EnableIntegration
 	public static class Config {
 
+		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
+
 		@Bean
 		public AmazonKinesis amazonKinesis() {
 			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
 
-			given(amazonKinesis.describeStream(new DescribeStreamRequest().withStreamName(STREAM1))).willReturn(
-					new DescribeStreamResult().withStreamDescription(
-							new StreamDescription().withStreamName(STREAM1).withStreamStatus(StreamStatus.UPDATING)),
-					new DescribeStreamResult().withStreamDescription(new StreamDescription().withStreamName(STREAM1)
-							.withStreamStatus(StreamStatus.ACTIVE).withHasMoreShards(false)
+			given(amazonKinesis.listShards(new ListShardsRequest().withStreamName(STREAM1))).willReturn(
+					new ListShardsResult()
 							.withShards(new Shard().withShardId("1").withSequenceNumberRange(new SequenceNumberRange()),
 									new Shard().withShardId("2").withSequenceNumberRange(new SequenceNumberRange()),
 									new Shard().withShardId("3").withSequenceNumberRange(
-											new SequenceNumberRange().withEndingSequenceNumber("1")))));
+											new SequenceNumberRange().withEndingSequenceNumber("1")))
+			);
 
 			String shard1Iterator1 = "shard1Iterator1";
 			String shard1Iterator2 = "shard1Iterator2";
@@ -329,12 +329,10 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		public AmazonKinesis amazonKinesisForResharding() {
 			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
 
-			given(amazonKinesis.describeStream(new DescribeStreamRequest().withStreamName(STREAM_FOR_RESHARDING)))
-					.willReturn(new DescribeStreamResult()
-							.withStreamDescription(new StreamDescription().withStreamName(STREAM_FOR_RESHARDING)
-									.withStreamStatus(StreamStatus.ACTIVE).withHasMoreShards(false)
-									.withShards(new Shard().withShardId("closedShard").withSequenceNumberRange(
-											new SequenceNumberRange().withEndingSequenceNumber("1")))));
+			given(amazonKinesis.listShards(new ListShardsRequest().withStreamName(STREAM_FOR_RESHARDING)))
+					.willReturn(new ListShardsResult()
+							.withShards(new Shard().withShardId("closedShard").withSequenceNumberRange(
+									new SequenceNumberRange().withEndingSequenceNumber("1"))));
 
 			String shard1Iterator1 = "shard1Iterator1";
 
@@ -369,8 +367,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			return adapter;
 		}
-
-		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
 
 		@EventListener
 		public void handleKinesisShardEndedEvent(KinesisShardEndedEvent event) {

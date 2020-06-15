@@ -73,10 +73,10 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 @DirtiesContext
 public class S3StreamingChannelAdapterTests {
 
+	private static final String S3_BUCKET = "S3_BUCKET";
+
 	@TempDir
 	static Path TEMPORARY_FOLDER;
-
-	private static final String S3_BUCKET = "S3_BUCKET";
 
 	private static List<S3Object> S3_OBJECTS;
 

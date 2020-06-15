@@ -54,9 +54,9 @@ import com.amazonaws.waiters.WaiterParameters;
 		services = "dynamodb")
 class DynamoDbMetadataStoreTests {
 
-	private static AmazonDynamoDBAsync DYNAMO_DB;
-
 	private static final String TEST_TABLE = "testMetadataStore";
+
+	private static AmazonDynamoDBAsync DYNAMO_DB;
 
 	private static DynamoDbMetadataStore store;
 

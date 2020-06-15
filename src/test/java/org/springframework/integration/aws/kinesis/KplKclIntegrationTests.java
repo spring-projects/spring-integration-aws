@@ -79,7 +79,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 @LocalstackDockerProperties(randomizePorts = true,
 		hostNameResolver = EnvironmentHostNameResolver.class,
 		environmentVariableProvider = LocalStackSslEnvironmentProvider.class,
-		services = { "kinesis", "dynamodb", "cloudwatch" })
+		services = {"kinesis", "dynamodb", "cloudwatch"})
 @DirtiesContext
 public class KplKclIntegrationTests {
 

@@ -111,8 +111,6 @@ import com.amazonaws.util.StringUtils;
 @DirtiesContext
 public class S3MessageHandlerTests {
 
-	private static SpelExpressionParser PARSER = new SpelExpressionParser();
-
 	// define the bucket and file names used throughout the test
 	private static final String S3_BUCKET_NAME = "myBucket";
 
@@ -122,6 +120,8 @@ public class S3MessageHandlerTests {
 
 	@TempDir
 	static Path temporaryFolder;
+
+	private static SpelExpressionParser PARSER = new SpelExpressionParser();
 
 	@Autowired
 	private AmazonS3 amazonS3;
