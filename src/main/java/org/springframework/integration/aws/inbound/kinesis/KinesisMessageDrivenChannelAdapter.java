@@ -708,14 +708,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					this.consumerExecutor.execute(consumerInvoker);
 				}
 				else {
+					boolean consumerAdded = false;
 					for (ConsumerInvoker consumerInvoker : this.consumerInvokers) {
 						if (consumerInvoker.consumers.size() < this.consumerInvokerMaxCapacity) {
 							consumerInvoker.addConsumer(shardConsumer);
-							return;
+							consumerAdded = true;
+							break;
 						}
 					}
 
-					if (this.concurrency != 0) {
+					if (this.concurrency != 0 && !consumerAdded) {
 						ConsumerInvoker firstConsumerInvoker = this.consumerInvokers.get(0);
 						firstConsumerInvoker.addConsumer(shardConsumer);
 						this.consumerInvokerMaxCapacity = firstConsumerInvoker.consumers.size();
