@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 the original author or authors.
+ * Copyright 2019-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ import com.amazonaws.services.kinesis.model.Record;
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon
  * Kinesis stream(s) using AWS KCL.
  *
- * @author Hervé Fortin
+ * @author Herv? Fortin
  * @author Artem Bilan
  * @author Dirk Bonhomme
  *
@@ -293,7 +293,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 							KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
 							KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
 							null,
-							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS);
+							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS, null);
 		}
 
 		this.consumerGroup = this.config.getApplicationName();
