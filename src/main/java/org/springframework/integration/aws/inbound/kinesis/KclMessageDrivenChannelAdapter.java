@@ -293,7 +293,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 							KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
 							KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
 							null,
-							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS, null);
+							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS,
+							KinesisClientLibConfiguration.DEFAULT_DDB_BILLING_MODE
+					);
 		}
 
 		this.consumerGroup = this.config.getApplicationName();
