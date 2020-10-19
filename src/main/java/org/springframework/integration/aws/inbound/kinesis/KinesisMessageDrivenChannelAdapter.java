@@ -91,6 +91,8 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
  * @author Krzysztof Witkowski
  * @author Hervé Fortin
  * @author Dirk Bonhomme
+ * @author Greg Eales
+ *
  * @since 1.1
  */
 @ManagedResource
@@ -293,7 +295,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	 * will be processed sequentially. In other words each shard is tied with the particular thread.
 	 * By default the concurrency is unlimited and shard is processed in the {@link #consumerExecutor}
 	 * directly.
-	 *
 	 * @param concurrency the concurrency maximum number
 	 */
 	public void setConcurrency(int concurrency) {
@@ -303,7 +304,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * The sleep interval in milliseconds used in the main loop between shards polling cycles.
 	 * Defaults to {@code 1000}l minimum {@code 250}.
-	 *
 	 * @param idleBetweenPolls the interval to sleep between shards polling cycles.
 	 */
 	public void setIdleBetweenPolls(int idleBetweenPolls) {
@@ -313,7 +313,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * Specify an {@link InboundMessageMapper} to extract message headers embedded into the record
 	 * data.
-	 *
 	 * @param embeddedHeadersMapper the {@link InboundMessageMapper} to use.
 	 * @since 2.0
 	 */
@@ -324,7 +323,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * Specify a {@link LockRegistry} for an exclusive access to provided streams. This is not used
 	 * when shards-based configuration is provided.
-	 *
 	 * @param lockRegistry the {@link LockRegistry} to use.
 	 * @since 2.0
 	 */
@@ -335,7 +333,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * Set to true to bind the source consumer record in the header named {@link
 	 * IntegrationMessageHeaderAccessor#SOURCE_DATA}. Does not apply to batch listeners.
-	 *
 	 * @param bindSourceRecord true to bind.
 	 * @since 2.2
 	 */
@@ -347,6 +344,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	 * Specify a {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;} to filter the shards which will
 	 * be read from.
 	 * @param shardListFilter the filter {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;}
+	 * @since 2.3.4
 	 */
 	public void setShardListFilter(Function<List<Shard>, List<Shard>> shardListFilter) {
 		this.shardListFilter = shardListFilter;
@@ -1027,6 +1025,22 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 										.remove(this.key);
 							}
 							// Shard is closed: nothing to consume any more.
+							// Checkpoint endingSequenceNumber to ensure shard is marked exhausted.
+							// If in CheckpointMode.manual, only checkpoint if lastCheckpointValue is also null, as this
+							// means that no records have ever been read and so the shard was empty
+							if (!CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
+									|| this.checkpointer.getLastCheckpointValue() == null) {
+								for (Shard shard : readShardList(this.shardOffset.getStream())) {
+									if (shard.getShardId().equals(this.shardOffset.getShard())) {
+										String endingSequenceNumber =
+												shard.getSequenceNumberRange().getEndingSequenceNumber();
+										if (endingSequenceNumber != null) {
+											this.checkpointer.checkpoint(endingSequenceNumber);
+										}
+										break;
+									}
+								}
+							}
 							// Resharding is possible.
 							if (KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
 								KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher.publishEvent(
