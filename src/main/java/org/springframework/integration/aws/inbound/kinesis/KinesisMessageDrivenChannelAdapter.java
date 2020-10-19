@@ -172,6 +172,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private ApplicationEventPublisher applicationEventPublisher;
 
+	private boolean checkpointClosedShards;
+
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		Assert.notEmpty(streams, "'streams' must not be null.");
@@ -337,6 +339,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	 */
 	public void setBindSourceRecord(boolean bindSourceRecord) {
 		this.bindSourceRecord = bindSourceRecord;
+	}
+
+	/**
+	 * Set to true to automatically write a checkpoint of the {@code endingSequenceNumber}
+	 * for a shard which is closed and has had all of its records read
+	 *
+	 * @param checkpointClosedShards true to automatically checkpoint
+	 */
+	public void setCheckpointClosedShards(boolean checkpointClosedShards) {
+		this.checkpointClosedShards = checkpointClosedShards;
 	}
 
 	@Override
@@ -1014,7 +1026,23 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 								KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.shardOffsetsToConsumer
 										.remove(this.key);
 							}
+
 							// Shard is closed: nothing to consume any more.
+							// Checkpoint endingSequenceNumber.
+							if (KinesisMessageDrivenChannelAdapter.this.checkpointClosedShards) {
+								for (Shard shard : readShardList(this.shardOffset.getStream())) {
+									if (shard.getShardId().equals(shardOffset.getShard())) {
+										String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
+										if (endingSequenceNumber != null) {
+											checkpointer.setHighestSequence(endingSequenceNumber);
+											checkpointIfBatchMode();
+											checkpointIfPeriodicMode(null);
+											checkpointIfRecordMode(null);
+										}
+										break;
+									}
+								}
+							}
 							// Resharding is possible.
 							if (KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
 								KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher.publishEvent(
@@ -1217,9 +1245,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			}
 		}
 
-		private void checkpointIfRecordMode(Record record) {
+		private void checkpointIfRecordMode(@Nullable Record record) {
 			if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-				this.checkpointer.checkpoint(record.getSequenceNumber());
+				if (record == null) {
+					this.checkpointer.checkpoint();
+				}
+				else {
+					this.checkpointer.checkpoint(record.getSequenceNumber());
+				}
 			}
 		}
 
