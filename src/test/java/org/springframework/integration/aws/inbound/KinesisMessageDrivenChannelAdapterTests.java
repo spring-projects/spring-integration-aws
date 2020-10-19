@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -92,6 +91,9 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Autowired
 	private MetadataStore checkpointStore;
+
+	@Autowired
+	private MetadataStore reshardingCheckpointStore;
 
 	@Autowired
 	private KinesisMessageDrivenChannelAdapter reshardingChannelAdapter;
@@ -219,11 +221,13 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		this.reshardingChannelAdapter.stop();
 
+		assertThat(this.reshardingCheckpointStore.get("SpringIntegration:streamForResharding:closedEmptyShard5")).isEqualTo("5");
+
 		KinesisShardEndedEvent kinesisShardEndedEvent = this.config.shardEndedEventReference.get();
 
 		assertThat(kinesisShardEndedEvent).isNotNull()
 				.extracting(KinesisShardEndedEvent::getShardKey)
-				.isEqualTo("SpringIntegration:streamForResharding:closedShard4");
+				.isEqualTo("SpringIntegration:streamForResharding:closedEmptyShard5");
 	}
 
 	@Configuration
@@ -346,7 +350,9 @@ public class KinesisMessageDrivenChannelAdapterTests {
 									new Shard().withShardId("newShard3")
 											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("3")),
 									new Shard().withShardId("closedShard4")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("4"))))
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("4")),
+									new Shard().withShardId("closedEmptyShard5")
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("5"))))
 					.willReturn(new ListShardsResult()
 							.withShards(
 									new Shard().withShardId("closedShard1")
@@ -357,18 +363,21 @@ public class KinesisMessageDrivenChannelAdapterTests {
 											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("3")),
 									new Shard().withShardId("closedShard4")
 											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("4")),
-									new Shard().withShardId("newShard5")
+									new Shard().withShardId("closedEmptyShard5")
 											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("5")),
 									new Shard().withShardId("newShard6")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("6"))));
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("6")),
+									new Shard().withShardId("newShard7")
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("7"))));
 
 
 			setClosedShard(amazonKinesis, "1");
 			setNewShard(amazonKinesis, "2");
 			setNewShard(amazonKinesis, "3");
 			setClosedShard(amazonKinesis, "4");
-			setNewShard(amazonKinesis, "5");
+			setClosedEmptyShard(amazonKinesis, "5");
 			setNewShard(amazonKinesis, "6");
+			setNewShard(amazonKinesis, "7");
 
 			return amazonKinesis;
 		}
@@ -384,6 +393,17 @@ public class KinesisMessageDrivenChannelAdapterTests {
 					.willReturn(new GetRecordsResult().withNextShardIterator(null)
 							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber(shardIndex)
 									.withData(ByteBuffer.wrap("foo".getBytes()))));
+		}
+
+		private void setClosedEmptyShard(AmazonKinesis amazonKinesis, String shardIndex) {
+			String shardIterator = String.format("shard%sIterator1", shardIndex);
+
+			given(amazonKinesis.getShardIterator(
+					KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "closedEmptyShard" + shardIndex).toShardIteratorRequest()))
+					.willReturn(new GetShardIteratorResult().withShardIterator(shardIterator));
+
+			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shardIterator).withLimit(25)))
+					.willReturn(new GetRecordsResult().withNextShardIterator(null));
 		}
 
 		private void setNewShard(AmazonKinesis amazonKinesis, String shardIndex) {
@@ -406,6 +426,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		}
 
 		@Bean
+		public ConcurrentMetadataStore reshardingCheckpointStore() {
+			return new SimpleMetadataStore();
+		}
+
+		@Bean
 		public KinesisMessageDrivenChannelAdapter reshardingChannelAdapter() {
 			KinesisMessageDrivenChannelAdapter adapter = new KinesisMessageDrivenChannelAdapter(
 					amazonKinesisForResharding(), STREAM_FOR_RESHARDING);
@@ -415,6 +440,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			adapter.setDescribeStreamRetries(1);
 			adapter.setRecordsLimit(25);
 			adapter.setConcurrency(1);
+			adapter.setCheckpointStore(reshardingCheckpointStore());
 
 			DirectFieldAccessor dfa = new DirectFieldAccessor(adapter);
 			dfa.setPropertyValue("describeStreamBackoff", 10);

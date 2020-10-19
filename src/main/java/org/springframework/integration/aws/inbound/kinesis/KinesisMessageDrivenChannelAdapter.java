@@ -172,7 +172,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private ApplicationEventPublisher applicationEventPublisher;
 
-	private boolean checkpointClosedShards;
+	private boolean checkpointClosedShards = true;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -342,10 +342,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	/**
-	 * Set to true to automatically write a checkpoint of the {@code endingSequenceNumber}
+	 * Set to false to disable automatically writing a checkpoint of the {@code endingSequenceNumber}
 	 * for a shard which is closed and has had all of its records read
 	 *
-	 * @param checkpointClosedShards true to automatically checkpoint
+	 * @param checkpointClosedShards false to disable automatic checkpointing at shard end
 	 */
 	public void setCheckpointClosedShards(boolean checkpointClosedShards) {
 		this.checkpointClosedShards = checkpointClosedShards;
