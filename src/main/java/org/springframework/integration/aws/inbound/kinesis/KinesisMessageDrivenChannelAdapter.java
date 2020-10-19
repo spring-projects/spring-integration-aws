@@ -542,8 +542,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		try {
 			ListShardsResult listShardsResult = this.amazonKinesis.listShards(listShardsRequest);
-
-			shardList.addAll(listShardsResult.getShards());
+			while (true) {
+				shardList.addAll(listShardsResult.getShards());
+				if (listShardsResult.getNextToken() != null) {
+					listShardsResult = this.amazonKinesis.listShards(new ListShardsRequest().withNextToken(listShardsResult.getNextToken()));
+					continue;
+				}
+				break;
+			}
 
 		}
 		catch (LimitExceededException limitExceededException) {
