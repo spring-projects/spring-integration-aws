@@ -42,8 +42,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
@@ -64,6 +62,7 @@ import org.springframework.integration.support.locks.LockRegistry;
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.scheduling.SchedulingAwareRunnable;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
@@ -542,8 +541,17 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		try {
 			ListShardsResult listShardsResult = this.amazonKinesis.listShards(listShardsRequest);
-
-			shardList.addAll(listShardsResult.getShards());
+			while (true) {
+				shardList.addAll(listShardsResult.getShards());
+				if (listShardsResult.getNextToken() == null) {
+					break;
+				}
+				else {
+					listShardsResult =
+							this.amazonKinesis.listShards(new ListShardsRequest()
+									.withNextToken(listShardsResult.getNextToken()));
+				}
+			}
 
 		}
 		catch (LimitExceededException limitExceededException) {
