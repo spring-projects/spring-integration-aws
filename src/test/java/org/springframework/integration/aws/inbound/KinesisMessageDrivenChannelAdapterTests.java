@@ -222,7 +222,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		this.reshardingChannelAdapter.stop();
 
-		assertThat(this.reshardingCheckpointStore.get("SpringIntegration:streamForResharding:closedEmptyShard5")).isEqualTo("5");
+		assertThat(this.reshardingCheckpointStore.get("SpringIntegration:streamForResharding:closedEmptyShard5")).isEqualTo("50");
 
 		KinesisShardEndedEvent kinesisShardEndedEvent = this.config.shardEndedEventReference.get();
 
@@ -341,35 +341,31 @@ public class KinesisMessageDrivenChannelAdapterTests {
 					.willReturn(new ListShardsResult()
 							.withShards(
 									new Shard().withShardId("closedShard1")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("1"))))
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("10"))))
 					.willReturn(new ListShardsResult()
 							.withShards(
 									new Shard().withShardId("closedShard1")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("1")),
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("10")),
 									new Shard().withShardId("newShard2")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("2")),
+											.withSequenceNumberRange(new SequenceNumberRange()),
 									new Shard().withShardId("newShard3")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("3")),
+											.withSequenceNumberRange(new SequenceNumberRange()),
 									new Shard().withShardId("closedShard4")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("4")),
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("40")),
 									new Shard().withShardId("closedEmptyShard5")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("5"))))
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("50"))))
 					.willReturn(new ListShardsResult()
 							.withShards(
 									new Shard().withShardId("closedShard1")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("1")),
-									new Shard().withShardId("newShard2")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("2")),
-									new Shard().withShardId("newShard3")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("3")),
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("10")),
+									new Shard().withShardId("newShard2").withSequenceNumberRange(new SequenceNumberRange()),
+									new Shard().withShardId("newShard3").withSequenceNumberRange(new SequenceNumberRange()),
 									new Shard().withShardId("closedShard4")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("4")),
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("40")),
 									new Shard().withShardId("closedEmptyShard5")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("5")),
-									new Shard().withShardId("newShard6")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("6")),
-									new Shard().withShardId("newShard7")
-											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("7"))));
+											.withSequenceNumberRange(new SequenceNumberRange().withEndingSequenceNumber("50")),
+									new Shard().withShardId("newShard6").withSequenceNumberRange(new SequenceNumberRange()),
+									new Shard().withShardId("newShard7").withSequenceNumberRange(new SequenceNumberRange())));
 
 
 			setClosedShard(amazonKinesis, "1");
