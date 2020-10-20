@@ -580,7 +580,22 @@ The `KinesisMessageDrivenChannelAdapter` iterates over its shards and tries to a
 If `LockRegistry` is not provided, no exclusive locking happens and all the shards are consumed by this `KinesisMessageDrivenChannelAdapter`. 
 See also `DynamoDbLockRegistry` for more information.
 
-Also the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][].
+The `KinesisMessageDrivenChannelAdapter` can be configured with a `Function<List<Shard>, List<Shard>> shardListFilter` to filter the available, open, non-exhausted shards.
+This filter `Function` will be called each time the shard list is refreshed.
+
+For example, users may want to fully read any parent shards before starting to read their child shards.  This could be achieved as follows:
+
+```java
+    openShards -> {
+        Set<String> openShardIds = openShards.stream().map(Shard::getShardId).collect(Collectors.toSet());
+        // only return open shards which have no parent available for reading 
+        return openShards.stream()
+                .filter(shard -> !openShardIds.contains(shard.getParentShardId()))
+                .collect(Collectors.toList());
+        }
+```
+
+Also, the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][].
 See its JavaDocs for more information. 
 
 ### Outbound Channel Adapter

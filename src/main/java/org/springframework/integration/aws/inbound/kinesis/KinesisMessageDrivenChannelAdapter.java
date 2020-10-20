@@ -40,6 +40,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.DisposableBean;
@@ -171,6 +172,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	private volatile Future<?> shardConsumerManagerFuture;
 
 	private ApplicationEventPublisher applicationEventPublisher;
+
+	@Nullable
+	private Function<List<Shard>, List<Shard>> shardListFilter;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -337,6 +341,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	 */
 	public void setBindSourceRecord(boolean bindSourceRecord) {
 		this.bindSourceRecord = bindSourceRecord;
+	}
+
+	/**
+	 * Specify a {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;} to filter the shards which will
+	 * be read from.
+	 * @param shardListFilter the filter {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;}
+	 */
+	public void setShardListFilter(Function<List<Shard>, List<Shard>> shardListFilter) {
+		this.shardListFilter = shardListFilter;
 	}
 
 	@Override
@@ -618,19 +631,19 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				if (endingSequenceNumber != null) {
 					String checkpoint = this.checkpointStore.get(key);
 
-					boolean skipClosedShard = checkpoint != null && new BigInteger(endingSequenceNumber)
+					boolean skipClosedAndExhaustedShard = checkpoint != null && new BigInteger(endingSequenceNumber)
 							.compareTo(new BigInteger(checkpoint)) <= 0;
 
 					if (logger.isTraceEnabled()) {
 						logger.trace("The shard [" + shard + "] in stream [" + stream
-								+ "] is closed CLOSED with endingSequenceNumber [" + endingSequenceNumber
+								+ "] is closed CLOSED and exhausted with endingSequenceNumber [" + endingSequenceNumber
 								+ "].\nThe last processed checkpoint is [" + checkpoint + "]."
-								+ (skipClosedShard ? "\nThe shard will be skipped." : ""));
+								+ (skipClosedAndExhaustedShard ? "\nThe shard will be skipped." : ""));
 					}
 
-					if (skipClosedShard) {
-						// Skip CLOSED shard which has been read before
-						// according a checkpoint
+					if (skipClosedAndExhaustedShard) {
+						// Skip CLOSED shard which has been exhausted
+						// according the checkpoint
 						continue;
 					}
 				}
@@ -649,8 +662,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			sleep(this.describeStreamBackoff, new IllegalStateException(exceptionMessage), false);
 		}
 
-		return shardsToConsume;
-
+		return this.shardListFilter != null ? this.shardListFilter.apply(shardsToConsume) : shardsToConsume;
 	}
 
 	private void sleep(long sleepAmount, RuntimeException error, boolean interruptThread) {
