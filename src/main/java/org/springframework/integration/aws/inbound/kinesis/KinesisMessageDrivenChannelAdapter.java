@@ -1016,7 +1016,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							}
 							// Shard is closed: nothing to consume any more.
 							// Checkpoint endingSequenceNumber to ensure shard is marked exhausted.
-							if (!CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
+							// If in CheckpointMode.manual, only checkpoint if lastCheckpointValue is also null, as this
+							// means that no records have ever been read and so the shard was empty
+							if (!CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
+									|| this.checkpointer.getLastCheckpointValue() == null) {
 								for (Shard shard : readShardList(this.shardOffset.getStream())) {
 									if (shard.getShardId().equals(this.shardOffset.getShard())) {
 										String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
