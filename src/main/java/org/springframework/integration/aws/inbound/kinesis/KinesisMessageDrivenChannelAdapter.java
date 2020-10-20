@@ -172,8 +172,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private ApplicationEventPublisher applicationEventPublisher;
 
-	private boolean checkpointClosedShards = true;
-
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		Assert.notEmpty(streams, "'streams' must not be null.");
@@ -339,16 +337,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	 */
 	public void setBindSourceRecord(boolean bindSourceRecord) {
 		this.bindSourceRecord = bindSourceRecord;
-	}
-
-	/**
-	 * Set to false to disable automatically writing a checkpoint of the {@code endingSequenceNumber}
-	 * for a shard which is closed and has had all of its records read
-	 *
-	 * @param checkpointClosedShards false to disable automatic checkpointing at shard end
-	 */
-	public void setCheckpointClosedShards(boolean checkpointClosedShards) {
-		this.checkpointClosedShards = checkpointClosedShards;
 	}
 
 	@Override
@@ -641,8 +629,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					}
 
 					if (skipClosedShard) {
-						// Skip CLOSED shard which has been read before
-						// according a checkpoint
+						// Skip CLOSED shard which has been exhausted
+						// according the checkpoint
 						continue;
 					}
 				}
@@ -1026,18 +1014,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 								KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.shardOffsetsToConsumer
 										.remove(this.key);
 							}
-
 							// Shard is closed: nothing to consume any more.
-							// Checkpoint endingSequenceNumber.
-							if (KinesisMessageDrivenChannelAdapter.this.checkpointClosedShards) {
+							// Checkpoint endingSequenceNumber to ensure shard is marked exhausted.
+							if (!CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
 								for (Shard shard : readShardList(this.shardOffset.getStream())) {
-									if (shard.getShardId().equals(shardOffset.getShard())) {
+									if (shard.getShardId().equals(this.shardOffset.getShard())) {
 										String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
 										if (endingSequenceNumber != null) {
-											checkpointer.setHighestSequence(endingSequenceNumber);
-											checkpointIfBatchMode();
-											checkpointIfPeriodicMode(null);
-											checkpointIfRecordMode(null);
+											this.checkpointer.checkpoint(endingSequenceNumber);
 										}
 										break;
 									}
@@ -1245,14 +1229,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			}
 		}
 
-		private void checkpointIfRecordMode(@Nullable Record record) {
+		private void checkpointIfRecordMode(Record record) {
 			if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-				if (record == null) {
-					this.checkpointer.checkpoint();
-				}
-				else {
-					this.checkpointer.checkpoint(record.getSequenceNumber());
-				}
+				this.checkpointer.checkpoint(record.getSequenceNumber());
 			}
 		}
 
