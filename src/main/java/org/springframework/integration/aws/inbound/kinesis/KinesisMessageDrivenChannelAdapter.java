@@ -174,7 +174,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	private ApplicationEventPublisher applicationEventPublisher;
 
 	@Nullable
-	private Function<List<Shard>, List<Shard>> shardsToConsumeMapper;
+	private Function<List<Shard>, List<Shard>> shardListFilter;
 
 	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
@@ -344,15 +344,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	/**
-	 * Specify a {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;} to map the detected shards to
-	 * consume with user business logic.
-	 *
-	 * @param shardsToConsumeMapper the mapper Function
+	 * Specify a {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;} to filter the shards which will
+	 * be read from.
+	 * @param shardListFilter the filter {@link Function Function&lt;List&lt;Shard&gt;, List&lt;Shard&gt;&gt;}
 	 */
-	public void setShardsToConsumeMapper(Function<List<Shard>, List<Shard>> shardsToConsumeMapper) {
-		this.shardsToConsumeMapper = shardsToConsumeMapper;
+	public void setShardListFilter(Function<List<Shard>, List<Shard>> shardListFilter) {
+		this.shardListFilter = shardListFilter;
 	}
-
 
 	@Override
 	protected void onInit() {
@@ -664,7 +662,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			sleep(this.describeStreamBackoff, new IllegalStateException(exceptionMessage), false);
 		}
 
-		return this.shardsToConsumeMapper != null ? this.shardsToConsumeMapper.apply(shardsToConsume) : shardsToConsume;
+		return this.shardListFilter != null ? this.shardListFilter.apply(shardsToConsume) : shardsToConsume;
 	}
 
 	private void sleep(long sleepAmount, RuntimeException error, boolean interruptThread) {
