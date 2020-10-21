@@ -588,9 +588,10 @@ For example, users may want to fully read any parent shards before starting to r
 ```java
     openShards -> {
         Set<String> openShardIds = openShards.stream().map(Shard::getShardId).collect(Collectors.toSet());
-        // only return open shards which have no parent available for reading 
+        // only return open shards which have no parent available for reading
         return openShards.stream()
-                .filter(shard -> !openShardIds.contains(shard.getParentShardId()))
+                .filter(shard -> !openShardIds.contains(shard.getParentShardId())
+                        && !openShardIds.contains(shard.getAdjacentParentShardId()))
                 .collect(Collectors.toList());
         }
 ```
