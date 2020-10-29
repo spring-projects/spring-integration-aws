@@ -577,7 +577,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 			try {
 				Thread.sleep(this.describeStreamBackoff);
-				readShardList(stream, retryCount++);
+				readShardList(stream, retryCount + 1);
 			}
 			catch (InterruptedException ex) {
 				Thread.currentThread().interrupt();
@@ -653,10 +653,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			String exceptionMessage = "Got an exception when processing shards in stream [" + stream + "]";
 			logger.info(exceptionMessage + ".\n Retrying... ", e);
 			if (retry > 5) {
-				throw new IllegalStateException("Error processing shards in stream [\" + stream + \"].", e);
+				throw new IllegalStateException(exceptionMessage, e);
 			}
 			//Retry
-			detectShardsToConsume(stream, retry++);
+			detectShardsToConsume(stream, retry + 1);
 			sleep(this.describeStreamBackoff, new IllegalStateException(exceptionMessage), false);
 		}
 
@@ -693,6 +693,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.shardConsumerManager.addShardToConsume(shardOffset);
 					}
 				}
+			}
+			catch (Exception ex) {
+				logger.error("Error population shards for stream: " + stream, ex);
 			}
 			finally {
 				if (shardsGatherLatch != null) {
@@ -866,6 +869,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		public boolean isLongLived() {
 			return true;
 		}
+
 	}
 
 	private final class ShardConsumer {
@@ -1268,6 +1272,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		public String toString() {
 			return "ShardConsumer{" + "shardOffset=" + this.shardOffset + ", state=" + this.state + '}';
 		}
+
 	}
 
 	private final class ConsumerInvoker implements SchedulingAwareRunnable {
@@ -1346,6 +1351,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		public boolean isLongLived() {
 			return true;
 		}
+
 	}
 
 	private final class ShardConsumerManager implements SchedulingAwareRunnable {
@@ -1445,5 +1451,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		public boolean isLongLived() {
 			return true;
 		}
+
 	}
+
 }

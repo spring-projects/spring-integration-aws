@@ -64,6 +64,7 @@ import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorF
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.SimpleRecordsFetcherFactory;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import com.amazonaws.services.kinesis.model.Record;
 
@@ -273,6 +274,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 					new KinesisClientLibConfiguration(this.consumerGroup,
 							this.stream,
 							null,
+							null,
 							this.streamInitialSequence,
 							this.kinesisProxyCredentialsProvider,
 							null,
@@ -294,8 +296,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 							KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
 							null,
 							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS,
-							KinesisClientLibConfiguration.DEFAULT_DDB_BILLING_MODE
-					);
+							KinesisClientLibConfiguration.DEFAULT_DDB_BILLING_MODE,
+							new SimpleRecordsFetcherFactory(),
+							0,
+							0,
+							0);
 		}
 
 		this.consumerGroup = this.config.getApplicationName();
