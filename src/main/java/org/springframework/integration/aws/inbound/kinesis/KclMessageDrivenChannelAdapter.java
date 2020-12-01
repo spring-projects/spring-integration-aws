@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -83,6 +84,23 @@ import com.amazonaws.services.kinesis.model.Record;
 public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
+
+	/**
+	 * Interval to run lease cleanup thread in {@link LeaseCleanupManager}.
+	 */
+	private static final long DEFAULT_LEASE_CLEANUP_INTERVAL_MILLIS = Duration.ofMinutes(1).toMillis();
+
+	/**
+	 * Threshold in millis at which to check if there are any completed leases (leases for shards which have been
+	 * closed as a result of a resharding operation) that need to be cleaned up.
+	 */
+	private static final long DEFAULT_COMPLETED_LEASE_CLEANUP_THRESHOLD_MILLIS = Duration.ofMinutes(5).toMillis();
+
+	/**
+	 * Threshold in millis at which to check if there are any garbage leases (leases for shards which no longer exist
+	 * in the stream) that need to be cleaned up.
+	 */
+	private static final long DEFAULT_GARBAGE_LEASE_CLEANUP_THRESHOLD_MILLIS = Duration.ofMinutes(30).toMillis();
 
 	private final RecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
 
@@ -298,9 +316,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS,
 							KinesisClientLibConfiguration.DEFAULT_DDB_BILLING_MODE,
 							new SimpleRecordsFetcherFactory(),
-							0,
-							0,
-							0);
+							DEFAULT_LEASE_CLEANUP_INTERVAL_MILLIS,
+							DEFAULT_COMPLETED_LEASE_CLEANUP_THRESHOLD_MILLIS,
+							DEFAULT_GARBAGE_LEASE_CLEANUP_THRESHOLD_MILLIS);
 		}
 
 		this.consumerGroup = this.config.getApplicationName();
