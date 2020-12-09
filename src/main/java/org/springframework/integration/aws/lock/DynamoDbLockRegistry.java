@@ -17,8 +17,11 @@
 package org.springframework.integration.aws.lock;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -47,11 +50,16 @@ import com.amazonaws.services.dynamodbv2.AcquireLockOptions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClientOptions;
-import com.amazonaws.services.dynamodbv2.CreateDynamoDBTableOptions;
 import com.amazonaws.services.dynamodbv2.LockItem;
+import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
+import com.amazonaws.services.dynamodbv2.model.BillingMode;
+import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
+import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
+import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.LockTableDoesNotExistException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
+import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 
 /**
  * An {@link ExpirableLockRegistry} implementation for the AWS DynamoDB. The algorithm is
@@ -62,6 +70,7 @@ import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
  *
  * @author Artem Bilan
  * @author Karl Lessard
+ * @author Asiel Caballero
  * @since 2.0
  */
 public class DynamoDbLockRegistry implements ExpirableLockRegistry, InitializingBean, DisposableBean {
@@ -109,6 +118,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	private boolean dynamoDBLockClientExplicitlySet;
 
+	private BillingMode billingMode = BillingMode.PAY_PER_REQUEST;
+
 	private long readCapacity = 1L;
 
 	private long writeCapacity = 1L;
@@ -152,6 +163,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		this.dynamoDBLockClientExplicitlySet = true;
 		this.dynamoDB = null;
 		this.tableName = null;
+	}
+
+	public void setBillingMode(BillingMode billingMode) {
+		Assert.notNull(billingMode, "'billingMode' must not be null");
+		this.billingMode = billingMode;
 	}
 
 	public void setReadCapacity(long readCapacity) {
@@ -233,18 +249,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 								}
 							}
 
-							CreateDynamoDBTableOptions createDynamoDBTableOptions = CreateDynamoDBTableOptions
-									.builder(this.dynamoDB, new ProvisionedThroughput(this.readCapacity,
-													this.writeCapacity),
-											this.tableName)
-									.withPartitionKeyName(this.partitionKey).withSortKeyName(this.sortKeyName).build();
-
-							try {
-								AmazonDynamoDBLockClient.createLockTableInDynamoDB(createDynamoDBTableOptions);
-							}
-							catch (ResourceInUseException ex) {
-								// Swallow an exception and check for table existence
-							}
+							createLockTableInDynamoDB();
 						}
 
 						int i = 0;
@@ -277,6 +282,52 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				.start();
 
 		this.initialized = true;
+	}
+
+	/**
+	 * Creates a DynamoDB table with the right schema for it to be used by this locking library.
+	 * The table should be set
+	 * up in advance, because it takes a few minutes for DynamoDB to provision a new instance.
+	 * <p>
+	 * This method is a variation of {@link AmazonDynamoDBLockClient#createLockTableInDynamoDB} to support custom
+	 * {@link BillingMode} for the lock table.
+	 * <p>
+	 * If table already exists no exception.
+	 */
+	private void createLockTableInDynamoDB() {
+		try {
+			KeySchemaElement partitionKeyElement = new KeySchemaElement();
+			partitionKeyElement.setAttributeName(this.partitionKey);
+			partitionKeyElement.setKeyType(KeyType.HASH);
+
+			List<KeySchemaElement> keySchema = new ArrayList<>();
+			keySchema.add(partitionKeyElement);
+
+			Collection<AttributeDefinition> attributeDefinitions = new ArrayList<>();
+			attributeDefinitions.add(new AttributeDefinition().withAttributeName(this.partitionKey)
+					.withAttributeType(ScalarAttributeType.S));
+
+			KeySchemaElement sortKeyElement = new KeySchemaElement();
+			sortKeyElement.setAttributeName(this.sortKeyName);
+			sortKeyElement.setKeyType(KeyType.RANGE);
+			keySchema.add(sortKeyElement);
+			attributeDefinitions.add(new AttributeDefinition().withAttributeName(this.sortKeyName)
+					.withAttributeType(ScalarAttributeType.S));
+
+			CreateTableRequest createTableRequest = new CreateTableRequest(this.tableName, keySchema)
+					.withAttributeDefinitions(attributeDefinitions)
+					.withBillingMode(this.billingMode);
+
+			if (BillingMode.PROVISIONED.equals(this.billingMode)) {
+				createTableRequest.setProvisionedThroughput(
+						new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
+			}
+
+			this.dynamoDB.createTable(createTableRequest);
+		}
+		catch (ResourceInUseException ex) {
+			// Swallow an exception and you should check for table existence
+		}
 	}
 
 	private void awaitForActive() {
@@ -324,11 +375,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	@Override
 	public String toString() {
-		return "DynamoDbLockRegistry{" + "tableName='" + this.tableName + '\'' + ", readCapacity=" + this.readCapacity
-				+ ", writeCapacity=" + this.writeCapacity + ", partitionKey='" + this.partitionKey + '\''
-				+ ", sortKeyName='" + this.sortKeyName + '\'' + ", sortKey='" + this.sortKey + '\'' + ", refreshPeriod="
-				+ this.refreshPeriod + ", leaseDuration=" + this.leaseDuration + ", heartbeatPeriod="
-				+ this.heartbeatPeriod + '}';
+		return "DynamoDbLockRegistry{" + "tableName='" + this.tableName + '\'' + ", billingMode=" + this.billingMode
+				+ ", readCapacity=" + this.readCapacity + ", writeCapacity=" + this.writeCapacity + ", partitionKey='"
+				+ this.partitionKey + '\'' + ", sortKeyName='" + this.sortKeyName + '\'' + ", sortKey='" + this.sortKey
+				+ '\'' + ", refreshPeriod=" + this.refreshPeriod + ", leaseDuration=" + this.leaseDuration
+				+ ", heartbeatPeriod=" + this.heartbeatPeriod + '}';
 	}
 
 	private final class DynamoDbLock implements Lock {
