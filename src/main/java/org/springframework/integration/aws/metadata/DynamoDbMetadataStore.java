@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import com.amazonaws.services.dynamodbv2.document.spec.DeleteItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
+import com.amazonaws.services.dynamodbv2.model.BillingMode;
 import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
 import com.amazonaws.services.dynamodbv2.model.CreateTableResult;
@@ -61,6 +62,7 @@ import com.amazonaws.waiters.WaiterParameters;
  * The {@link ConcurrentMetadataStore} for the {@link AmazonDynamoDB}.
  *
  * @author Artem Bilan
+ * @author Asiel Caballero
  * @since 1.1
  */
 public class DynamoDbMetadataStore implements ConcurrentMetadataStore, InitializingBean {
@@ -89,6 +91,8 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 	private int createTableDelay = 1;
 
+	private BillingMode billingMode = BillingMode.PAY_PER_REQUEST;
+
 	private long readCapacity = 1L;
 
 	private long writeCapacity = 1L;
@@ -109,20 +113,25 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 	}
 
-	public void setReadCapacity(long readCapacity) {
-		this.readCapacity = readCapacity;
-	}
-
-	public void setWriteCapacity(long writeCapacity) {
-		this.writeCapacity = writeCapacity;
-	}
-
 	public void setCreateTableRetries(int createTableRetries) {
 		this.createTableRetries = createTableRetries;
 	}
 
 	public void setCreateTableDelay(int createTableDelay) {
 		this.createTableDelay = createTableDelay;
+	}
+
+	public void setBillingMode(BillingMode billingMode) {
+		Assert.notNull(billingMode, "'billingMode' must not be null");
+		this.billingMode = billingMode;
+	}
+
+	public void setReadCapacity(long readCapacity) {
+		this.readCapacity = readCapacity;
+	}
+
+	public void setWriteCapacity(long writeCapacity) {
+		this.writeCapacity = writeCapacity;
 	}
 
 	/**
@@ -141,22 +150,19 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	@Override
 	public void afterPropertiesSet() {
 		try {
-			try {
-				this.table.describe();
-				updateTimeToLiveIfAny();
-				this.createTableLatch.countDown();
+			if (isTableAvailable()) {
 				return;
-			}
-			catch (ResourceNotFoundException e) {
-				if (logger.isInfoEnabled()) {
-					logger.info("No table '" + this.table.getTableName() + "'. Creating one...");
-				}
 			}
 
 			CreateTableRequest createTableRequest = new CreateTableRequest().withTableName(this.table.getTableName())
 					.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
 					.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
-					.withProvisionedThroughput(new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
+					.withBillingMode(this.billingMode);
+
+			if (BillingMode.PROVISIONED.equals(this.billingMode)) {
+				createTableRequest.withProvisionedThroughput(
+						new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
+			}
 
 			this.dynamoDB.createTableAsync(createTableRequest,
 					new AsyncHandler<CreateTableRequest, CreateTableResult>() {
@@ -205,6 +211,21 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 		}
 		finally {
 			this.initialized = true;
+		}
+	}
+
+	private boolean isTableAvailable() {
+		try {
+			this.table.describe();
+			updateTimeToLiveIfAny();
+			this.createTableLatch.countDown();
+			return true;
+		}
+		catch (ResourceNotFoundException e) {
+			if (logger.isInfoEnabled()) {
+				logger.info("No table '" + this.table.getTableName() + "'. Creating one...");
+			}
+			return false;
 		}
 	}
 
@@ -339,8 +360,9 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	@Override
 	public String toString() {
 		return "DynamoDbMetadataStore{" + "table=" + this.table + ", createTableRetries=" + this.createTableRetries
-				+ ", createTableDelay=" + this.createTableDelay + ", readCapacity=" + this.readCapacity
-				+ ", writeCapacity=" + this.writeCapacity + ", timeToLive=" + this.timeToLive + '}';
+				+ ", createTableDelay=" + this.createTableDelay + ", billingMode=" + this.billingMode
+				+ ", readCapacity=" + this.readCapacity + ", writeCapacity=" + this.writeCapacity
+				+ ", timeToLive=" + this.timeToLive + '}';
 	}
 
 }
