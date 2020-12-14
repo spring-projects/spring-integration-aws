@@ -123,7 +123,7 @@ public class KplKclIntegrationTests {
 		this.kinesisSendChannel.send(MessageBuilder.withPayload(now).setHeader(AwsHeaders.STREAM, TEST_STREAM)
 				.setHeader("foo", "BAR").build());
 
-		Message<?> receive = this.kinesisReceiveChannel.receive(20_000);
+		Message<?> receive = this.kinesisReceiveChannel.receive(30_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
 		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));

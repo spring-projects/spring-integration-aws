@@ -109,13 +109,13 @@ public class KinesisIntegrationTests {
 		this.kinesisSendChannel.send(MessageBuilder.withPayload(now).setHeader(AwsHeaders.STREAM, TEST_STREAM)
 				.setHeader("foo", "BAR").build());
 
-		Message<?> receive = this.kinesisReceiveChannel.receive(10_000);
+		Message<?> receive = this.kinesisReceiveChannel.receive(20_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
 		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));
 		assertThat(receive.getHeaders()).containsKey(IntegrationMessageHeaderAccessor.SOURCE_DATA);
 
-		Message<?> errorMessage = this.errorChannel.receive(10_000);
+		Message<?> errorMessage = this.errorChannel.receive(20_000);
 		assertThat(errorMessage).isNotNull();
 		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
