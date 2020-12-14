@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 the original author or authors.
+ * Copyright 2019-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package org.springframework.integration.aws;
 
-import static cloud.localstack.TestUtils.DEFAULT_REGION;
+import static cloud.localstack.Constants.DEFAULT_REGION;
 
 import java.util.function.Supplier;
 
-import cloud.localstack.TestUtils;
-import cloud.localstack.docker.LocalstackDocker;
+import cloud.localstack.Localstack;
+import cloud.localstack.awssdkv1.TestUtils;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.client.builder.AwsAsyncClientBuilder;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -55,7 +55,7 @@ public final class ExtendedDockerTestUtils {
 		AmazonKinesisAsyncClientBuilder amazonKinesisAsyncClientBuilder =
 				AmazonKinesisAsyncClientBuilder.standard()
 						.withEndpointConfiguration(
-								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointKinesis, ssl));
+								createEndpointConfiguration(Localstack.INSTANCE::getEndpointKinesis, ssl));
 		return applyConfigurationAndBuild(amazonKinesisAsyncClientBuilder);
 	}
 
@@ -71,7 +71,7 @@ public final class ExtendedDockerTestUtils {
 		AmazonDynamoDBAsyncClientBuilder dynamoDBAsyncClientBuilder =
 				AmazonDynamoDBAsyncClientBuilder.standard()
 						.withEndpointConfiguration(
-								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointDynamoDB, ssl));
+								createEndpointConfiguration(Localstack.INSTANCE::getEndpointDynamoDB, ssl));
 		return applyConfigurationAndBuild(dynamoDBAsyncClientBuilder);
 	}
 
@@ -87,7 +87,7 @@ public final class ExtendedDockerTestUtils {
 		AmazonCloudWatchAsyncClientBuilder cloudWatchAsyncClientBuilder =
 				AmazonCloudWatchAsyncClientBuilder.standard()
 						.withEndpointConfiguration(
-								createEndpointConfiguration(LocalstackDocker.INSTANCE::getEndpointCloudWatch, ssl));
+								createEndpointConfiguration(Localstack.INSTANCE::getEndpointCloudWatch, ssl));
 		return applyConfigurationAndBuild(cloudWatchAsyncClientBuilder);
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,8 +56,9 @@ import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-import cloud.localstack.TestUtils;
-import cloud.localstack.docker.LocalstackDocker;
+import cloud.localstack.Constants;
+import cloud.localstack.Localstack;
+import cloud.localstack.awssdkv1.TestUtils;
 import cloud.localstack.docker.LocalstackDockerExtension;
 import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
@@ -76,7 +77,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 @SpringJUnitConfig
 @EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(randomizePorts = true,
+@LocalstackDockerProperties(
 		hostNameResolver = EnvironmentHostNameResolver.class,
 		environmentVariableProvider = LocalStackSslEnvironmentProvider.class,
 		services = {"kinesis", "dynamodb", "cloudwatch"})
@@ -152,11 +153,11 @@ public class KplKclIntegrationTests {
 
 		@Bean
 		public KinesisProducerConfiguration kinesisProducerConfiguration() throws URISyntaxException {
-			URI kinesisUri = new URI(LocalstackDocker.INSTANCE.getEndpointKinesis());
-			URI cloudWatchUri = new URI(LocalstackDocker.INSTANCE.getEndpointCloudWatch());
+			URI kinesisUri = new URI(Localstack.INSTANCE.getEndpointKinesis());
+			URI cloudWatchUri = new URI(Localstack.INSTANCE.getEndpointCloudWatch());
 			return new KinesisProducerConfiguration()
 					.setCredentialsProvider(TestUtils.getCredentialsProvider())
-					.setRegion(TestUtils.DEFAULT_REGION)
+					.setRegion(Constants.DEFAULT_REGION)
 					.setKinesisEndpoint(kinesisUri.getHost())
 					.setKinesisPort(kinesisUri.getPort())
 					.setCloudwatchEndpoint(cloudWatchUri.getHost())
