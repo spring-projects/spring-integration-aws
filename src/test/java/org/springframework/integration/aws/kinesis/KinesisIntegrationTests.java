@@ -26,7 +26,9 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.DirectFieldAccessor;
@@ -67,6 +69,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
  *
  * @since 1.1
  */
+@DisabledOnOs(OS.LINUX)
 @SpringJUnitConfig
 @EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)

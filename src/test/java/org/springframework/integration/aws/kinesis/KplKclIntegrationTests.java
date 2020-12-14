@@ -25,6 +25,7 @@ import java.util.Date;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -73,7 +74,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
  *
  * @since 1.1
  */
-@DisabledOnOs(OS.WINDOWS)
+@Disabled
 @SpringJUnitConfig
 @EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
 @ExtendWith(LocalstackDockerExtension.class)
