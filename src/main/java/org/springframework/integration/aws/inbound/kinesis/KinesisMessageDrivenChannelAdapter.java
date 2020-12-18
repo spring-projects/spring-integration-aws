@@ -671,7 +671,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			if (interruptThread) {
 				Thread.currentThread().interrupt();
 			}
-			logger.error(error.getMessage(), e);
+
+			if (this.active) {
+				logger.error(error.getMessage(), e);
+			}
+			else {
+				logger.info(error.getMessage() + " while adapter was inactive", e);
+			}
+
 			throw error;
 		}
 	}
