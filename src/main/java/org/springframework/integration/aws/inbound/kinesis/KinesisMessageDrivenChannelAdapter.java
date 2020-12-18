@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -915,7 +916,17 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		void stop() {
 			this.state = ConsumerState.STOP;
 			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
-				KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.unlock(this.key);
+				LockCompletableFuture unlockFuture = new LockCompletableFuture(this.key);
+				KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.unlock(unlockFuture);
+				try {
+					unlockFuture.get(1, TimeUnit.SECONDS);
+				}
+				catch (Exception ex) {
+					if (ex instanceof InterruptedException) {
+						Thread.currentThread().interrupt();
+					}
+					logger.info("The lock for key '" + this.key + "' was not unlocked in time", ex);
+				}
 			}
 			if (this.notifier != null) {
 				this.notifier.run();
@@ -929,6 +940,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		void execute() {
 			if (this.task == null) {
+				if (!renewLockIfAny()) {
+					return;
+				}
+
 				switch (this.state) {
 					case NEW:
 					case EXPIRED:
@@ -1005,6 +1020,36 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					}
 				}
 			}
+		}
+
+		private boolean renewLockIfAny() {
+			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null && this.state == ConsumerState.CONSUME) {
+				LockCompletableFuture renewLockFuture = new LockCompletableFuture(this.key);
+				KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.renewLock(renewLockFuture);
+				boolean lockRenewed = false;
+				try {
+					lockRenewed = renewLockFuture.get(1, TimeUnit.SECONDS);
+				}
+				catch (Exception ex) {
+					if (ex instanceof InterruptedException) {
+						Thread.currentThread().interrupt();
+					}
+					logger.info("The lock for key '" + this.key + "' was not renewed in time", ex);
+				}
+
+				if (!lockRenewed && this.state == ConsumerState.CONSUME) {
+					this.state = ConsumerState.STOP;
+					this.checkpointer.close();
+					if (this.notifier != null) {
+						this.notifier.run();
+					}
+					if (KinesisMessageDrivenChannelAdapter.this.active) {
+						KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.addShardToConsume(this.shardOffset);
+					}
+					return false;
+				}
+			}
+			return true;
 		}
 
 		private Runnable processTask() {
@@ -1368,7 +1413,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		private final Map<String, Lock> locks = new HashMap<>();
 
-		private final Queue<String> forUnlocking = new ConcurrentLinkedQueue<>();
+		private final Queue<LockCompletableFuture> forUnlocking = new ConcurrentLinkedQueue<>();
+
+		private final Queue<LockCompletableFuture> forRenewing = new ConcurrentLinkedQueue<>();
 
 		ShardConsumerManager() {
 		}
@@ -1379,15 +1426,18 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			this.shardOffsetsToConsumer.put(lockKey, kinesisShardOffset);
 		}
 
-		void unlock(String lockKey) {
-			this.forUnlocking.add(lockKey);
+		void unlock(LockCompletableFuture unlockFuture) {
+			this.forUnlocking.add(unlockFuture);
+		}
+
+		void renewLock(LockCompletableFuture renewLockFuture) {
+			this.forRenewing.add(renewLockFuture);
 		}
 
 		@Override
 		public void run() {
 			try {
 				while (!Thread.currentThread().isInterrupted()) {
-
 					this.shardOffsetsToConsumer
 							.entrySet()
 							.removeIf(
@@ -1418,9 +1468,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 									});
 
 					while (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
-						String lockKey = this.forUnlocking.poll();
-						if (lockKey != null) {
-							Lock lock = this.locks.remove(lockKey);
+						LockCompletableFuture forUnlocking = this.forUnlocking.poll();
+						if (forUnlocking != null) {
+							Lock lock = this.locks.remove(forUnlocking.lockKey);
 							if (lock != null) {
 								try {
 									lock.unlock();
@@ -1429,13 +1479,48 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 									logger.error("Error during unlocking: " + lock, e);
 								}
 							}
+							forUnlocking.complete(true);
 						}
 						else {
 							break;
 						}
 					}
 
-					sleep(250, new IllegalStateException("ShardConsumerManager Thread [" + this + "] has been interrupted"), true);
+					while (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
+						LockCompletableFuture lockFuture = this.forRenewing.poll();
+						if (lockFuture != null) {
+							Lock lock = this.locks.get(lockFuture.lockKey);
+							if (lock != null) {
+								try {
+									if (lock.tryLock()) {
+										try {
+											lockFuture.complete(true);
+										}
+										finally {
+											lock.unlock();
+										}
+									}
+									else {
+										lockFuture.complete(false);
+										this.locks.remove(lockFuture.lockKey);
+									}
+								}
+								catch (Exception e) {
+									logger.error("Error during locking: " + lock, e);
+								}
+							}
+							else {
+								lockFuture.complete(false);
+							}
+						}
+						else {
+							break;
+						}
+					}
+
+					sleep(250,
+							new IllegalStateException("ShardConsumerManager Thread [" + this + "] has been interrupted"),
+							true);
 				}
 			}
 			finally {
@@ -1457,6 +1542,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		@Override
 		public boolean isLongLived() {
 			return true;
+		}
+
+	}
+
+	private final static class LockCompletableFuture extends CompletableFuture<Boolean> {
+
+		private final String lockKey;
+
+		LockCompletableFuture(String lockKey) {
+			this.lockKey = lockKey;
 		}
 
 	}
