@@ -1506,6 +1506,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 									}
 								}
 								catch (Exception e) {
+									lockFuture.complete(false);
 									logger.error("Error during locking: " + lock, e);
 								}
 							}
