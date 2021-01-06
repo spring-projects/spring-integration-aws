@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -526,12 +526,19 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		}
 
 		private boolean doLock() throws InterruptedException {
-			boolean acquired;
+			boolean acquired = false;
 			if (this.lockItem != null) {
-				this.lockItem.sendHeartBeat();
-				acquired = true;
+				try {
+					this.lockItem.sendHeartBeat();
+					acquired = true;
+				}
+				catch (Exception e) {
+					// May be no lock record in the DB - discard local holder and try to lock again
+					this.lockItem = null;
+				}
 			}
-			else {
+
+			if (this.lockItem == null) {
 				this.lockItem = DynamoDbLockRegistry.this.dynamoDBLockClient
 						.tryAcquireLock(this.acquireLockOptionsBuilder.build()).orElse(null);
 
