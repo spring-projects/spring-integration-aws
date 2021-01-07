@@ -56,6 +56,7 @@ import com.amazonaws.services.dynamodbv2.model.BillingMode;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
 import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
+import com.amazonaws.services.dynamodbv2.model.LockNotGrantedException;
 import com.amazonaws.services.dynamodbv2.model.LockTableDoesNotExistException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
@@ -532,7 +533,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 					this.lockItem.sendHeartBeat();
 					acquired = true;
 				}
-				catch (Exception e) {
+				catch (LockNotGrantedException ex) {
 					// May be no lock record in the DB - discard local holder and try to lock again
 					this.lockItem = null;
 				}
