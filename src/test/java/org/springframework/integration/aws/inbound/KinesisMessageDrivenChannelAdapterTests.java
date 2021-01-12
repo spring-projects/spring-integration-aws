@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,7 @@ import com.amazonaws.services.kinesis.model.Shard;
  * @author Artem Bilan
  * @author Matthias Wesolowski
  * @author Greg Eales
+ * @author Asiel Caballero
  *
  * @since 1.1
  */
@@ -237,7 +238,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	@Configuration
 	@EnableIntegration
 	public static class Config {
-
 		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
 
 		@Bean
@@ -440,7 +440,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		@Bean
 		public ConcurrentMetadataStore reshardingCheckpointStore() {
-			return new SimpleMetadataStore();
+			return new ExceptionReadyMetadataStore();
 		}
 
 		@Bean
@@ -472,4 +472,14 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	}
 
+	private static class ExceptionReadyMetadataStore extends SimpleMetadataStore {
+		@Override
+		public boolean replace(String key, String oldValue, String newValue) {
+			if ("SpringIntegration:streamForResharding:closedShard4".equals(key)) {
+				throw new ProvisionedThroughputExceededException("Throughput exceeded");
+			}
+
+			return super.replace(key, oldValue, newValue);
+		}
+	}
 }
