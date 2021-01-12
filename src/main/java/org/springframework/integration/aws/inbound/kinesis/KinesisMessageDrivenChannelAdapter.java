@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,6 +93,7 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
  * @author Hervé Fortin
  * @author Dirk Bonhomme
  * @author Greg Eales
+ * @author Asiel Caballero
  *
  * @since 1.1
  */
@@ -1091,7 +1092,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 										String endingSequenceNumber =
 												shard.getSequenceNumberRange().getEndingSequenceNumber();
 										if (endingSequenceNumber != null) {
-											this.checkpointer.checkpoint(endingSequenceNumber);
+											checkpointSwallowingProvisioningExceptions(endingSequenceNumber);
 										}
 										break;
 									}
@@ -1123,6 +1124,19 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					this.task = null;
 				}
 			};
+		}
+
+		private void checkpointSwallowingProvisioningExceptions(String endingSequenceNumber) {
+			try {
+				this.checkpointer.checkpoint(endingSequenceNumber);
+			}
+			catch (ProvisionedThroughputExceededException ignored) {
+				// This exception is ignored to gurantee that an exhausted shard is marked as CLOSED
+				// even in the case it's not possible to checkpoint. Otherwise the ShardConsumer is
+				// left in an illegal state where the shard iterator is null without any possibility
+				// of recovering from it.
+				logger.debug("Exception while checkpointing empty shards", ignored);
+			}
 		}
 
 		private GetRecordsResult getRecords(GetRecordsRequest getRecordsRequest) {
