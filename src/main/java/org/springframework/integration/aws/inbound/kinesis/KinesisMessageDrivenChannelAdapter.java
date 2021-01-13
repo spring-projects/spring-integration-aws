@@ -161,6 +161,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private int describeStreamRetries = 50;
 
+	private long lockRenewalTimeout = 10_000L;
+
 	private boolean resetCheckpoints;
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
@@ -289,6 +291,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	public void setStartTimeout(int startTimeout) {
 		Assert.isTrue(startTimeout > 0, "'startTimeout' must be more than 0");
 		this.startTimeout = startTimeout;
+	}
+
+	/**
+	 * Configure a timeout in milliseconds to wait for lock on shard renewal.
+	 * @param lockRenewalTimeout the timeout to wait for lock renew in milliseconds.
+	 * @since 2.3.5
+	 */
+	public void setLockRenewalTimeout(long lockRenewalTimeout) {
+		Assert.isTrue(lockRenewalTimeout > 0, "'lockRenewalTimeout' must be more than 0");
+		this.lockRenewalTimeout = lockRenewalTimeout;
 	}
 
 	/**
@@ -920,7 +932,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				LockCompletableFuture unlockFuture = new LockCompletableFuture(this.key);
 				KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.unlock(unlockFuture);
 				try {
-					unlockFuture.get(1, TimeUnit.SECONDS);
+					unlockFuture.get(KinesisMessageDrivenChannelAdapter.this.lockRenewalTimeout, TimeUnit.MILLISECONDS);
 				}
 				catch (Exception ex) {
 					if (ex instanceof InterruptedException) {
@@ -1029,7 +1041,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.renewLock(renewLockFuture);
 				boolean lockRenewed = false;
 				try {
-					lockRenewed = renewLockFuture.get(1, TimeUnit.SECONDS);
+					lockRenewed = renewLockFuture.get(KinesisMessageDrivenChannelAdapter.this.lockRenewalTimeout,
+							TimeUnit.MILLISECONDS);
 				}
 				catch (Exception ex) {
 					if (ex instanceof InterruptedException) {
