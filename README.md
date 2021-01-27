@@ -5,20 +5,15 @@ Spring Integration Extension for Amazon Web Services (AWS)
 
 ## Amazon Web Services (AWS)
 
-Launched in 2006, [Amazon Web Services][] (AWS) provides key infrastructure services for business through
-its cloud computing platform. Using cloud computing businesses can adopt a new business model whereby they
-do not have to plan and invest in procuring their own IT infrastructure. They can use the infrastructure and services
-provided by the cloud service provider and pay as they use the services. Visit [https://aws.amazon.com/products/]
-for more details about various products offered by Amazon as a part their cloud computing services.
+Launched in 2006, [Amazon Web Services][] (AWS) provides key infrastructure services for business through its cloud computing platform. Using cloud computing businesses can adopt a new business model whereby they do not have to plan and invest in procuring their own IT infrastructure. They can use the infrastructure and services provided by the cloud service provider and pay as they use the services. Visit [https://aws.amazon.com/products/] for more details about various products offered by Amazon as a part their cloud computing services.
 
-*Spring Integration Extension for Amazon Web Services* provides Spring Integration adapters for the various services
-provided by the [AWS SDK for Java][].
+*Spring Integration Extension for Amazon Web Services* provides Spring Integration adapters for the various services provided by the [AWS SDK for Java][].
 Note the Spring Integration AWS Extension is based on the [Spring Cloud AWS][] project.
 
 ## Spring Integration's extensions to AWS
 
-The current project version is `2.0.x` and it requires minimum Java `8` and Spring Integration `5.0.x`.
-Can be used with Spring Boot/Spring Cloud `2.0`.
+The current project version is `2.4.x` and it requires minimum Java `8` and Spring Integration `5.4.x`.
+Can be used with Spring Cloud `2020.0.x`.
 
 This guide intends to explain briefly the various adapters available for [Amazon Web Services][] such as:
 
@@ -30,13 +25,13 @@ This guide intends to explain briefly the various adapters available for [Amazon
 * **Amazon SimpleDB** (Not initiated)
 
 Sample XML Namespace configurations for each adapter as well as sample code snippets are provided wherever necessary.
-Of the above libraries, *SES* and *SNS* provide outbound adapters only. All other services have inbound
-and outbound adapters. The *SQS* inbound adapter is capable of receiving notifications sent out from *SNS*
-where the topic is an *SQS* Queue.
+Of the above libraries, *SES* and *SNS* provide outbound adapters only. All other services have inbound and outbound adapters. The *SQS* inbound adapter is capable of receiving notifications sent out from *SNS* where the topic is an *SQS* Queue.
 
 ## Contributing
 
-[Pull requests][] are welcome. Please see the [contributor guidelines][] for details. Additionally, if you are contributing, we recommend following the process for Spring Integration as outlined in the [administrator guidelines][].
+[Pull requests][] are welcome. 
+Please see the [contributor guidelines][] for details. 
+Additionally, if you are contributing, we recommend following the process for Spring Integration as outlined in the [administrator guidelines][].
 
 # Dependency Management
 
@@ -64,12 +59,9 @@ See their specification and JavaDocs for more information.
 
 ### Inbound Channel Adapter
 
-The S3 Inbound Channel Adapter is represented by the `S3InboundFileSynchronizingMessageSource`
- (`<int-aws:s3-inbound-channel-adapter>`) and allows to pull S3 objects as files from the S3 bucket
-to the local directory for synchronization.
+The S3 Inbound Channel Adapter is represented by the `S3InboundFileSynchronizingMessageSource` (`<int-aws:s3-inbound-channel-adapter>`) and allows pulling S3 objects as files from the S3 bucket to the local directory for synchronization.
 This adapter is fully similar to the Inbound Channel Adapters in the FTP and SFTP Spring Integration modules.
-See more information in the [FTP/FTPS Adapters Chapter][] for common options or `SessionFactory`, `RemoteFileTemplate`
-and `FileListFilter` abstractions.
+See more information in the [FTP/FTPS Adapters Chapter][] for common options or `SessionFactory`, `RemoteFileTemplate` and `FileListFilter` abstractions.
 
 The Java Configuration is:
 
@@ -110,8 +102,7 @@ public static class MyConfiguration {
 }
 ````
 
-With this config you receive messages with `java.io.File` `payload` from the `s3FilesChannel`
-after periodic synchronization of content from the Amazon S3 bucket into the local directory.
+With this config you receive messages with `java.io.File` `payload` from the `s3FilesChannel` after periodic synchronization of content from the Amazon S3 bucket into the local directory.
 
 An XML variant may look like:
 
@@ -137,7 +128,8 @@ An XML variant may look like:
 
 This adapter produces message with payloads of type `InputStream`, allowing S3 objects to be fetched without writing to the local file system. 
 Since the session remains open, the consuming application is responsible for closing the session when the file has been consumed. 
-The session is provided in the closeableResource header (`IntegrationMessageHeaderAccessor.CLOSEABLE_RESOURCE`). Standard framework components, such as the `FileSplitter` and `StreamTransformer` will automatically close the session.
+The session is provided in the closeableResource header (`IntegrationMessageHeaderAccessor.CLOSEABLE_RESOURCE`). 
+Standard framework components, such as the `FileSplitter` and `StreamTransformer` will automatically close the session.
  
 The following Spring Boot application provides an example of configuring the S3 inbound streaming adapter using Java configuration:
 
@@ -205,15 +197,13 @@ An XML variant may look like:
 Only one of `filename-pattern`, `filename-regex` or `filter` is allowed.
 
 > NOTE: Unlike the non-streaming inbound channel adapter, this adapter does not prevent duplicates by default. 
-> If you do not delete the remote file and you wish to prevent the file being processed again, you can configure an `S3PersistentFileListFilter` in the `filter` attribute. 
+> If you do not delete the remote file and wish to prevent the file being processed again, you can configure an `S3PersistentFileListFilter` in the `filter` attribute. 
 > If you don’t actually want to persist the state, an in-memory `SimpleMetadataStore` can be used with the filter. 
 > If you wish to use a filename pattern (or regex) as well, use a `CompositeFileListFilter`.
 
 ### Outbound Channel Adapter
 
-The S3 Outbound Channel Adapter is represented by the `S3MessageHandler` (`<int-aws:s3-outbound-channel-adapter>`
-and `<int-aws:s3-outbound-gateway>`) and allows to perform `upload`, `download` and `copy`
-(see `S3MessageHandler.Command` enum) operations in the provided S3 bucket.
+The S3 Outbound Channel Adapter is represented by the `S3MessageHandler` (`<int-aws:s3-outbound-channel-adapter>` and `<int-aws:s3-outbound-gateway>`) and allows performing `upload`, `download` and `copy` (see `S3MessageHandler.Command` enum) operations in the provided S3 bucket.
 
 The Java Configuration is:
 
@@ -233,8 +223,7 @@ public static class MyConfiguration {
 }
 ````
 
-With this config you can send message with the `java.io.File` as `payload` and the `transferManager.upload()`
-operation will be performed, where the file name is used as a S3 Object key.
+With this config you can send a message with the `java.io.File` as `payload` and the `transferManager.upload()` operation will be performed, where the file name is used as a S3 Object key.
 
 An XML variant may look like:
 
@@ -248,39 +237,32 @@ An XML variant may look like:
                    key="myDirectory"/>
 ````
 
-See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
-`<int-aws:s3-outbound-gateway>` descriptions.
+See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` & `<int-aws:s3-outbound-gateway>` descriptions.
 
 ### Outbound Gateway
 
-The S3 Outbound Gateway is represented by the same `S3MessageHandler` with the `produceReply = true` constructor
- argument for Java Configuration and `<int-aws:s3-outbound-gateway>` for xml definitions.
+The S3 Outbound Gateway is represented by the same `S3MessageHandler` with the `produceReply = true` constructor argument for Java Configuration and `<int-aws:s3-outbound-gateway>` for xml definitions.
 
-The "request-reply" nature of this gateway is async and the `Transfer` result from the `TransferManager`
-operation is sent to the `outputChannel`, assuming the transfer progress observation in the downstream flow.
+The "request-reply" nature of this gateway is async and the `Transfer` result from the `TransferManager` operation is sent to the `outputChannel`, assuming the transfer progress observation in the downstream flow.
 
 The `S3ProgressListener` can be supplied to track the transfer progress.
 Also the listener can be populated into the returned `Transfer` afterwards in the downstream flow.
 
-See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` &
-`<int-aws:s3-outbound-gateway>` descriptions.
+See more information in the `S3MessageHandler` JavaDocs and `<int-aws:s3-outbound-channel-adapter>` & `<int-aws:s3-outbound-gateway>` descriptions.
 
 ## Simple Email Service (SES)
 
-There is no adapter for SES, since [Spring Cloud AWS][] provides implementations for
-`org.springframework.mail.MailSender` - `SimpleEmailServiceMailSender` and `SimpleEmailServiceJavaMailSender`, which
-can be injected to the `<int-mail:outbound-channel-adapter>`.
+There is no adapter for SES, since [Spring Cloud AWS][] provides implementations for `org.springframework.mail.MailSender` - `SimpleEmailServiceMailSender` and `SimpleEmailServiceJavaMailSender`, which can be injected to the `<int-mail:outbound-channel-adapter>`.
 
 ## Amazon Simple Queue Service (SQS)
 
-The `SQS` adapters are fully based on the [Spring Cloud AWS][] foundation, so for more information about the
-background components and core configuration, please, refer to the documentation of that project.
+The `SQS` adapters are fully based on the [Spring Cloud AWS][] foundation, so for more information about the background components and core configuration, please, refer to the documentation of that project.
 
 ### Outbound Channel Adapter
 
-The SQS Outbound Channel Adapter is presented by the `SqsMessageHandler` implementation (`<int-aws:sqs-outbound-channel-adapter>`) and allows to send message to the SQS `queue` with provided `AmazonSQS` client. 
+The SQS Outbound Channel Adapter is presented by the `SqsMessageHandler` implementation (`<int-aws:sqs-outbound-channel-adapter>`) and allows sending messages to the SQS `queue` with provided `AmazonSQS` client. 
 An SQS queue can be configured explicitly on the adapter (using `org.springframework.integration.expression.ValueExpression`) or as a SpEL `Expression`, which is evaluated against request message as a root object of evaluation context. 
-In addition the `queue` can be extracted from the message headers under `AwsHeaders.QUEUE`.
+In addition, the `queue` can be extracted from the message headers under `AwsHeaders.QUEUE`.
 
 The Java Configuration is pretty simple:
 
@@ -312,11 +294,8 @@ See `SqsHeaderMapper` implementation for more information and also consult with 
 
 ### Inbound Channel Adapter
 
-The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with
-`SqsMessageDrivenChannelAdapter`. This channel adapter is based on the
-`org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer` to receive messages from the
-provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
-The enhancements includes `AwsHeaders.MESSAGE_ID`, `AwsHeaders.RECEIPT_HANDLE` and `AwsHeaders.RECEIVED_QUEUE` message headers.
+The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with `SqsMessageDrivenChannelAdapter`. This channel adapter is based on the `org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer` to receive messages from the provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
+The enhancements include `AwsHeaders.MESSAGE_ID`, `AwsHeaders.RECEIPT_HANDLE` and `AwsHeaders.RECEIVED_QUEUE` message headers.
 
 The Java Configuration is pretty simple:
 
@@ -357,15 +336,14 @@ An XML variant may look like:
                    send-timeout="2000"/>
 ````
 
-The `SqsMessageDrivenChannelAdapter` exposes all `SimpleMessageListenerContainer` attributes to configure and one an
-important of them is `messageDeletionPolicy`, which is set to `NO_REDRIVE` by default. 
+The `SqsMessageDrivenChannelAdapter` exposes all `SimpleMessageListenerContainer` attributes to configure, and an important one of them is `messageDeletionPolicy`, which is set to `NO_REDRIVE` by default. 
 
 Possible values are:
 
-- `ALWAYS` - Always deletes message automatically.
-- `NEVER` - Never deletes message automatically.
-- `NO_REDRIVE` - Deletes message if no redrive policy is defined.
-- `ON_SUCCESS` - Deletes message when successfully executed by the listener method (no exception is thrown).
+- `ALWAYS` - Always deletes a message automatically.
+- `NEVER` - Never deletes a message automatically.
+- `NO_REDRIVE` - Deletes a message if no redrive policy is defined.
+- `ON_SUCCESS` - Deletes a message when successfully executed by the listener method (no exception is thrown).
 
 
 Having that to `NEVER`, it is a responsibility of end-application to delete message. For this purpose a `AwsHeaders.RECEIPT_HANDLE` message header must be used for the message deletion:
@@ -379,34 +357,25 @@ this.amazonSqs.deleteMessageAsync(
 ## Amazon Simple Notification Service (SNS)
 
 Amazon SNS is a publish-subscribe messaging system that allows clients to publish notification to a particular topic.
-Other interested clients may subscribe using different protocols like HTTP/HTTPS, e-mail or an Amazon SQS queue to
-receive the messages. Plus mobile devices can be registered as subscribers from the AWS Management Console.
+Other interested clients may subscribe using different protocols like HTTP/HTTPS, e-mail, or an Amazon SQS queue to receive the messages. Plus mobile devices can be registered as subscribers from the AWS Management Console.
 
-Unfortunately [Spring Cloud AWS][] doesn't provide flexible components which can be used from the channel adapter
-implementations, but Amazon SNS API is pretty simple, on the other hand. Hence Spring Integration AWS SNS Support is
-straightforward and just allows to provide channel adapter foundation for Spring Integration applications.
+Unfortunately [Spring Cloud AWS][] doesn't provide flexible components which can be used from the channel adapter implementations, but Amazon SNS API is pretty simple, on the other hand. 
+Hence, Spring Integration AWS SNS Support is straightforward and just allows to provide channel adapter foundation for Spring Integration applications.
 
-Since e-mail, SMS and mobile devices subscription/unsubscription confirmation is out of the Spring Integration
-application scope and can be done only from the AWS Management Console, we provide only HTTP/HTTPS SNS endpoint in
-face of `SnsInboundChannelAdapter`. The SQS-to-SNS subscription can be done with the simple usage of
-`com.amazonaws.services.sns.util.Topics#subscribeQueue()`, which confirms subscription automatically.
+Since e-mail, SMS and mobile device subscription/unsubscription confirmation is out of the Spring Integration application scope and can be done only from the AWS Management Console, we provide only HTTP/HTTPS SNS endpoint in face of `SnsInboundChannelAdapter`. The SQS-to-SNS subscription can be done with the simple usage of `com.amazonaws.services.sns.util.Topics#subscribeQueue()`, which confirms subscription automatically.
 
 ### Inbound Channel Adapter
 
-The `SnsInboundChannelAdapter` (`<int-aws:sns-inbound-channel-adapter>`) is an extension of
-`HttpRequestHandlingMessagingGateway` and must be as a part of Spring MVC application. Its URL must be used from the
-AWS Management Console to add this endpoint as a subscriber to the SNS Topic. However before receiving any
-notification itself this HTTP endpoint must confirm the subscription.
+The `SnsInboundChannelAdapter` (`<int-aws:sns-inbound-channel-adapter>`) is an extension of `HttpRequestHandlingMessagingGateway` and must be as a part of Spring MVC application. Its URL must be used from the AWS Management Console to add this endpoint as a subscriber to the SNS Topic. However before receiving any notification itself this HTTP endpoint must confirm the subscription.
 
 See `SnsInboundChannelAdapter` JavaDocs for more information.
 
-An important option of this adapter to consider is `handleNotificationStatus`. This `boolean` flag indicates if the
-adapter should send `SubscriptionConfirmation/UnsubscribeConfirmation` message to the `output-channel` or not. If
-that the `AwsHeaders.NOTIFICATION_STATUS` message header is present in the message with the `NotificationStatus`
-object, which can be used in the downstream flow to confirm subscription or not. Or "re-confirm" it in case of
-`UnsubscribeConfirmation` message.
+An important option of this adapter to consider is `handleNotificationStatus`. 
+This `boolean` flag indicates if the adapter should send `SubscriptionConfirmation/UnsubscribeConfirmation` message to the `output-channel` or not. 
+If that the `AwsHeaders.NOTIFICATION_STATUS` message header is present in the message with the `NotificationStatus` object, which can be used in the downstream flow to confirm subscription or not. 
+Or "re-confirm" it in case of `UnsubscribeConfirmation` message.
 
-In addition the `AwsHeaders#SNS_MESSAGE_TYPE` message header is represent to simplify a routing in the downstream flow.
+In addition, the `AwsHeaders#SNS_MESSAGE_TYPE` message header is represented to simplify a routing in the downstream flow.
 
 The Java Configuration is pretty simple:
 
@@ -443,21 +412,19 @@ An XML variant may look like:
                    payload-expression="payload.Message"/>
 ````
 
-Note: by default the message `payload` is a `Map` converted from the received Topic JSON message. For the convenient
-the `payload-expression` is provided with the `Message` as a root object of the evaluation context. Hence even some
-HTTP headers, populated by the `DefaultHttpHeaderMapper`, are available for the evaluation context.
+Note: by default the message `payload` is a `Map` converted from the received Topic JSON message. 
+For the convenience a `payload-expression` is provided with the `Message` as a root object of the evaluation context. 
+Hence, even some HTTP headers, populated by the `DefaultHttpHeaderMapper`, are available for the evaluation context.
 
 ### Outbound Channel Adapter
 
-The `SnsMessageHandler` (`<int-aws:sns-outbound-channel-adapter>`) is a simple one-way Outbound Channel Adapter
-to send Topic Notification using `AmazonSNS` service.
+The `SnsMessageHandler` (`<int-aws:sns-outbound-channel-adapter>`) is a simple one-way Outbound Channel Adapter to send Topic Notification using `AmazonSNS` service.
 
 This Channel Adapter (`MessageHandler`) accepts these options:
 
 - `topic-arn` (`topic-arn-expression`) - the SNS Topic to send notification for.
 - `subject` (`subject-expression`) - the SNS Notification Subject;
-- `body-expression` - the SpEL expression to evaluate the `message` property for the
-`com.amazonaws.services.sns.model.PublishRequest`.
+- `body-expression` - the SpEL expression to evaluate the `message` property for the `com.amazonaws.services.sns.model.PublishRequest`.
 - `resource-id-resolver` - a `ResourceIdResolver` bean reference to resolve logical topic names to physical resource ids;
 
 See `SnsMessageHandler` JavaDocs for more information.
@@ -475,12 +442,9 @@ public MessageHandler snsMessageHandler() {
 }
 ````
 
-NOTE: the `bodyExpression` can be evaluated to a `org.springframework.integration.aws.support.SnsBodyBuilder`
-allowing the configuration of a `json` `messageStructure` for the `PublishRequest` and provide separate messages
-for different protocols.
+NOTE: the `bodyExpression` can be evaluated to a `org.springframework.integration.aws.support.SnsBodyBuilder` allowing the configuration of a `json` `messageStructure` for the `PublishRequest` and provide separate messages for different protocols.
 The same `SnsBodyBuilder` rule is applied for the raw `payload` if the `bodyExpression` hasn't been configured.
-NOTE: if the `payload` of `requestMessage` is a `com.amazonaws.services.sns.model.PublishRequest` already,
-the `SnsMessageHandler` doesn't do anything with it and it is sent as-is.
+NOTE: if the `payload` of `requestMessage` is a `com.amazonaws.services.sns.model.PublishRequest` already, the `SnsMessageHandler` doesn't do anything with it and it is sent as-is.
 
 The XML variant may look like:
 
@@ -501,7 +465,7 @@ See `SnsHeaderMapper` implementation for more information and also consult with 
 
 The `DynamoDbMetadataStore`, a `ConcurrentMetadataStore` implementation, is provided to keep the metadata for Spring Integration components in the distributed Amazon DynamoDB store. 
 The implementation is based on a simple table with `KEY` and `VALUE` attributes, both are string types and the `KEY` is primary key of the table.
-By default the `SpringIntegrationMetadataStore` table is used and it is created during `DynamoDbMetaDataStore` initialization if that doesn't exist yet.
+By default, the `SpringIntegrationMetadataStore` table is used, and it is created during `DynamoDbMetaDataStore` initialization if that doesn't exist yet.
 The `DynamoDbMetadataStore` can be used for the `KinesisMessageDrivenChannelAdapter` as a cloud-based `cehckpointStore`.
 
 For testing application with the `DynamoDbMetadataStore` you can use [Dynalite][] NPM module.
@@ -521,12 +485,12 @@ this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
         .build();
 ````
 
-Where you should specify the port on which you have ran the Dynalite service.
-Also you can use for you testing purpose a [Local Stack][] library. 
+where you should specify the port on which you have ran the Dynalite service.
+Also, you can use for you testing purpose a [Local Stack][] library. 
 
 Starting with _version 2.0_, the `DynamoDbMetadataStore` can be configured with the `timeToLive` option to enable the [DynamoDB TTL][] feature.
 The `TTL` attribute is added to each item with the value based on the sum of current time and provided `timeToLive` in seconds.
-If the provided `timeToLive` value is non-positive, the TTL functionality is disable on the table.
+If the provided `timeToLive` value is non-positive, the TTL functionality is disabled on the table.
 
 ## Amazon Kinesis
 
@@ -555,15 +519,15 @@ public static class MyConfiguration {
 ````
 
 This channel adapter can be configured with the `DynamoDbMetadataStore` mentioned above to track sequence checkpoints for shards in the cloud environment when we have several instances of our Kinesis application. 
-By default this adapter uses `DeserializingConverter` to convert `byte[]` from the `Record` data.
+By default, this adapter uses `DeserializingConverter` to convert `byte[]` from the `Record` data.
 Can be specified as `null` with meaning no conversion and the target `Message` is sent with the `byte[]` payload.
 
 Additional headers like `AwsHeaders.RECEIVED_STREAM`, `AwsHeaders.SHARD`, `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` are populated to the message for downstream logic.
-When `CheckpointMode.manual` is used the `Checkpointer` instance is populated to the `AwsHeaders.CHECKPOINTER` header for acknowledgment in the downstream logic manually. 
+When `CheckpointMode.manual` is used the `Checkpointer` instance is populated to the `AwsHeaders.CHECKPOINTER` header for an acknowledgment in the downstream logic manually. 
 
 The `KinesisMessageDrivenChannelAdapter` ca be configured with the `ListenerMode` `record` or `batch` to process records one by one or send the whole just polled batch of records.
 If `Converter` is configured to `null`, the entire `List<Record>` is sent as a payload.
-Otherwise a list of converted `Record.getData().array()` is wrapped to the payload of message to send.
+Otherwise, a list of converted `Record.getData().array()` is wrapped to the payload of message to send.
 In this case the `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` headers contains values as a `List<String>` of partition keys and sequence numbers of converted records respectively.
 
 The consumer group is included to the metadata store `key`.
@@ -662,17 +626,17 @@ this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
         .build();
 ````
 
-Where you should specify the port on which you have ran the Kinesalite service.
-Also you can use for you testing purpose a [Local Stack][] library.    
+where you should specify the port on which you have ran the Kinesalite service.
+Also, you can use for you testing purpose a [Local Stack][] library.    
 
-Also the `KplMessageHandler` is provided for performing streams consumption by [Kinesis Producer Library][].
+Also, the `KplMessageHandler` is provided for performing streams consumption by [Kinesis Producer Library][].
 
 ## Lock Registry for Amazon DynamoDB
 
 Starting with _version 2.0_, the `DynamoDbLockRegistry` implementation is available.
 Certain components (for example aggregator and resequencer) use a lock obtained from a `LockRegistry` instance to ensure that only one thread is manipulating a group at a time. 
 The `DefaultLockRegistry` performs this function within a single component; you can now configure an external lock registry on these components. 
-When used with a shared `MessageGroupStore`, the `DynamoDbLockRegistry` can be use to provide this functionality across multiple application instances, such that only one instance can manipulate the group at a time.   
+When used with a shared `MessageGroupStore`, the `DynamoDbLockRegistry` can be used to provide this functionality across multiple application instances, such that only one instance can manipulate the group at a time.   
 This implementation can also be used for the distributed leader elections using a [LockRegistryLeaderInitiator][].
 The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `DynamoDbLockRegistry` working. 
 

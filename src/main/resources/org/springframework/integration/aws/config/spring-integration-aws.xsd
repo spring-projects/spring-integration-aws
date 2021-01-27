@@ -4,8 +4,7 @@
 			xmlns:tool="http://www.springframework.org/schema/tool"
 			xmlns:integration="http://www.springframework.org/schema/integration"
 			targetNamespace="http://www.springframework.org/schema/integration/aws"
-			elementFormDefault="qualified"
-			attributeFormDefault="unqualified">
+			elementFormDefault="qualified">
 
 	<xsd:import namespace="http://www.springframework.org/schema/beans"/>
 	<xsd:import namespace="http://www.springframework.org/schema/tool"/>
