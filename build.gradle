@@ -6,7 +6,7 @@ plugins {
 	id 'org.sonarqube' version '3.0'
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '4.1.0'
-	id "io.spring.dependency-management" version '1.0.10.RELEASE'
+	id "io.spring.dependency-management" version '1.0.11.RELEASE'
 	id 'com.jfrog.artifactory' version '4.18.2'
 }
 
@@ -33,7 +33,7 @@ ext {
     localstackVersion = '0.2.5'
 	log4jVersion = '2.13.3'
 	springCloudAwsVersion = '2.2.5.RELEASE'
-	springIntegrationVersion = '5.3.4.RELEASE'
+	springIntegrationVersion = '5.3.5.RELEASE'
 	kinesisClientVersion = '1.14.0'
 	kinesisProducerVersion = '0.14.1'
 
