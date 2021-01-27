@@ -368,17 +368,18 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	protected void onInit() {
 		super.onInit();
 
+		final String componentName = getComponentName();
 		if (this.consumerExecutor == null) {
 			this.consumerExecutor =
 					Executors.newCachedThreadPool(
 							new CustomizableThreadFactory(
-									(getComponentName() == null ? "" : getComponentName()) + "-kinesis-consumer-"));
+									(componentName == null ? "" : componentName) + "-kinesis-consumer-"));
 		}
 		if (this.dispatcherExecutor == null) {
 			this.dispatcherExecutor =
 					Executors.newCachedThreadPool(
 							new CustomizableThreadFactory(
-									(getComponentName() == null ? "" : getComponentName()) + "-kinesis-dispatcher-"));
+									(componentName == null ? "" : componentName) + "-kinesis-dispatcher-"));
 		}
 
 		if (this.streams == null) {
@@ -407,14 +408,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			shardConsumer.stop();
 		}
 		else {
-			if (this.logger.isDebugEnabled()) {
-				this.logger.debug(
+				this.logger.debug(() ->
 						"There is no ShardConsumer for shard ["
 								+ shard
 								+ "] in stream ["
 								+ shard
 								+ "] to stop.");
-			}
 		}
 	}
 
@@ -423,9 +422,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		KinesisShardOffset shardOffsetForSearch = KinesisShardOffset.latest(stream, shard);
 		ShardConsumer shardConsumer = this.shardConsumers.get(shardOffsetForSearch);
 		if (shardConsumer != null) {
-			if (this.logger.isDebugEnabled()) {
-				this.logger.debug("The [" + shardConsumer + "] has been started before.");
-			}
+			this.logger.debug(() -> "The [" + shardConsumer + "] has been started before.");
 		}
 		else {
 			synchronized (this.shardOffsets) {
@@ -473,9 +470,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						+ shardOffset.getStream()
 						+ "]");
 
-		if (logger.isDebugEnabled()) {
-			logger.debug("Resetting consumer for [" + shardOffset + "]...");
-		}
+		logger.debug(() -> "Resetting consumer for [" + shardOffset + "]...");
 		shardOffset.reset();
 		synchronized (this.shardOffsets) {
 			this.shardOffsets.remove(shardOffset);
@@ -580,8 +575,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		}
 		catch (LimitExceededException limitExceededException) {
-
-			logger.info(
+			logger.info(() ->
 					"Got LimitExceededException when listing stream ["
 							+ stream
 							+ "]. "
@@ -646,12 +640,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					boolean skipClosedAndExhaustedShard = checkpoint != null && new BigInteger(endingSequenceNumber)
 							.compareTo(new BigInteger(checkpoint)) <= 0;
 
-					if (logger.isTraceEnabled()) {
-						logger.trace("The shard [" + shard + "] in stream [" + stream
+					logger.trace(() -> "The shard [" + shard + "] in stream [" + stream
 								+ "] is closed CLOSED and exhausted with endingSequenceNumber [" + endingSequenceNumber
 								+ "].\nThe last processed checkpoint is [" + checkpoint + "]."
 								+ (skipClosedAndExhaustedShard ? "\nThe shard will be skipped." : ""));
-					}
 
 					if (skipClosedAndExhaustedShard) {
 						// Skip CLOSED shard which has been exhausted
@@ -663,11 +655,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				shardsToConsume.add(shard);
 			}
 		}
-		catch (Exception e) {
+		catch (Exception ex) {
 			String exceptionMessage = "Got an exception when processing shards in stream [" + stream + "]";
-			logger.info(exceptionMessage + ".\n Retrying... ", e);
+			logger.info(ex, () -> exceptionMessage + ".\n Retrying... ");
 			if (retry > 5) {
-				throw new IllegalStateException(exceptionMessage, e);
+				throw new IllegalStateException(exceptionMessage, ex);
 			}
 			//Retry
 			detectShardsToConsume(stream, retry + 1);
@@ -681,16 +673,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		try {
 			Thread.sleep(sleepAmount);
 		}
-		catch (Exception e) {
+		catch (Exception ex) {
 			if (interruptThread) {
 				Thread.currentThread().interrupt();
 			}
 
 			if (this.active) {
-				logger.error(error.getMessage(), e);
+				logger.error(ex, error.getMessage());
 			}
 			else {
-				logger.info(error.getMessage() + " while adapter was inactive", e);
+				logger.info(ex, () -> error.getMessage() + " while adapter was inactive");
 			}
 
 			throw error;
@@ -716,7 +708,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				}
 			}
 			catch (Exception ex) {
-				logger.error("Error population shards for stream: " + stream, ex);
+				logger.error(ex, () -> "Error population shards for stream: " + stream);
 			}
 			finally {
 				if (shardsGatherLatch != null) {
@@ -852,9 +844,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				for (String stream : KinesisMessageDrivenChannelAdapter.this.inResharding) {
 					// Local store to avoid several tasks for the same 'stream'
 					if (this.inReshardingProcess.add(stream)) {
-						if (logger.isDebugEnabled()) {
-							logger.debug("Resharding has happened for stream [" + stream + "]. Rebalancing...");
-						}
+						logger.debug(() -> "Resharding has happened for stream [" + stream + "]. Rebalancing...");
 						populateShardsForStream(stream, null);
 					}
 				}
@@ -938,7 +928,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					if (ex instanceof InterruptedException) {
 						Thread.currentThread().interrupt();
 					}
-					logger.info("The lock for key '" + this.key + "' was not unlocked in time", ex);
+					logger.info(ex, () -> "The lock for key '" + this.key + "' was not unlocked in time");
 				}
 			}
 			if (this.notifier != null) {
@@ -973,8 +963,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 												this.shardOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
 											}
 										}
-										if (logger.isInfoEnabled() && this.state == ConsumerState.NEW) {
-											logger.info("The [" + this + "] has been started.");
+										if (this.state == ConsumerState.NEW) {
+											logger.info(() -> "The [" + this + "] has been started.");
 										}
 										GetShardIteratorRequest shardIteratorRequest =
 												this.shardOffset.toShardIteratorRequest();
@@ -1006,19 +996,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 					case STOP:
 						if (this.shardIterator == null) {
-							if (logger.isInfoEnabled()) {
-								logger.info(
-										"Stopping the ["
-												+ this
-												+ "] on the checkpoint ["
-												+ this.checkpointer.getCheckpoint()
-												+ "] because the shard has been CLOSED and exhausted.");
-							}
+							logger.info(() ->
+									"Stopping the ["
+											+ this
+											+ "] on the checkpoint ["
+											+ this.checkpointer.getCheckpoint()
+											+ "] because the shard has been CLOSED and exhausted.");
 						}
 						else {
-							if (logger.isInfoEnabled()) {
-								logger.info("Stopping the [" + this + "].");
-							}
+							logger.info(() -> "Stopping the [" + this + "].");
 						}
 						this.task = null;
 						break;
@@ -1048,7 +1034,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					if (ex instanceof InterruptedException) {
 						Thread.currentThread().interrupt();
 					}
-					logger.info("The lock for key '" + this.key + "' was not renewed in time", ex);
+					logger.info(ex, () -> "The lock for key '" + this.key + "' was not renewed in time");
 				}
 
 				if (!lockRenewed && this.state == ConsumerState.CONSUME) {
@@ -1120,16 +1106,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						}
 
 						if (ConsumerState.STOP != this.state && result.getRecords().isEmpty()) {
-							if (logger.isDebugEnabled()) {
-								logger.debug(
-										"No records for ["
-												+ this
-												+ "] on sequenceNumber ["
-												+ this.checkpointer.getLastCheckpointValue()
-												+ "]. Suspend consuming for ["
-												+ KinesisMessageDrivenChannelAdapter.this.consumerBackoff
-												+ "] milliseconds.");
-							}
+							logger.debug(() ->
+									"No records for ["
+											+ this
+											+ "] on sequenceNumber ["
+											+ this.checkpointer.getLastCheckpointValue()
+											+ "]. Suspend consuming for ["
+											+ KinesisMessageDrivenChannelAdapter.this.consumerBackoff
+											+ "] milliseconds.");
 							prepareSleepState();
 						}
 					}
@@ -1144,11 +1128,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				this.checkpointer.checkpoint(endingSequenceNumber);
 			}
 			catch (ProvisionedThroughputExceededException ignored) {
-				// This exception is ignored to gurantee that an exhausted shard is marked as CLOSED
+				// This exception is ignored to guarantee that an exhausted shard is marked as CLOSED
 				// even in the case it's not possible to checkpoint. Otherwise the ShardConsumer is
 				// left in an illegal state where the shard iterator is null without any possibility
 				// of recovering from it.
-				logger.debug("Exception while checkpointing empty shards", ignored);
+				logger.debug(ignored, "Exception while checkpointing empty shards");
 			}
 		}
 
@@ -1161,23 +1145,19 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				// records.
 				// Lets acquire iterator again (using checkpointer for iterator start
 				// sequence number).
-				if (logger.isInfoEnabled()) {
-					logger.info(
+				logger.info(() ->
 							"Shard iterator for ["
 									+ ShardConsumer.this
 									+ "] expired.\n"
 									+ "A new one will be started from the check pointed sequence number.");
-				}
 				this.state = ConsumerState.EXPIRED;
 			}
-			catch (ProvisionedThroughputExceededException e) {
-				if (logger.isWarnEnabled()) {
-					logger.warn(
+			catch (ProvisionedThroughputExceededException ex) {
+					logger.warn(() ->
 							"GetRecords request throttled for ["
 									+ ShardConsumer.this
 									+ "] with the reason: "
-									+ e.getErrorMessage());
-				}
+									+ ex.getErrorMessage());
 				// We are throttled, so let's sleep
 				prepareSleepState();
 			}
@@ -1192,9 +1172,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		}
 
 		private void processRecords(List<Record> records) {
-			if (logger.isTraceEnabled()) {
-				logger.trace("Processing records: " + records + " for [" + ShardConsumer.this + "]");
-			}
+			logger.trace(() -> "Processing records: " + records + " for [" + ShardConsumer.this + "]");
 
 			this.checkpointer.setHighestSequence(records.get(records.size() - 1).getSequenceNumber());
 
@@ -1266,8 +1244,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 					payload = messageToUse.getPayload();
 				}
-				catch (Exception e) {
-					logger.warn("Could not parse embedded headers. Remain payload untouched.", e);
+				catch (Exception ex) {
+					logger.warn(ex, "Could not parse embedded headers. Remain payload untouched.");
 				}
 			}
 
@@ -1307,16 +1285,15 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			try {
 				sendMessage(messageToSend);
 			}
-			catch (Exception e) {
-				logger.info(
+			catch (Exception ex) {
+				logger.info(ex, () ->
 						"Got an exception during sending a '"
 								+ messageToSend
 								+ "'"
 								+ "\nfor the '"
 								+ rawRecord
 								+ "'.\n"
-								+ "Consider to use 'errorChannel' flow for the compensation logic.",
-						e);
+								+ "Consider to use 'errorChannel' flow for the compensation logic.");
 			}
 		}
 
@@ -1400,10 +1377,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							try {
 								shardConsumer.task.run();
 							}
-							catch (Exception e) {
-								logger.info(
+							catch (Exception ex) {
+								logger.info(() ->
 										"Got an exception "
-												+ e
+												+ ex
 												+ " during ["
 												+ shardConsumer
 												+ "] task invocation"
@@ -1482,8 +1459,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 												}
 
 											}
-											catch (Exception e) {
-												logger.error("Error during locking: " + lock, e);
+											catch (Exception ex) {
+												logger.error(ex, "Error during locking: " + lock);
 											}
 										}
 
@@ -1502,8 +1479,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 								try {
 									lock.unlock();
 								}
-								catch (Exception e) {
-									logger.error("Error during unlocking: " + lock, e);
+								catch (Exception ex) {
+									logger.error(ex, "Error during unlocking: " + lock);
 								}
 							}
 							forUnlocking.complete(true);
@@ -1532,9 +1509,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 										this.locks.remove(lockFuture.lockKey);
 									}
 								}
-								catch (Exception e) {
+								catch (Exception ex) {
 									lockFuture.complete(false);
-									logger.error("Error during locking: " + lock, e);
+									logger.error(ex, () -> "Error during locking: " + lock);
 								}
 							}
 							else {
@@ -1557,8 +1534,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					try {
 						lock.unlock();
 					}
-					catch (Exception e) {
-						logger.error("Error during unlocking: " + lock, e);
+					catch (Exception ex) {
+						logger.error(ex, () -> "Error during unlocking: " + lock);
 					}
 					finally {
 						iterator.remove();

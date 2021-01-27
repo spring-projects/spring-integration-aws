@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
 	/**
-	 * Interval to run lease cleanup thread in {@link LeaseCleanupManager}.
+	 * Interval to run lease cleanup thread in {@link com.amazonaws.services.kinesis.leases.impl.LeaseCleanupManager}.
 	 */
 	private static final long DEFAULT_LEASE_CLEANUP_INTERVAL_MILLIS = Duration.ofMinutes(1).toMillis();
 
@@ -198,7 +198,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	public void setConsumerGroup(String consumerGroup) {
 		Assert.hasText(consumerGroup, "'consumerGroup' must not be empty");
 		Assert.isNull(this.config, "'consumerGroup' must be configured as an application name " +
-						"on the provided KinesisClientLibConfiguration");
+				"on the provided KinesisClientLibConfiguration");
 		this.consumerGroup = consumerGroup;
 	}
 
@@ -405,16 +405,12 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		@Override
 		public void initialize(String shardId) {
 			this.shardId = shardId;
-			if (logger.isInfoEnabled()) {
-				logger.info("Initializing record processor for shard: " + this.shardId);
-			}
+			logger.info(() -> "Initializing record processor for shard: " + this.shardId);
 		}
 
 		@Override
 		public void processRecords(List<Record> records, IRecordProcessorCheckpointer checkpointer) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Processing " + records.size() + " records from " + this.shardId);
-			}
+			logger.debug(() -> "Processing " + records.size() + " records from " + this.shardId);
 
 			try {
 				if (ListenerMode.record.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
@@ -485,8 +481,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 					}
 					payload = messageToUse.getPayload();
 				}
-				catch (Exception e) {
-					logger.warn("Could not parse embedded headers. Remain payload untouched.", e);
+				catch (Exception ex) {
+					logger.warn(ex, "Could not parse embedded headers. Remain payload untouched.");
 				}
 			}
 
@@ -523,9 +519,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			try {
 				sendMessage(messageToSend);
 			}
-			catch (Exception e) {
-				logger.error("Got an exception during sending a '" + messageToSend + "'" + "\nfor the '" + rawRecord
-						+ "'.\n" + "Consider to use 'errorChannel' flow for the compensation logic.", e);
+			catch (Exception ex) {
+				logger.error(ex, () -> "Got an exception during sending a '" + messageToSend + "'" + "\nfor the '" +
+						rawRecord + "'.\n" + "Consider to use 'errorChannel' flow for the compensation logic.");
 			}
 		}
 
@@ -549,9 +545,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		 * @param record last processed record
 		 */
 		private void checkpoint(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
-			if (logger.isInfoEnabled()) {
-				logger.info("Checkpointing shard " + this.shardId);
-			}
+			logger.info(() -> "Checkpointing shard " + this.shardId);
 			try {
 				if (record == null) {
 					checkpointer.checkpoint();
@@ -563,19 +557,14 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			catch (ShutdownException se) {
 				// Ignore checkpoint if the processor instance has been shutdown (fail
 				// over).
-				logger.info("Caught shutdown exception, skipping checkpoint.", se);
+				logger.info(se, "Caught shutdown exception, skipping checkpoint.");
 			}
-			catch (ThrottlingException e) {
-				if (logger.isInfoEnabled()) {
-					logger.info("Transient issue when checkpointing", e);
-				}
+			catch (ThrottlingException ex) {
+				logger.info(ex, "Transient issue when checkpointing");
 			}
-			catch (InvalidStateException e) {
-				// This indicates an issue with the DynamoDB table (check for table,
-				// provisioned
-				// IOPS).
-				logger.error("Cannot save checkpoint to the DynamoDB table used by the Amazon Kinesis Client Library.",
-						e);
+			catch (InvalidStateException ex) {
+				// This indicates an issue with the DynamoDB table (check for table, provisioned IOPS).
+				logger.error(ex, "Cannot save checkpoint to the DynamoDB table used by the Amazon Kinesis Client.");
 			}
 		}
 
@@ -602,14 +591,12 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 		@Override
 		public void shutdown(IRecordProcessorCheckpointer checkpointer, ShutdownReason reason) {
-			if (logger.isInfoEnabled()) {
-				logger.info("Scheduler is shutting down for reason '" + reason + "'; checkpointing...");
-			}
+			logger.info(() -> "Scheduler is shutting down for reason '" + reason + "'; checkpointing...");
 			try {
 				checkpointer.checkpoint();
 			}
-			catch (ShutdownException | InvalidStateException e) {
-				logger.error("Exception while checkpointing at requested shutdown. Giving up", e);
+			catch (ShutdownException | InvalidStateException ex) {
+				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
 			}
 		}
 
