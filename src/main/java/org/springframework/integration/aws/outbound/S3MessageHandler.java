@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.Assert;
+import org.springframework.util.DigestUtils;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.event.ProgressEvent;
@@ -53,6 +54,7 @@ import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 import com.amazonaws.services.s3.transfer.internal.S3ProgressListener;
 import com.amazonaws.services.s3.transfer.internal.S3ProgressListenerChain;
+import com.amazonaws.util.Base64;
 import com.amazonaws.util.Md5Utils;
 
 /**
@@ -103,6 +105,7 @@ import com.amazonaws.util.Md5Utils;
  *
  * @author Artem Bilan
  * @author John Logan
+ *
  * @see TransferManager
  */
 public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
@@ -326,7 +329,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 				this.uploadMetadataProvider.populateMetadata(metadata, requestMessage);
 			}
 
-			PutObjectRequest putObjectRequest = null;
+			PutObjectRequest putObjectRequest;
 
 			try {
 				if (payload instanceof InputStream) {
@@ -335,8 +338,8 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 						Assert.state(inputStream.markSupported(),
 								"For an upload InputStream with no MD5 digest metadata, "
 										+ "the markSupported() method must evaluate to true.");
-						String contentMd5 = Md5Utils.md5AsBase64(inputStream);
-						metadata.setContentMD5(contentMd5);
+						byte[] md5Digest = DigestUtils.md5Digest(inputStream);
+						metadata.setContentMD5(Base64.encodeAsString(md5Digest));
 						inputStream.reset();
 					}
 					putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
