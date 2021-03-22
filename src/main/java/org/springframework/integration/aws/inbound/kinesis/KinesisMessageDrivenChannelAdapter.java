@@ -1535,7 +1535,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						lock.unlock();
 					}
 					catch (Exception ex) {
-						logger.error(ex, () -> "Error during unlocking: " + lock);
+						if (KinesisMessageDrivenChannelAdapter.this.active) {
+							logger.error(ex, () -> "Error during unlocking: " + lock);
+						}
+						else {
+							logger.info(ex, () -> "Error during unlocking: " + lock + " while adapter was inactive");
+						}
 					}
 					finally {
 						iterator.remove();
