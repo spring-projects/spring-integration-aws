@@ -181,6 +181,16 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
+	 * Configure a {@link Duration} how often to call a {@link KinesisProducer#flush()}.
+	 * @param flushDuration the {@link Duration} to periodic call of a {@link KinesisProducer#flush()}.
+	 * @since 2.3.6
+	 */
+	public void setFlushDuration(Duration flushDuration) {
+		Assert.notNull(flushDuration, "'flushDuration' must not be null.");
+		this.flushDuration = flushDuration;
+	}
+
+	/**
 	 * Unsupported operation. Use {@link #setEmbeddedHeadersMapper} instead.
 	 * @param headerMapper is not used.
 	 * @see #setEmbeddedHeadersMapper
