@@ -7,7 +7,7 @@ plugins {
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '4.1.0'
 	id "io.spring.dependency-management" version '1.0.11.RELEASE'
-	id 'com.jfrog.artifactory' version '4.19.0'
+	id 'com.jfrog.artifactory' version '4.21.0'
 }
 
 description = 'Spring Integration AWS Support'
@@ -16,24 +16,26 @@ group = 'org.springframework.integration'
 
 repositories {
 	mavenCentral()
-//	maven { url 'https://repo.spring.io/libs-staging-local' }
-	if (version.endsWith('BUILD-SNAPSHOT')) {
-		maven { url 'https://repo.spring.io/libs-snapshot' }
+	maven { url 'https://repo.spring.io/milestone' }
+	maven { url 'https://repo.spring.io/release' }
+	if (version.endsWith('SNAPSHOT')) {
+		maven { url 'https://repo.spring.io/snapshot' }
 	}
-	maven { url 'https://repo.spring.io/libs-milestone' }
+
+	//	maven { url 'https://repo.spring.io/libs-staging-local' }
 }
 
 ext {
-	assertjVersion = '3.18.1'
+	assertjVersion = '3.19.0'
 	awaitilityVersion = '4.0.3'
 	dynamodbLockClientVersion = '1.1.0'
-	jacksonVersion = '2.12.1'
+	jacksonVersion = '2.12.2'
 	junitVersion = '5.7.0'
 	servletApiVersion = '4.0.1'
     localstackVersion = '0.2.6'
-	log4jVersion = '2.14.0'
+	log4jVersion = '2.14.1'
 	springCloudAwsVersion = '2.2.5.RELEASE'
-	springIntegrationVersion = '5.4.3'
+	springIntegrationVersion = '5.5.0-SNAPSHOT'
 	kinesisClientVersion = '1.14.0'
 	kinesisProducerVersion = '0.14.3'
 
