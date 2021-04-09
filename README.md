@@ -5,15 +5,17 @@ Spring Integration Extension for Amazon Web Services (AWS)
 
 ## Amazon Web Services (AWS)
 
-Launched in 2006, [Amazon Web Services][] (AWS) provides key infrastructure services for business through its cloud computing platform. Using cloud computing businesses can adopt a new business model whereby they do not have to plan and invest in procuring their own IT infrastructure. They can use the infrastructure and services provided by the cloud service provider and pay as they use the services. Visit [https://aws.amazon.com/products/] for more details about various products offered by Amazon as a part their cloud computing services.
+Launched in 2006, [Amazon Web Services][] (AWS) provides key infrastructure services for business through its cloud computing platform. 
+Using cloud computing businesses can adopt a new business model whereby they do not have to plan and invest in procuring their own IT infrastructure. 
+They can use the infrastructure and services provided by the cloud service provider and pay as they use the services. Visit [AWS Products](https://aws.amazon.com/products/) for more details about various products offered by Amazon as a part their cloud computing services.
 
 *Spring Integration Extension for Amazon Web Services* provides Spring Integration adapters for the various services provided by the [AWS SDK for Java][].
 Note the Spring Integration AWS Extension is based on the [Spring Cloud AWS][] project.
 
 ## Spring Integration's extensions to AWS
 
-The current project version is `2.4.x` and it requires minimum Java `8` and Spring Integration `5.4.x`.
-Can be used with Spring Cloud `2020.0.x`.
+The current project version is `2.5.x` and it requires minimum Java `8` and Spring Integration `5.5.x`.
+Can be used with Spring Cloud `2020.0.x` Spring Cloud AWS `2.3.x`.
 
 This guide intends to explain briefly the various adapters available for [Amazon Web Services][] such as:
 
@@ -21,8 +23,7 @@ This guide intends to explain briefly the various adapters available for [Amazon
 * **Amazon Simple Storage Service (S3)**
 * **Amazon Simple Queue Service (SQS)**
 * **Amazon Simple Notification Service (SNS)**
-* **Amazon DynamoDB** (Analysis ongoing)
-* **Amazon SimpleDB** (Not initiated)
+* **Amazon DynamoDB**
 
 Sample XML Namespace configurations for each adapter as well as sample code snippets are provided wherever necessary.
 Of the above libraries, *SES* and *SNS* provide outbound adapters only. All other services have inbound and outbound adapters. The *SQS* inbound adapter is capable of receiving notifications sent out from *SNS* where the topic is an *SQS* Queue.
@@ -37,7 +38,7 @@ Additionally, if you are contributing, we recommend following the process for Sp
 
 These dependencies are optional in the project:
 
-* `org.springframework.cloud:spring-cloud-aws-messaging` - for SQS and SNS channel adapters
+* `io.awspring.cloud:spring-cloud-aws-messaging` - for SQS and SNS channel adapters
 * `org.springframework.integration:spring-integration-file` - for S3 channel adapters
 * `org.springframework.integration:spring-integration-http` - for SNS inbound channel adapter
 * `com.amazonaws:aws-java-sdk-kinesis` - for Kinesis channel adapters
@@ -294,7 +295,8 @@ See `SqsHeaderMapper` implementation for more information and also consult with 
 
 ### Inbound Channel Adapter
 
-The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with `SqsMessageDrivenChannelAdapter`. This channel adapter is based on the `org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer` to receive messages from the provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
+The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with `SqsMessageDrivenChannelAdapter`. 
+This channel adapter is based on the `io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer` to receive messages from the provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
 The enhancements include `AwsHeaders.MESSAGE_ID`, `AwsHeaders.RECEIPT_HANDLE` and `AwsHeaders.RECEIVED_QUEUE` message headers.
 
 The Java Configuration is pretty simple:
@@ -640,7 +642,7 @@ When used with a shared `MessageGroupStore`, the `DynamoDbLockRegistry` can be u
 This implementation can also be used for the distributed leader elections using a [LockRegistryLeaderInitiator][].
 The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `DynamoDbLockRegistry` working. 
 
-[Spring Cloud AWS]: https://github.com/spring-cloud/spring-cloud-aws
+[Spring Cloud AWS]: https://awspring.io/
 [AWS SDK for Java]: https://aws.amazon.com/sdkforjava/
 [Amazon Web Services]: https://aws.amazon.com/
 [https://aws.amazon.com/products/]: https://aws.amazon.com/products/

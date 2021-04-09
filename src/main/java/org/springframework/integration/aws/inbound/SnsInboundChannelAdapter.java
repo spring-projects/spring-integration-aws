@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.cloud.aws.messaging.endpoint.NotificationStatus;
-import org.springframework.cloud.aws.messaging.endpoint.NotificationStatusHandlerMethodArgumentResolver;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.http.HttpHeaders;
@@ -44,6 +42,8 @@ import org.springframework.web.multipart.MultipartResolver;
 
 import com.amazonaws.services.sns.AmazonSNS;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.awspring.cloud.messaging.endpoint.NotificationStatus;
+import io.awspring.cloud.messaging.endpoint.NotificationStatusHandlerMethodArgumentResolver;
 
 /**
  * The {@link HttpRequestHandlingMessagingGateway} extension for the Amazon WS SNS HTTP(S)

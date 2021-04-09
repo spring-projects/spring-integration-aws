@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,13 +24,14 @@ import java.util.UUID;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import org.springframework.cloud.aws.messaging.core.MessageAttributeDataTypes;
 import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.support.utils.PatternMatchUtils;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 import org.springframework.util.NumberUtils;
+
+import io.awspring.cloud.messaging.core.MessageAttributeDataTypes;
 
 /**
  * Base {@link HeaderMapper} implementation for common logic in SQS and SNS around message

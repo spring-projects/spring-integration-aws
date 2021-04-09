@@ -237,11 +237,11 @@
 		<xsd:attribute name="resource-id-resolver">
 			<xsd:annotation>
 				<xsd:documentation>
-					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean reference.
+					The 'io.awspring.cloud.core.env.ResourceIdResolver' bean reference.
 				</xsd:documentation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+						<tool:expected-type type="io.awspring.cloud.core.env.ResourceIdResolver"/>
 					</tool:annotation>
 				</xsd:appinfo>
 			</xsd:annotation>
@@ -701,7 +701,7 @@
 								The 'org.springframework.core.task.AsyncTaskExecutor' to run the underlying listener
 								task
 								from the
-								'org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer'.
+								'io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer'.
 							</xsd:documentation>
 							<xsd:appinfo>
 								<tool:annotation kind="ref">
@@ -755,7 +755,7 @@
 								A reference to a bean that implements the
 								'org.springframework.messaging.core.DestinationResolver' interface.
 								E.g.
-								'org.springframework.cloud.aws.messaging.support.destination.DynamicQueueUrlDestinationResolver'
+								'io.awspring.cloud.messaging.support.destination.DynamicQueueUrlDestinationResolver'
 							</xsd:documentation>
 							<xsd:appinfo>
 								<tool:annotation kind="ref">
@@ -905,11 +905,11 @@
 		<xsd:attribute name="resource-id-resolver">
 			<xsd:annotation>
 				<xsd:documentation>
-					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean reference.
+					The 'io.awspring.cloud.core.env.ResourceIdResolver' bean reference.
 				</xsd:documentation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+						<tool:expected-type type="io.awspring.cloud.core.env.ResourceIdResolver"/>
 					</tool:annotation>
 				</xsd:appinfo>
 			</xsd:annotation>
@@ -992,11 +992,11 @@
 		<xsd:attribute name="resource-id-resolver">
 			<xsd:annotation>
 				<xsd:documentation>
-					The 'org.springframework.cloud.aws.core.env.ResourceIdResolver' bean reference.
+					The 'io.awspring.cloud.core.env.ResourceIdResolver' bean reference.
 				</xsd:documentation>
 				<xsd:appinfo>
 					<tool:annotation kind="ref">
-						<tool:expected-type type="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+						<tool:expected-type type="io.awspring.cloud.core.env.ResourceIdResolver"/>
 					</tool:annotation>
 				</xsd:appinfo>
 			</xsd:annotation>

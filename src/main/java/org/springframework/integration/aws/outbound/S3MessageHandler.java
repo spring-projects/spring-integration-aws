@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
@@ -56,6 +55,7 @@ import com.amazonaws.services.s3.transfer.internal.S3ProgressListener;
 import com.amazonaws.services.s3.transfer.internal.S3ProgressListenerChain;
 import com.amazonaws.util.Base64;
 import com.amazonaws.util.Md5Utils;
+import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * The {@link AbstractReplyProducingMessageHandler} implementation for the Amazon S3
