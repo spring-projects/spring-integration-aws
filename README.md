@@ -294,7 +294,7 @@ See `SqsHeaderMapper` implementation for more information and also consult with 
 
 ### Inbound Channel Adapter
 
-The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with `SqsMessageDrivenChannelAdapter`. This channel adapter is based on the `org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer` to receive messages from the provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
+The SQS Inbound Channel Adapter is a `message-driven` implementation for the `MessageProducer` and is represented with `SqsMessageDrivenChannelAdapter`. This channel adapter is based on the `io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer` to receive messages from the provided `queues` in async manner and send an enhanced Spring Integration Message to the provided `MessageChannel`.
 The enhancements include `AwsHeaders.MESSAGE_ID`, `AwsHeaders.RECEIPT_HANDLE` and `AwsHeaders.RECEIVED_QUEUE` message headers.
 
 The Java Configuration is pretty simple:

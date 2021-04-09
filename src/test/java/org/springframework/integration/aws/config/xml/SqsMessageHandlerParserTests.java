@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2019 the original author or authors.
+ * Copyright 2015-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cloud.aws.core.env.ResourceIdResolver;
 import org.springframework.integration.endpoint.EventDrivenConsumer;
 import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.test.util.TestUtils;
@@ -34,6 +33,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.sqs.AmazonSQS;
+import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * @author Artem Bilan

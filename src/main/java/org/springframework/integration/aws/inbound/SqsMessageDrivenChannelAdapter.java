@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,6 @@ import java.util.Set;
 
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.cloud.aws.core.env.ResourceIdResolver;
-import org.springframework.cloud.aws.messaging.config.SimpleMessageListenerContainerFactory;
-import org.springframework.cloud.aws.messaging.listener.QueueMessageHandler;
-import org.springframework.cloud.aws.messaging.listener.SimpleMessageListenerContainer;
-import org.springframework.cloud.aws.messaging.listener.SqsMessageDeletionPolicy;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
@@ -43,6 +38,11 @@ import org.springframework.messaging.handler.HandlerMethod;
 import org.springframework.util.Assert;
 
 import com.amazonaws.services.sqs.AmazonSQSAsync;
+import io.awspring.cloud.core.env.ResourceIdResolver;
+import io.awspring.cloud.messaging.config.SimpleMessageListenerContainerFactory;
+import io.awspring.cloud.messaging.listener.QueueMessageHandler;
+import io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer;
+import io.awspring.cloud.messaging.listener.SqsMessageDeletionPolicy;
 
 /**
  * The {@link MessageProducerSupport} implementation for the Amazon SQS

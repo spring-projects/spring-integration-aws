@@ -34,7 +34,7 @@ ext {
 	servletApiVersion = '4.0.1'
     localstackVersion = '0.2.6'
 	log4jVersion = '2.14.1'
-	springCloudAwsVersion = '2.2.5.RELEASE'
+	springCloudAwsVersion = '2.3.0'
 	springIntegrationVersion = '5.5.0-SNAPSHOT'
 	kinesisClientVersion = '1.14.0'
 	kinesisProducerVersion = '0.14.3'
@@ -85,7 +85,7 @@ dependencyManagement {
 		enabled = false
 	}
 	imports {
-		mavenBom "org.springframework.cloud:spring-cloud-aws-dependencies:$springCloudAwsVersion"
+		mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:$springCloudAwsVersion"
 		mavenBom "org.springframework.integration:spring-integration-bom:$springIntegrationVersion"
 		mavenBom "com.fasterxml.jackson:jackson-bom:$jacksonVersion"
 		mavenBom "org.junit:junit-bom:$junitVersion"
@@ -103,10 +103,10 @@ checkstyle {
 
 dependencies {
 	api 'org.springframework.integration:spring-integration-core'
-	api 'org.springframework.cloud:spring-cloud-aws-core'
+	api 'io.awspring.cloud:spring-cloud-aws-core'
 	api 'com.fasterxml.jackson.core:jackson-databind'
 
-	optionalApi 'org.springframework.cloud:spring-cloud-aws-messaging'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-messaging'
 	optionalApi 'org.springframework.integration:spring-integration-file'
 	optionalApi 'org.springframework.integration:spring-integration-http'
 

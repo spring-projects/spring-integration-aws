@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2019 the original author or authors.
+ * Copyright 2015-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ public class SqsMessageDrivenChannelAdapterTests {
 	void testSqsMessageDrivenChannelAdapter() {
 		assertThat(
 				TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "listenerContainer.queueStopTimeout"))
-				.isEqualTo(10000L);
+				.isEqualTo(20000L);
 		org.springframework.messaging.Message<?> receive = this.inputChannel.receive(1000);
 		assertThat(receive).isNotNull();
 		assertThat((String) receive.getPayload()).isIn("messageContent", "messageContent2");

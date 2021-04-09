@@ -12,7 +12,7 @@
 	<aws-messaging:sqs-async-client id="sqs"/>
 
 	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver"/>
+		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver"/>
 	</bean>
 
 	<bean id="errorMessageStrategy" class="org.mockito.Mockito" factory-method="mock">

@@ -18,7 +18,7 @@
 	</bean>
 
 	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="org.springframework.cloud.aws.core.env.ResourceIdResolver" />
+		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver" />
 	</bean>
 
 	<int-aws:s3-outbound-channel-adapter s3="s3"
