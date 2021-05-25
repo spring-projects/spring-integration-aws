@@ -1080,26 +1080,20 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
 								!records.isEmpty()) {
 							logger.info("Manual checkpointer. Must validate if should use getNextShardIterator()");
-							String lastRecordSequence;
-							if (records.size() == 1) {
-								lastRecordSequence = records.get(0).getSequenceNumber();
-							}
-							else {
-								lastRecordSequence = records.get(records.size() - 1).getSequenceNumber();
-							}
+							String lastRecordSequence = records.get(records.size() - 1).getSequenceNumber();
 							String lastCheckpointSequence = this.checkpointer.getCheckpoint();
 							if (lastCheckpointSequence.equals(lastRecordSequence)) {
 								logger.info("latestCheckpointSequence is same as latestRecordSequence. " +
 										"" +
 										"Should getNextShardIterator()");
-								// Means the manual checkpointer has processed the last record, we we should move forward
+								// Means the manual checkpointer has processed the last record, Should move forward
 								this.shardIterator = result.getNextShardIterator();
 							}
 							else {
 								logger.info("latestCheckpointSequence is not the same as latestRecordSequence" +
 										". Should Get a new iterator AFTER_SEQUENCE_NUMBER latestCheckpointSequence");
 								// Something wrong happened and not all records were processed.
-								// We must start from the latest known checkpoint
+								// Must start from the latest known checkpoint
 								KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
 								newOffset.setSequenceNumber(lastCheckpointSequence);
 								newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
