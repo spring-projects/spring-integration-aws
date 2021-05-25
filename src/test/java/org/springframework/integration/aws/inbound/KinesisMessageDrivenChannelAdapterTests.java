@@ -76,6 +76,7 @@ import com.amazonaws.services.kinesis.model.Shard;
  * @author Matthias Wesolowski
  * @author Greg Eales
  * @author Asiel Caballero
+ * @author Jonathan Nagayoshi
  *
  * @since 1.1
  */
