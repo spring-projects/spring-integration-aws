@@ -94,6 +94,7 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
  * @author Dirk Bonhomme
  * @author Greg Eales
  * @author Asiel Caballero
+ * @author Jonathan Nagayoshi
  *
  * @since 1.1
  */
