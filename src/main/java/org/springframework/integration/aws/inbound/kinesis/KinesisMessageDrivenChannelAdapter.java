@@ -94,6 +94,7 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
  * @author Dirk Bonhomme
  * @author Greg Eales
  * @author Asiel Caballero
+ * @author Jonathan Nagayoshi
  *
  * @since 1.1
  */
@@ -1073,7 +1074,40 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				finally {
 					attributesHolder.remove();
 					if (result != null) {
-						this.shardIterator = result.getNextShardIterator();
+                         // If using manual checkpointer, we have to make sure we are allowed to use the next shard iterator
+                         // Because if the manual checkpointer was not set to the latest record, it means there are records to be reprocessed
+                         // and if we use the nextShardIterator, we will be skipping records that need to be reprocessed
+						List<Record> records = result.getRecords();
+						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
+								!records.isEmpty()) {
+							logger.info("Manual checkpointer. Must validate if should use getNextShardIterator()");
+							String lastRecordSequence = records.get(records.size() - 1).getSequenceNumber();
+							String lastCheckpointSequence = this.checkpointer.getCheckpoint();
+							if (lastCheckpointSequence.equals(lastRecordSequence)) {
+								logger.info("latestCheckpointSequence is same as latestRecordSequence. " +
+										"" +
+										"Should getNextShardIterator()");
+								// Means the manual checkpointer has processed the last record, Should move forward
+								this.shardIterator = result.getNextShardIterator();
+							}
+							else {
+								logger.info("latestCheckpointSequence is not the same as latestRecordSequence" +
+										". Should Get a new iterator AFTER_SEQUENCE_NUMBER latestCheckpointSequence");
+								// Something wrong happened and not all records were processed.
+								// Must start from the latest known checkpoint
+								KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
+								newOffset.setSequenceNumber(lastCheckpointSequence);
+								newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+								GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
+								this.shardIterator = KinesisMessageDrivenChannelAdapter.this
+										.amazonKinesis
+										.getShardIterator(shardIteratorRequest)
+										.getShardIterator();
+							}
+						}
+						else {
+							this.shardIterator = result.getNextShardIterator();
+						}
 
 						if (this.shardIterator == null) {
 							if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {

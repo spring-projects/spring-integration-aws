@@ -76,6 +76,7 @@ import com.amazonaws.services.kinesis.model.Shard;
  * @author Matthias Wesolowski
  * @author Greg Eales
  * @author Asiel Caballero
+ * @author Jonathan Nagayoshi
  *
  * @since 1.1
  */
@@ -201,6 +202,40 @@ public class KinesisMessageDrivenChannelAdapterTests {
 				.hasSize(2);
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
+
+		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
+		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.manual);
+		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "2");
+
+		this.kinesisMessageDrivenChannelAdapter.start();
+
+		message = this.kinesisChannel.receive(10000);
+		assertThat(message).isNotNull();
+		assertThat(message.getPayload()).isInstanceOf(List.class);
+		List<String> messagePayload = (List<String>) message.getPayload();
+		assertThat(messagePayload).size().isEqualTo(3);
+
+		Object messageSequenceNumberHeader = message.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER);
+		assertThat(messageSequenceNumberHeader).isInstanceOf(List.class);
+		assertThat((List<String>) messageSequenceNumberHeader).contains("3");
+		// Set checkpoint to 3, this should prevent adapter from using next shard, since its not the latest record
+		// in the batch
+		checkpointer.checkpoint("3");
+
+		await().untilAsserted(
+				() -> assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1"))
+						.isEqualTo("3"));
+		message = this.kinesisChannel.receive(10000);
+		assertThat(message).isNotNull();
+		assertThat(message.getPayload()).isInstanceOf(List.class);
+		messagePayload = (List<String>) message.getPayload();
+		assertThat(messagePayload).size().isEqualTo(2);
+		assertThat(messagePayload).contains("bar");
+		assertThat(messagePayload).contains("foobar");
+
+		this.kinesisMessageDrivenChannelAdapter.stop();
+
+
 	}
 
 	@Test
@@ -295,6 +330,36 @@ public class KinesisMessageDrivenChannelAdapterTests {
 					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator3)
 							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber("2")
 									.withData(ByteBuffer.wrap(serializingConverter.convert("bar")))));
+
+
+			String shard1Iterator5 = "shard1Iterator5";
+			String shard1Iterator6 = "shard1Iterator6";
+
+			given(amazonKinesis.getShardIterator(
+					KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "2").toShardIteratorRequest()))
+					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator5));
+
+			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator5).withLimit(25)))
+					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator6)
+							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber("3")
+									.withData(ByteBuffer.wrap(serializingConverter.convert("foo"))),
+									new Record().withPartitionKey("partition1").withSequenceNumber("4")
+											.withData(ByteBuffer.wrap(serializingConverter.convert("bar"))),
+									new Record().withPartitionKey("partition1").withSequenceNumber("5")
+											.withData(ByteBuffer.wrap(serializingConverter.convert("foobar")))));
+
+
+			given(amazonKinesis.getShardIterator(
+					KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "3").toShardIteratorRequest()))
+					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator6));
+
+			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator6).withLimit(25)))
+					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator6)
+							.withRecords(
+									new Record().withPartitionKey("partition1").withSequenceNumber("4")
+											.withData(ByteBuffer.wrap(serializingConverter.convert("bar"))),
+									new Record().withPartitionKey("partition1").withSequenceNumber("5")
+											.withData(ByteBuffer.wrap(serializingConverter.convert("foobar")))));
 
 			return amazonKinesis;
 		}
