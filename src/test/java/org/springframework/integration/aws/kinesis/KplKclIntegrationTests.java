@@ -53,8 +53,6 @@ import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-import cloud.localstack.Constants;
-import cloud.localstack.awssdkv1.TestUtils;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -145,9 +143,10 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 					LocalstackContainerTest.localStack.getEndpointOverride(LocalStackContainer.Service.KINESIS);
 			URI cloudWatchUri =
 					LocalstackContainerTest.localStack.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH);
+
 			return new KinesisProducerConfiguration()
-					.setCredentialsProvider(TestUtils.getCredentialsProvider())
-					.setRegion(Constants.DEFAULT_REGION)
+					.setCredentialsProvider(LocalstackContainerTest.localStack.getDefaultCredentialsProvider())
+					.setRegion(LocalstackContainerTest.localStack.getRegion())
 					.setKinesisEndpoint(kinesisUri.getHost())
 					.setKinesisPort(kinesisUri.getPort())
 					.setCloudwatchEndpoint(cloudWatchUri.getHost())
@@ -167,8 +166,10 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 
 		@Bean
 		public KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter() {
-			KclMessageDrivenChannelAdapter adapter = new KclMessageDrivenChannelAdapter(
-					TEST_STREAM, AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB, TestUtils.getCredentialsProvider());
+			KclMessageDrivenChannelAdapter adapter =
+					new KclMessageDrivenChannelAdapter(
+							TEST_STREAM, AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB,
+							LocalstackContainerTest.localStack.getDefaultCredentialsProvider());
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
