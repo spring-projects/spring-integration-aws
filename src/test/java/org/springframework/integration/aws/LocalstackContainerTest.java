@@ -21,6 +21,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import org.springframework.integration.test.util.TestUtils;
+
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
@@ -40,7 +42,7 @@ public interface LocalstackContainerTest {
 
 	@Container
 	LocalStackContainer localStack =
-			new LocalStackContainer(DockerImageName.parse("localstack/localstack"))
+			new LocalStackContainer(DockerImageName.parse(TestUtils.dockerRegistryFromEnv() + "localstack/localstack"))
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
