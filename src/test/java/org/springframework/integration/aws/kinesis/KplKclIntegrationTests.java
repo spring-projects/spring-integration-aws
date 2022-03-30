@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,19 +25,17 @@ import java.util.Date;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.integration.aws.EnvironmentHostNameResolver;
-import org.springframework.integration.aws.ExtendedDockerTestUtils;
-import org.springframework.integration.aws.LocalStackSslEnvironmentProvider;
+import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.inbound.kinesis.KclMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
 import org.springframework.integration.aws.outbound.KplMessageHandler;
@@ -56,10 +54,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import cloud.localstack.Constants;
-import cloud.localstack.Localstack;
 import cloud.localstack.awssdkv1.TestUtils;
-import cloud.localstack.docker.LocalstackDockerExtension;
-import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -72,16 +67,10 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
  *
  * @since 1.1
  */
-@Disabled
+@DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
-@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
-@ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(
-		hostNameResolver = EnvironmentHostNameResolver.class,
-		environmentVariableProvider = LocalStackSslEnvironmentProvider.class,
-		services = { "kinesis", "dynamodb", "cloudwatch" })
 @DirtiesContext
-public class KplKclIntegrationTests {
+public class KplKclIntegrationTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStream";
 
@@ -102,9 +91,9 @@ public class KplKclIntegrationTests {
 
 	@BeforeAll
 	static void setup() {
-		AMAZON_KINESIS = ExtendedDockerTestUtils.getClientKinesisAsyncSsl();
-		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsyncSsl();
-		CLOUD_WATCH = ExtendedDockerTestUtils.getClientCloudWatchAsyncSsl();
+		AMAZON_KINESIS = LocalstackContainerTest.kinesisClient();
+		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
+		CLOUD_WATCH = LocalstackContainerTest.cloudWatchClient();
 		AMAZON_KINESIS.createStream(TEST_STREAM, 1);
 	}
 
@@ -152,8 +141,10 @@ public class KplKclIntegrationTests {
 
 		@Bean
 		public KinesisProducerConfiguration kinesisProducerConfiguration() throws URISyntaxException {
-			URI kinesisUri = new URI(Localstack.INSTANCE.getEndpointKinesis());
-			URI cloudWatchUri = new URI(Localstack.INSTANCE.getEndpointCloudWatch());
+			URI kinesisUri =
+					LocalstackContainerTest.localStack.getEndpointOverride(LocalStackContainer.Service.KINESIS);
+			URI cloudWatchUri =
+					LocalstackContainerTest.localStack.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH);
 			return new KinesisProducerConfiguration()
 					.setCredentialsProvider(TestUtils.getCredentialsProvider())
 					.setRegion(Constants.DEFAULT_REGION)

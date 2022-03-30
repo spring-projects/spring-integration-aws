@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2020 the original author or authors.
+ * Copyright 2020-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ import com.amazonaws.services.dynamodbv2.model.TableStatus;
  * @since 2.3.5
  */
 class DynamoDbLockRegistryBuildTableTests {
+
 	private static final String TEST_TABLE
 			= "testLockRegistry" + DynamoDbLockRegistryBuildTableTests.class.getSimpleName();
 

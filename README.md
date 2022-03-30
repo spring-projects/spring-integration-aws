@@ -470,26 +470,6 @@ The implementation is based on a simple table with `KEY` and `VALUE` attributes,
 By default, the `SpringIntegrationMetadataStore` table is used, and it is created during `DynamoDbMetaDataStore` initialization if that doesn't exist yet.
 The `DynamoDbMetadataStore` can be used for the `KinesisMessageDrivenChannelAdapter` as a cloud-based `cehckpointStore`.
 
-For testing application with the `DynamoDbMetadataStore` you can use [Dynalite][] NPM module.
-What you need in your application is to configure DynamoDB client properly:
-
-````java
-String url = "http://localhost:" + this.port;
-
-this.amazonDynamoDB = AmazonDynamoDBAsyncClientBuilder.standard()
-        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("", "")))
-        .withClientConfiguration(
-                new ClientConfiguration()
-                        .withMaxErrorRetry(0)
-                        .withConnectionTimeout(1000))
-        .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration(url, Regions.DEFAULT_REGION.getName()))
-        .build();
-````
-
-where you should specify the port on which you have ran the Dynalite service.
-Also, you can use for you testing purpose a [Local Stack][] library. 
-
 Starting with _version 2.0_, the `DynamoDbMetadataStore` can be configured with the `timeToLive` option to enable the [DynamoDB TTL][] feature.
 The `TTL` attribute is added to each item with the value based on the sum of current time and provided `timeToLive` in seconds.
 If the provided `timeToLive` value is non-positive, the TTL functionality is disabled on the table.
@@ -607,29 +587,6 @@ public MessageHandler kinesisMessageHandler(AmazonKinesis amazonKinesis,
 
 Starting with _version 2.0_, the `KinesisMessageHandler` can be configured with the `OutboundMessageMapper` to embed message headers into the record data alongside with the payload.
 See `EmbeddedJsonHeadersMessageMapper` implementation for more information.
-
-For testing application with the Kinesis Channel Adapters you can use [Kinesalite][] NPM module.
-What you need in your application is to configure Kinesis client properly:
-
-````java
-String url = "http://localhost:" + this.port;
-
-// See https://github.com/mhart/kinesalite#cbor-protocol-issues-with-the-java-sdk
-System.setProperty(SDKGlobalConfiguration.AWS_CBOR_DISABLE_SYSTEM_PROPERTY, "true");
-
-this.amazonKinesis = AmazonKinesisAsyncClientBuilder.standard()
-        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("", "")))
-        .withClientConfiguration(
-                new ClientConfiguration()
-                        .withMaxErrorRetry(0)
-                        .withConnectionTimeout(1000))
-        .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration(url, Regions.DEFAULT_REGION.getName()))
-        .build();
-````
-
-where you should specify the port on which you have ran the Kinesalite service.
-Also, you can use for you testing purpose a [Local Stack][] library.    
 
 Also, the `KplMessageHandler` is provided for performing streams consumption by [Kinesis Producer Library][].
 

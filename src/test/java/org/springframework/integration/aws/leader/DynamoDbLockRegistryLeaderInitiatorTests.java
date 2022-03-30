@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,11 +27,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.springframework.integration.aws.EnvironmentHostNameResolver;
-import org.springframework.integration.aws.ExtendedDockerTestUtils;
+import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.lock.DynamoDbLockRegistry;
 import org.springframework.integration.leader.Context;
 import org.springframework.integration.leader.DefaultCandidate;
@@ -39,8 +36,6 @@ import org.springframework.integration.leader.event.LeaderEventPublisher;
 import org.springframework.integration.support.leader.LockRegistryLeaderInitiator;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 
-import cloud.localstack.docker.LocalstackDockerExtension;
-import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
@@ -54,19 +49,13 @@ import com.amazonaws.waiters.WaiterParameters;
  *
  * @since 2.0
  */
-@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
-@ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(
-		hostNameResolver = EnvironmentHostNameResolver.class,
-		services = "dynamodb")
-class DynamoDbLockRegistryLeaderInitiatorTests {
+class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTest {
 
 	private static AmazonDynamoDBAsync DYNAMO_DB;
 
 	@BeforeAll
 	static void init() {
-		DYNAMO_DB = ExtendedDockerTestUtils.getClientDynamoDbAsync();
-
+		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		try {
 			DYNAMO_DB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
 

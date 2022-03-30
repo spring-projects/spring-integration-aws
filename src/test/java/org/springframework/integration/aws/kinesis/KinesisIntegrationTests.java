@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,6 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.junit.jupiter.api.condition.OS;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +33,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.annotation.ServiceActivator;
-import org.springframework.integration.aws.EnvironmentHostNameResolver;
-import org.springframework.integration.aws.ExtendedDockerTestUtils;
+import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
 import org.springframework.integration.aws.outbound.KinesisMessageHandler;
@@ -60,8 +55,6 @@ import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-import cloud.localstack.docker.LocalstackDockerExtension;
-import cloud.localstack.docker.annotation.LocalstackDockerProperties;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 
 /**
@@ -69,15 +62,9 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsync;
  *
  * @since 1.1
  */
-@DisabledOnOs(OS.LINUX)
 @SpringJUnitConfig
-@EnabledIfEnvironmentVariable(named = EnvironmentHostNameResolver.DOCKER_HOST_NAME, matches = ".+")
-@ExtendWith(LocalstackDockerExtension.class)
-@LocalstackDockerProperties(
-		hostNameResolver = EnvironmentHostNameResolver.class,
-		services = "kinesis")
 @DirtiesContext
-public class KinesisIntegrationTests {
+public class KinesisIntegrationTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStream";
 
@@ -94,7 +81,7 @@ public class KinesisIntegrationTests {
 
 	@BeforeAll
 	static void setup() {
-		AMAZON_KINESIS_ASYNC = ExtendedDockerTestUtils.getClientKinesisAsync();
+		AMAZON_KINESIS_ASYNC = LocalstackContainerTest.kinesisClient();
 		AMAZON_KINESIS_ASYNC.createStream(TEST_STREAM, 1);
 	}
 
