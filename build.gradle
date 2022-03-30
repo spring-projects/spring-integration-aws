@@ -98,7 +98,7 @@ jacoco {
 
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
-	toolVersion = '10.0'
+	toolVersion = '9.3'
 }
 
 dependencies {
