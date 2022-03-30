@@ -70,7 +70,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 @DirtiesContext
 public class KplKclIntegrationTests implements LocalstackContainerTest {
 
-	private static final String TEST_STREAM = "TestStream";
+	private static final String TEST_STREAM = "TestStreamKplKcl";
 
 	private static AmazonKinesis AMAZON_KINESIS;
 
