@@ -80,9 +80,16 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 	private PollableChannel errorChannel;
 
 	@BeforeAll
-	static void setup() {
+	static void setup() throws Exception {
 		AMAZON_KINESIS_ASYNC = LocalstackContainerTest.kinesisClient();
 		AMAZON_KINESIS_ASYNC.createStream(TEST_STREAM, 1);
+
+		int n = 0;
+		while (n++ < 100 && !"ACTIVE".equals(
+				AMAZON_KINESIS_ASYNC.describeStream(TEST_STREAM).getStreamDescription().getStreamStatus())) {
+
+			Thread.sleep(200);
+		}
 	}
 
 	@AfterAll
@@ -99,13 +106,13 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 		this.kinesisSendChannel.send(MessageBuilder.withPayload(now).setHeader(AwsHeaders.STREAM, TEST_STREAM)
 				.setHeader("foo", "BAR").build());
 
-		Message<?> receive = this.kinesisReceiveChannel.receive(20_000);
+		Message<?> receive = this.kinesisReceiveChannel.receive(30_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(now);
 		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));
 		assertThat(receive.getHeaders()).containsKey(IntegrationMessageHeaderAccessor.SOURCE_DATA);
 
-		Message<?> errorMessage = this.errorChannel.receive(20_000);
+		Message<?> errorMessage = this.errorChannel.receive(30_000);
 		assertThat(errorMessage).isNotNull();
 		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
@@ -120,7 +127,7 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 		Set<String> receivedSequences = new HashSet<>();
 
 		for (int i = 0; i < 2; i++) {
-			receive = this.kinesisReceiveChannel.receive(20_000);
+			receive = this.kinesisReceiveChannel.receive(30_000);
 			assertThat(receive).isNotNull();
 			String sequenceNumber = receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class);
 			assertThat(receivedSequences.add(sequenceNumber)).isTrue();

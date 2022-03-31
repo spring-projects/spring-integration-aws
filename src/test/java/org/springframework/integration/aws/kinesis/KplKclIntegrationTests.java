@@ -88,11 +88,18 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 	private PollableChannel errorChannel;
 
 	@BeforeAll
-	static void setup() {
+	static void setup() throws InterruptedException {
 		AMAZON_KINESIS = LocalstackContainerTest.kinesisClient();
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		CLOUD_WATCH = LocalstackContainerTest.cloudWatchClient();
 		AMAZON_KINESIS.createStream(TEST_STREAM, 1);
+
+		int n = 0;
+		while (n++ < 100 && !"ACTIVE".equals(
+				AMAZON_KINESIS.describeStream(TEST_STREAM).getStreamDescription().getStreamStatus())) {
+
+			Thread.sleep(200);
+		}
 	}
 
 	@AfterAll
@@ -115,7 +122,7 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 		assertThat(receive.getHeaders()).contains(entry("foo", "BAR"));
 		assertThat(receive.getHeaders()).containsKey(IntegrationMessageHeaderAccessor.SOURCE_DATA);
 
-		Message<?> errorMessage = this.errorChannel.receive(10_000);
+		Message<?> errorMessage = this.errorChannel.receive(30_000);
 		assertThat(errorMessage).isNotNull();
 		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD)).isNotNull();
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
@@ -125,7 +132,7 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 		this.kinesisSendChannel
 				.send(MessageBuilder.withPayload(new Date()).setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 
-		receive = this.kinesisReceiveChannel.receive(20_000);
+		receive = this.kinesisReceiveChannel.receive(30_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class)).isNotEmpty();
 

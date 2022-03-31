@@ -98,7 +98,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 			initiator.start();
 		}
 
-		assertThat(granted.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(granted.await(20, TimeUnit.SECONDS)).isTrue();
 
 		LockRegistryLeaderInitiator initiator1 = countingPublisher.initiator;
 
@@ -158,7 +158,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		initiator1.getContext().yield();
 
-		assertThat(revoked11.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(revoked11.await(20, TimeUnit.SECONDS)).isTrue();
 		assertThat(initiator1.getContext().isLeader()).isFalse();
 
 		initiator1.stop();
@@ -181,11 +181,11 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		initiator.start();
 
-		assertThat(granted.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(granted.await(20, TimeUnit.SECONDS)).isTrue();
 
 		destroy();
 
-		assertThat(countingPublisher.revoked.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(countingPublisher.revoked.await(20, TimeUnit.SECONDS)).isTrue();
 
 		granted = new CountDownLatch(1);
 		countingPublisher = new CountingPublisher(granted);
@@ -195,7 +195,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		lockRepository.afterPropertiesSet();
 
-		assertThat(granted.await(10, TimeUnit.SECONDS)).isTrue();
+		assertThat(granted.await(20, TimeUnit.SECONDS)).isTrue();
 
 		initiator.stop();
 

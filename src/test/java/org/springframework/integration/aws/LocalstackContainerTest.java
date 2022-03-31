@@ -46,8 +46,7 @@ public interface LocalstackContainerTest {
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
-							LocalStackContainer.Service.CLOUDWATCH)
-					.withReuse(true);
+							LocalStackContainer.Service.CLOUDWATCH);
 
 
 	static AmazonDynamoDBAsync dynamoDbClient() {
