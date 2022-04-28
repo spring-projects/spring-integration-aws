@@ -776,8 +776,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		super.doStop();
 		stopConsumers();
 
-		this.shardConsumerManagerFuture.cancel(true);
 		this.active = false;
+		this.shardConsumerManagerFuture.cancel(true);
 	}
 
 	private void stopConsumers() {
