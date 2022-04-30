@@ -9,4 +9,4 @@ cache:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
 script:
-  - ./gradlew check --no-daemon
+  - ./gradlew check
