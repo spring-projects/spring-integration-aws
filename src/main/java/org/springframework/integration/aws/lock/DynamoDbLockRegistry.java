@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 the original author or authors.
+ * Copyright 2018-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ import com.amazonaws.services.dynamodbv2.model.BillingMode;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
 import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
+import com.amazonaws.services.dynamodbv2.model.LockCurrentlyUnavailableException;
 import com.amazonaws.services.dynamodbv2.model.LockNotGrantedException;
 import com.amazonaws.services.dynamodbv2.model.LockTableDoesNotExistException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
@@ -450,7 +451,8 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		private void setupDefaultAcquireLockOptionsBuilder() {
 			this.acquireLockOptionsBuilder
 					.withAdditionalTimeToWaitForLock(Long.MAX_VALUE - DynamoDbLockRegistry.this.leaseDuration)
-					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
+					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod)
+					.withShouldSkipBlockingWait(false);
 		}
 
 		@Override
@@ -505,7 +507,12 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 					.max(TimeUnit.MILLISECONDS.convert(time, unit) - System.currentTimeMillis() + start, 0L);
 
 			this.acquireLockOptionsBuilder.withAdditionalTimeToWaitForLock(additionalTimeToWait)
-					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
+					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod)
+					.withShouldSkipBlockingWait(false);
+
+			if (additionalTimeToWait == 0) {
+				this.acquireLockOptionsBuilder.withShouldSkipBlockingWait(true);
+			}
 
 			boolean acquired = false;
 			try {
@@ -517,6 +524,10 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				else {
 					this.lastUsed = System.currentTimeMillis();
 				}
+			}
+			catch (LockCurrentlyUnavailableException ex) {
+				this.delegate.unlock();
+				logger.trace("The lock '" + this + "' cannot be acquired at the moment", ex);
 			}
 			catch (Exception e) {
 				this.delegate.unlock();
