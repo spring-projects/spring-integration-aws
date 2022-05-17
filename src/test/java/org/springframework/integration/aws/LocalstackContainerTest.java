@@ -44,7 +44,7 @@ public interface LocalstackContainerTest {
 	LocalStackContainer localStack =
 			new LocalStackContainer(
 					DockerImageName.parse(TestUtils.dockerRegistryFromEnv() + "localstack/localstack:0.14.2")
-							.asCompatibleSubstituteFor("localstack/localstack"))
+							.asCompatibleSubstituteFor("localstack"))
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
