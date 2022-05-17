@@ -42,11 +42,12 @@ public interface LocalstackContainerTest {
 
 	@Container
 	LocalStackContainer localStack =
-			new LocalStackContainer(DockerImageName.parse(TestUtils.dockerRegistryFromEnv() + "localstack/localstack"))
+			new LocalStackContainer(DockerImageName.parse(TestUtils.dockerRegistryFromEnv() + "localstack/localstack:0.14.2"))
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
-							LocalStackContainer.Service.CLOUDWATCH);
+							LocalStackContainer.Service.CLOUDWATCH)
+					.withReuse(true);
 
 
 	static AmazonDynamoDBAsync dynamoDbClient() {
