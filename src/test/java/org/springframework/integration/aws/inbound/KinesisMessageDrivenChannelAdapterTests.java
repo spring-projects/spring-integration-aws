@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
@@ -92,6 +93,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	private QueueChannel kinesisChannel;
 
 	@Autowired
+	@Qualifier("kinesisMessageDrivenChannelAdapter")
 	private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter;
 
 	@Autowired
@@ -101,6 +103,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	private MetadataStore reshardingCheckpointStore;
 
 	@Autowired
+	@Qualifier("reshardingChannelAdapter")
 	private KinesisMessageDrivenChannelAdapter reshardingChannelAdapter;
 
 	@Autowired
@@ -176,6 +179,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "1");
 
+		setup();
+
 		this.kinesisMessageDrivenChannelAdapter.start();
 
 		message = this.kinesisChannel.receive(10000);
@@ -206,6 +211,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.manual);
 		this.checkpointStore.put("SpringIntegration" + ":" + STREAM1 + ":" + "1", "2");
+
+		setup();
 
 		this.kinesisMessageDrivenChannelAdapter.start();
 
