@@ -35,7 +35,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
  *
  * @since 3.0
  */
-@Testcontainers(disabledWithoutDocker = false)
+@Testcontainers(disabledWithoutDocker = true)
 public interface LocalstackContainerTest {
 
 	@Container
