@@ -25,9 +25,8 @@ import java.util.Date;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +64,7 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
  *
  * @since 1.1
  */
-@DisabledOnOs(OS.WINDOWS)
+@Disabled("Depends on real call to http://169.254.169.254 through native library")
 @SpringJUnitConfig
 @DirtiesContext
 public class KplKclIntegrationTests implements LocalstackContainerTest {
