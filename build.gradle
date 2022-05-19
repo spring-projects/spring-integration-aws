@@ -29,12 +29,12 @@ ext {
 	assertjVersion = '3.22.0'
 	awaitilityVersion = '4.2.0'
 	dynamodbLockClientVersion = '1.1.0'
-	jacksonVersion = '2.13.2'
+	jacksonVersion = '2.13.3'
 	junitVersion = '5.8.2'
 	servletApiVersion = '5.0.0'
 	log4jVersion = '2.17.2'
-	springCloudAwsVersion = '2.4.0'
-	springIntegrationVersion = '6.0.0-SNAPSHOT'
+	springCloudAwsVersion = '2.4.1'
+	springIntegrationVersion = '6.0.0-M3'
 	kinesisClientVersion = '1.14.8'
 	kinesisProducerVersion = '0.14.12'
 	testcontainersVersion = '1.17.1'
@@ -98,7 +98,7 @@ jacoco {
 
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
-	toolVersion = '10.1'
+	toolVersion = '10.2'
 }
 
 dependencies {
