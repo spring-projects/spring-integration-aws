@@ -147,13 +147,13 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 		@Bean
 		public KinesisProducerConfiguration kinesisProducerConfiguration() throws URISyntaxException {
 			URI kinesisUri =
-					LocalstackContainerTest.localStack.getEndpointOverride(LocalStackContainer.Service.KINESIS);
+					LocalstackContainerTest.LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
 			URI cloudWatchUri =
-					LocalstackContainerTest.localStack.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH);
+					LocalstackContainerTest.LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH);
 
 			return new KinesisProducerConfiguration()
-					.setCredentialsProvider(LocalstackContainerTest.localStack.getDefaultCredentialsProvider())
-					.setRegion(LocalstackContainerTest.localStack.getRegion())
+					.setCredentialsProvider(LocalstackContainerTest.LOCAL_STACK_CONTAINER.getDefaultCredentialsProvider())
+					.setRegion(LocalstackContainerTest.LOCAL_STACK_CONTAINER.getRegion())
 					.setKinesisEndpoint(kinesisUri.getHost())
 					.setKinesisPort(kinesisUri.getPort())
 					.setCloudwatchEndpoint(cloudWatchUri.getHost())
@@ -176,7 +176,7 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 			KclMessageDrivenChannelAdapter adapter =
 					new KclMessageDrivenChannelAdapter(
 							TEST_STREAM, AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB,
-							LocalstackContainerTest.localStack.getDefaultCredentialsProvider());
+							LocalstackContainerTest.LOCAL_STACK_CONTAINER.getDefaultCredentialsProvider());
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
