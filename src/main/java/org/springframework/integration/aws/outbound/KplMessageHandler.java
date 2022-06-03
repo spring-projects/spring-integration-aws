@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import org.springframework.context.Lifecycle;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.SerializingConverter;
@@ -32,6 +30,7 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.aws.support.AwsRequestFailureException;
+import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.mapping.OutboundMessageMapper;
@@ -55,6 +54,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.UserRecord;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
+import com.amazonaws.services.schemaregistry.common.Schema;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -89,6 +89,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	private Expression explicitHashKeyExpression;
 
 	private Expression sequenceNumberExpression;
+
+	private Expression glueSchemaExpression;
 
 	private OutboundMessageMapper<byte[]> embeddedHeadersMapper;
 
@@ -201,6 +203,37 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 				+ "Consider to use 'OutboundMessageMapper<byte[]>' for embedding headers into the record data.");
 	}
 
+	/**
+	 * Set a {@link Schema} to add into a {@link UserRecord} built from the request message.
+	 * @param glueSchema the {@link Schema} to add into a {@link UserRecord}.
+	 * @since 2.5.2
+	 * @see UserRecord#setSchema(Schema)
+	 */
+	public void setGlueSchema(Schema glueSchema) {
+		setPartitionKeyExpression(new ValueExpression<>(glueSchema));
+	}
+
+	/**
+	 * Set a SpEL expression for {@link Schema} to add into a {@link UserRecord}
+	 * built from the request message.
+	 * @param glueSchemaExpression the SpEL expression to evaluate a {@link Schema}.
+	 * @since 2.5.2
+	 * @see UserRecord#setSchema(Schema)
+	 */
+	public void setGlueSchemaExpressionString(String glueSchemaExpression) {
+		setGlueSchemaExpression(EXPRESSION_PARSER.parseExpression(glueSchemaExpression));
+	}
+
+	/**
+	 * Set a SpEL expression for {@link Schema} to add into a {@link UserRecord}
+	 * built from the request message.
+	 * @param glueSchemaExpression the SpEL expression to evaluate a {@link Schema}.
+	 * @since 2.5.2
+	 * @see UserRecord#setSchema(Schema)
+	 */
+	public void setGlueSchemaExpression(Expression glueSchemaExpression) {
+		this.glueSchemaExpression = glueSchemaExpression;
+	}
 
 	@Override
 	public synchronized void start() {
@@ -247,6 +280,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 				userRecord.setData(putRecordRequest.getData());
 				userRecord.setPartitionKey(putRecordRequest.getPartitionKey());
 				userRecord.setStreamName(putRecordRequest.getStreamName());
+				setGlueSchemaIntoUserRecordIfAny(userRecord, message);
 				return handleUserRecord(message, putRecordRequest, userRecord);
 			}
 		}
@@ -268,6 +302,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 					userRecord.setData(putRecordsRequestEntry.getData());
 					userRecord.setPartitionKey(putRecordsRequestEntry.getPartitionKey());
 					userRecord.setStreamName(putRecordsRequest.getStreamName());
+					setGlueSchemaIntoUserRecordIfAny(userRecord, message);
 					return userRecord;
 				})
 				.concatMap((userRecord) ->
@@ -303,6 +338,13 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		return putRecordsResultFuture;
 	}
 
+	private void setGlueSchemaIntoUserRecordIfAny(UserRecord userRecord, Message<?> message) {
+		if (this.glueSchemaExpression != null) {
+			Schema schema = this.glueSchemaExpression.getValue(getEvaluationContext(), message, Schema.class);
+			userRecord.setSchema(schema);
+		}
+	}
+
 	private Future<?> handleUserRecord(Message<?> message, PutRecordRequest putRecordRequest, UserRecord userRecord) {
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
 		applyCallbackForAsyncHandler(message, putRecordRequest, recordResult);
@@ -333,71 +375,88 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
-		MessageHeaders messageHeaders = message.getHeaders();
-		String stream = messageHeaders.get(AwsHeaders.STREAM, String.class);
-		if (!StringUtils.hasText(stream) && this.streamExpression != null) {
-			stream = this.streamExpression.getValue(getEvaluationContext(), message, String.class);
-		}
-		Assert.state(stream != null,
-				"'stream' must not be null for sending a Kinesis record. "
-						+ "Consider configuring this handler with a 'stream'( or 'streamExpression') or supply an "
-						+ "'aws_stream' message header.");
-
-		String partitionKey = messageHeaders.get(AwsHeaders.PARTITION_KEY, String.class);
-		if (!StringUtils.hasText(partitionKey) && this.partitionKeyExpression != null) {
-			partitionKey = this.partitionKeyExpression.getValue(getEvaluationContext(), message, String.class);
-		}
-		Assert.state(partitionKey != null, "'partitionKey' must not be null for sending a Kinesis record. "
-				+ "Consider configuring this handler with a 'partitionKey'( or 'partitionKeyExpression') or supply an "
-				+ "'aws_partitionKey' message header.");
-
-		String explicitHashKey = (this.explicitHashKeyExpression != null
-				? this.explicitHashKeyExpression.getValue(getEvaluationContext(), message, String.class) : null);
-
-		String sequenceNumber = messageHeaders.get(AwsHeaders.SEQUENCE_NUMBER, String.class);
-		if (!StringUtils.hasText(sequenceNumber) && this.sequenceNumberExpression != null) {
-			sequenceNumber = this.sequenceNumberExpression.getValue(getEvaluationContext(), message, String.class);
-		}
-
 		Object payload = message.getPayload();
 
 		ByteBuffer data = null;
+		String sequenceNumber = null;
+		String stream;
+		String partitionKey;
+		String explicitHashKey;
 
-		Message<?> messageToEmbed = null;
-
-		if (payload instanceof ByteBuffer) {
-			data = (ByteBuffer) payload;
-			if (this.embeddedHeadersMapper != null) {
-				messageToEmbed = new MutableMessage<>(data.array(), messageHeaders);
-			}
+		if (payload instanceof UserRecord) {
+			UserRecord userRecord = (UserRecord) payload;
+			data = userRecord.getData();
+			stream = userRecord.getStreamName();
+			partitionKey = userRecord.getPartitionKey();
+			explicitHashKey = userRecord.getExplicitHashKey();
 		}
 		else {
-			byte[] bytes =
-					(byte[]) (payload instanceof byte[]
-							? payload
-							: this.messageConverter.fromMessage(message, byte[].class));
-			Assert.notNull(bytes, "payload cannot be null");
-			if (this.embeddedHeadersMapper != null) {
-				messageToEmbed = new MutableMessage<>(bytes, messageHeaders);
+			MessageHeaders messageHeaders = message.getHeaders();
+			stream = messageHeaders.get(AwsHeaders.STREAM, String.class);
+			if (!StringUtils.hasText(stream) && this.streamExpression != null) {
+				stream = this.streamExpression.getValue(getEvaluationContext(), message, String.class);
+			}
+			Assert.state(stream != null,
+					"'stream' must not be null for sending a Kinesis record. "
+							+ "Consider configuring this handler with a 'stream'( or 'streamExpression') or supply an "
+							+ "'aws_stream' message header.");
+
+			partitionKey = messageHeaders.get(AwsHeaders.PARTITION_KEY, String.class);
+			if (!StringUtils.hasText(partitionKey) && this.partitionKeyExpression != null) {
+				partitionKey = this.partitionKeyExpression.getValue(getEvaluationContext(), message, String.class);
+			}
+			Assert.state(partitionKey != null, "'partitionKey' must not be null for sending a Kinesis record. "
+					+ "Consider configuring this handler with a 'partitionKey'( or 'partitionKeyExpression') " +
+					"or supply an 'aws_partitionKey' message header.");
+
+			explicitHashKey = (this.explicitHashKeyExpression != null
+					? this.explicitHashKeyExpression.getValue(getEvaluationContext(), message, String.class) : null);
+
+			sequenceNumber = messageHeaders.get(AwsHeaders.SEQUENCE_NUMBER, String.class);
+			if (!StringUtils.hasText(sequenceNumber) && this.sequenceNumberExpression != null) {
+				sequenceNumber = this.sequenceNumberExpression.getValue(getEvaluationContext(), message, String.class);
+			}
+
+			Message<?> messageToEmbed = null;
+
+			if (payload instanceof ByteBuffer) {
+				data = (ByteBuffer) payload;
+				if (this.embeddedHeadersMapper != null) {
+					messageToEmbed = new MutableMessage<>(data.array(), messageHeaders);
+				}
 			}
 			else {
-				data = ByteBuffer.wrap(bytes);
-			}
-		}
-
-		if (messageToEmbed != null) {
-			try {
-				byte[] bytes = this.embeddedHeadersMapper.fromMessage(messageToEmbed);
+				byte[] bytes =
+						(byte[]) (payload instanceof byte[]
+								? payload
+								: this.messageConverter.fromMessage(message, byte[].class));
 				Assert.notNull(bytes, "payload cannot be null");
-				data = ByteBuffer.wrap(bytes);
+				if (this.embeddedHeadersMapper != null) {
+					messageToEmbed = new MutableMessage<>(bytes, messageHeaders);
+				}
+				else {
+					data = ByteBuffer.wrap(bytes);
+				}
 			}
-			catch (Exception ex) {
-				throw new MessageConversionException(message, "Cannot embedded headers to payload", ex);
+
+			if (messageToEmbed != null) {
+				try {
+					byte[] bytes = this.embeddedHeadersMapper.fromMessage(messageToEmbed);
+					Assert.notNull(bytes, "payload cannot be null");
+					data = ByteBuffer.wrap(bytes);
+				}
+				catch (Exception ex) {
+					throw new MessageConversionException(message, "Cannot embedded headers to payload", ex);
+				}
 			}
 		}
 
-		return new PutRecordRequest().withStreamName(stream).withPartitionKey(partitionKey)
-				.withExplicitHashKey(explicitHashKey).withSequenceNumberForOrdering(sequenceNumber).withData(data);
+		return new PutRecordRequest()
+				.withStreamName(stream)
+				.withPartitionKey(partitionKey)
+				.withExplicitHashKey(explicitHashKey)
+				.withSequenceNumberForOrdering(sequenceNumber)
+				.withData(data);
 	}
 
 	@Override
@@ -427,7 +486,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		Futures.addCallback(listenableFuture, new FutureCallback<T>() {
 
 			@Override
-			public void onSuccess(@Nullable T result) {
+			public void onSuccess(T result) {
 				completable.complete(result);
 			}
 
