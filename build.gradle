@@ -35,7 +35,7 @@ ext {
     localstackVersion = '0.2.20'
 	log4jVersion = '2.17.2'
 	springCloudAwsVersion = '2.4.0'
-	springIntegrationVersion = '5.5.11-SNAPSHOT'
+	springIntegrationVersion = '5.5.14'
 	kinesisClientVersion = '1.14.8'
 	kinesisProducerVersion = '0.14.12'
 
@@ -56,8 +56,7 @@ ext.javadocLinks = [
 ] as String[]
 
 compileJava {
-	sourceCompatibility = 1.8
-	targetCompatibility = 1.8
+	options.release = 8
 }
 
 java {
