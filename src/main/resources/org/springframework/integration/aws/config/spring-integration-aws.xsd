@@ -777,6 +777,14 @@
 							<xsd:union memberTypes="messageDeletionPolicy xsd:string"/>
 						</xsd:simpleType>
 					</xsd:attribute>
+					<xsd:attribute name="fail-on-missing-queue" type="xsd:boolean">
+						<xsd:annotation>
+							<xsd:documentation>
+								Configures that application should fail on startup if declared queue does not exist.
+								Default is to ignore missing queues.
+							</xsd:documentation>
+						</xsd:annotation>
+					</xsd:attribute>
 				</xsd:extension>
 			</xsd:complexContent>
 		</xsd:complexType>

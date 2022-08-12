@@ -105,6 +105,10 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		this.simpleMessageListenerContainerFactory.setDestinationResolver(destinationResolver);
 	}
 
+	public void setFailOnMissingQueue(boolean failOnMissingQueue) {
+		this.simpleMessageListenerContainerFactory.setFailOnMissingQueue(failOnMissingQueue);
+	}
+
 	public void setQueueStopTimeout(long queueStopTimeout) {
 		this.queueStopTimeout = queueStopTimeout;
 	}

@@ -80,6 +80,7 @@ public class SqsMessageDrivenChannelAdapterParser extends AbstractSingleBeanDefi
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "visibility-timeout");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "wait-time-out");
 		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "queue-stop-timeout");
+		IntegrationNamespaceUtils.setValueIfAttributeDefined(builder, element, "fail-on-missing-queue");
 	}
 
 }
