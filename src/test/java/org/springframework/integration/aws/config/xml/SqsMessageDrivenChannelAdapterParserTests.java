@@ -17,8 +17,8 @@
 package org.springframework.integration.aws.config.xml;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.BDDMockito.any;
+import static org.mockito.BDDMockito.given;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -30,12 +30,13 @@ import org.springframework.integration.aws.inbound.SqsMessageDrivenChannelAdapte
 import org.springframework.integration.channel.NullChannel;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.core.DestinationResolutionException;
 import org.springframework.messaging.core.DestinationResolver;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.amazonaws.services.sqs.model.GetQueueAttributesResult;
 import io.awspring.cloud.core.env.ResourceIdResolver;
 import io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer;
 import io.awspring.cloud.messaging.listener.SqsMessageDeletionPolicy;
@@ -70,10 +71,10 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 	private SqsMessageDrivenChannelAdapter sqsMessageDrivenChannelAdapter;
 
 	@Bean
-	DestinationResolver<?> destinationResolver() {
-		DestinationResolver<?> destinationResolver = Mockito.mock(DestinationResolver.class);
-		willThrow(DestinationResolutionException.class).given(destinationResolver).resolveDestination(anyString());
-		return destinationResolver;
+	AmazonSQSAsync sqs() {
+		AmazonSQSAsync sqs = Mockito.mock(AmazonSQSAsync.class);
+		given(sqs.getQueueAttributes(any())).willReturn(new GetQueueAttributesResult());
+		return sqs;
 	}
 
 	@Test
@@ -87,11 +88,13 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(listenerContainer, "destinationResolver"))
 				.isSameAs(this.destinationResolver);
 		assertThat(listenerContainer.isRunning()).isFalse();
-		assertThat(TestUtils.getPropertyValue(listenerContainer, "maxNumberOfMessages")).isEqualTo(5);
-		assertThat(TestUtils.getPropertyValue(listenerContainer, "visibilityTimeout")).isEqualTo(200);
-		assertThat(TestUtils.getPropertyValue(listenerContainer, "waitTimeOut")).isEqualTo(40);
-		assertThat(TestUtils.getPropertyValue(listenerContainer, "queueStopTimeout")).isEqualTo(11000L);
-		assertThat(TestUtils.getPropertyValue(listenerContainer, "autoStartup")).isEqualTo(false);
+		assertThat(listenerContainer)
+				.hasFieldOrPropertyWithValue("maxNumberOfMessages", 5)
+				.hasFieldOrPropertyWithValue("visibilityTimeout", 200)
+				.hasFieldOrPropertyWithValue("waitTimeOut", 40)
+				.hasFieldOrPropertyWithValue("queueStopTimeout", 11000L)
+				.hasFieldOrPropertyWithValue("autoStartup", false)
+				.hasFieldOrPropertyWithValue("failOnMissingQueue", true);
 
 		assertThat(this.sqsMessageDrivenChannelAdapter.getPhase()).isEqualTo(100);
 		assertThat(this.sqsMessageDrivenChannelAdapter.isAutoStartup()).isFalse();
@@ -100,10 +103,9 @@ public class SqsMessageDrivenChannelAdapterParserTests {
 				.isSameAs(this.errorChannel);
 		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "errorChannel"))
 				.isSameAs(this.nullChannel);
-		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messagingTemplate.sendTimeout"))
-				.isEqualTo(2000L);
-		assertThat(TestUtils.getPropertyValue(this.sqsMessageDrivenChannelAdapter, "messageDeletionPolicy",
-				SqsMessageDeletionPolicy.class)).isEqualTo(SqsMessageDeletionPolicy.NEVER);
+		assertThat(this.sqsMessageDrivenChannelAdapter)
+				.hasFieldOrPropertyWithValue("messagingTemplate.sendTimeout", 2000L)
+				.hasFieldOrPropertyWithValue("messageDeletionPolicy", SqsMessageDeletionPolicy.NEVER);
 	}
 
 }
