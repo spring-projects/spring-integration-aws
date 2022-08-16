@@ -7,14 +7,16 @@
 	   http://www.springframework.org/schema/integration/aws https://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd
 	   http://www.springframework.org/schema/cloud/aws/messaging https://www.springframework.org/schema/cloud/aws/messaging/spring-cloud-aws-messaging.xsd">
 
-	<aws-messaging:sqs-async-client id="sqs"/>
-
 	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
 		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver"/>
 	</bean>
 
 	<bean id="taskExecutor" class="org.mockito.Mockito" factory-method="mock">
 		<constructor-arg value="org.springframework.core.task.AsyncTaskExecutor"/>
+	</bean>
+
+	<bean id="destinationResolver" class="org.mockito.Mockito" factory-method="mock">
+		<constructor-arg value="org.springframework.messaging.core.DestinationResolver"/>
 	</bean>
 
 	<bean class="org.springframework.integration.aws.config.xml.SqsMessageDrivenChannelAdapterParserTests"/>
@@ -34,6 +36,7 @@
 										  send-timeout="2000"
 										  queue-stop-timeout="11000"
 										  destination-resolver="destinationResolver"
-										  resource-id-resolver="resourceIdResolver"/>
+										  resource-id-resolver="resourceIdResolver"
+										  fail-on-missing-queue="true"/>
 
 </beans>
