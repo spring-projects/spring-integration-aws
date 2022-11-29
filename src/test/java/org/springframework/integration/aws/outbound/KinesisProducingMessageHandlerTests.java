@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,14 +86,14 @@ public class KinesisProducingMessageHandlerTests {
 		assertThatExceptionOfType(MessageHandlingException.class)
 				.isThrownBy(() -> this.kinesisSendChannel.send(message))
 				.withCauseInstanceOf(IllegalStateException.class)
-				.withMessageContaining("'stream' must not be null for sending a Kinesis record");
+				.withStackTraceContaining("'stream' must not be null for sending a Kinesis record");
 
 		this.kinesisMessageHandler.setStream("foo");
 
 		assertThatExceptionOfType(MessageHandlingException.class)
 				.isThrownBy(() -> this.kinesisSendChannel.send(message))
 				.withCauseInstanceOf(IllegalStateException.class)
-				.withMessageContaining("'partitionKey' must not be null for sending a Kinesis record");
+				.withStackTraceContaining("'partitionKey' must not be null for sending a Kinesis record");
 
 		Message<?> message2 = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
 				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();

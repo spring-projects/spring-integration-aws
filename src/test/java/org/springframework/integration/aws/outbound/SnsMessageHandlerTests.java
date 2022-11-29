@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -43,7 +44,6 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.PollableChannel;
-import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
@@ -60,7 +60,7 @@ import com.amazonaws.services.sns.model.PublishResult;
 @DirtiesContext
 public class SnsMessageHandlerTests {
 
-	private static SpelExpressionParser PARSER = new SpelExpressionParser();
+	private static final SpelExpressionParser PARSER = new SpelExpressionParser();
 
 	@Autowired
 	private MessageChannel sendToSnsChannel;
@@ -120,7 +120,7 @@ public class SnsMessageHandlerTests {
 				PublishResult publishResult = new PublishResult().withMessageId("111");
 				AsyncHandler<PublishRequest, PublishResult> asyncHandler = invocation.getArgument(1);
 				asyncHandler.onSuccess(invocation.getArgument(0), publishResult);
-				return new AsyncResult<>(publishResult);
+				return CompletableFuture.completedFuture(publishResult);
 			}).given(mock).publishAsync(any(PublishRequest.class), any(AsyncHandler.class));
 
 			return mock;

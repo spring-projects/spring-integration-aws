@@ -151,7 +151,7 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 					LocalstackContainerTest.LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH);
 
 			return new KinesisProducerConfiguration()
-					.setCredentialsProvider(LocalstackContainerTest.LOCAL_STACK_CONTAINER.getDefaultCredentialsProvider())
+					.setCredentialsProvider(LocalstackContainerTest.credentialsProvider())
 					.setRegion(LocalstackContainerTest.LOCAL_STACK_CONTAINER.getRegion())
 					.setKinesisEndpoint(kinesisUri.getHost())
 					.setKinesisPort(kinesisUri.getPort())
@@ -175,7 +175,7 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 			KclMessageDrivenChannelAdapter adapter =
 					new KclMessageDrivenChannelAdapter(
 							TEST_STREAM, AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB,
-							LocalstackContainerTest.LOCAL_STACK_CONTAINER.getDefaultCredentialsProvider());
+							LocalstackContainerTest.credentialsProvider());
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());

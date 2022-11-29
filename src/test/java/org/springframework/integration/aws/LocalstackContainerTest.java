@@ -21,6 +21,9 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
@@ -37,7 +40,6 @@ import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
  * started only once per JVM, therefore the target Docker container is reused automatically.
  *
  * @author Artem Bilan
- *
  * @since 3.0
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -45,7 +47,7 @@ public interface LocalstackContainerTest {
 
 	LocalStackContainer LOCAL_STACK_CONTAINER =
 			new LocalStackContainer(
-					DockerImageName.parse("localstack/localstack:0.14.2"))
+					DockerImageName.parse("localstack/localstack:1.2.0"))
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
@@ -68,11 +70,21 @@ public interface LocalstackContainerTest {
 		return applyAwsClientOptions(AmazonCloudWatchClientBuilder.standard(), LocalStackContainer.Service.CLOUDWATCH);
 	}
 
+	static AWSCredentialsProvider credentialsProvider() {
+		return new AWSStaticCredentialsProvider(
+				new BasicAWSCredentials(
+						LOCAL_STACK_CONTAINER.getAccessKey(),
+						LOCAL_STACK_CONTAINER.getSecretKey()));
+	}
+
 	private static <B extends AwsClientBuilder<B, T>, T> T applyAwsClientOptions(B clientBuilder,
 			LocalStackContainer.Service serviceToBuild) {
 
-		return clientBuilder.withEndpointConfiguration(LOCAL_STACK_CONTAINER.getEndpointConfiguration(serviceToBuild))
-				.withCredentials(LOCAL_STACK_CONTAINER.getDefaultCredentialsProvider())
+		return clientBuilder.withEndpointConfiguration(
+						new AwsClientBuilder.EndpointConfiguration(
+								LOCAL_STACK_CONTAINER.getEndpointOverride(serviceToBuild).toString(),
+								LOCAL_STACK_CONTAINER.getRegion()))
+				.withCredentials(credentialsProvider())
 				.build();
 	}
 

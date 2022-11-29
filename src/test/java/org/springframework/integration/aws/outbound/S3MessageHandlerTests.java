@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,7 +200,7 @@ public class S3MessageHandlerTests {
 
 		assertThatThrownBy(() -> this.s3SendChannel.send(message))
 				.hasCauseExactlyInstanceOf(IllegalStateException.class)
-				.hasMessageContaining("Specify a 'keyExpression' for non-java.io.File payloads");
+				.hasStackTraceContaining("Specify a 'keyExpression' for non-java.io.File payloads");
 
 		this.s3MessageHandler.setKeyExpression(actualKeyExpression);
 
