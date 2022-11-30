@@ -974,6 +974,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 														.amazonKinesis
 														.getShardIterator(shardIteratorRequest)
 														.getShardIterator();
+										if (this.shardIterator == null) {
+											// The shard is closed - stop consumer
+											this.state = ConsumerState.STOP;
+										}
 										if (ConsumerState.STOP != this.state) {
 											this.state = ConsumerState.CONSUME;
 										}
