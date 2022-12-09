@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.springframework.integration.config.xml.IntegrationNamespaceUtils;
  * The parser for the {@code <int-aws:sns-outbound-channel-adapter>}.
  *
  * @author Artem Bilan
+ * @author Christopher Smith
  */
 public class SnsOutboundChannelAdapterParser extends AbstractOutboundChannelAdapterParser {
 
@@ -42,6 +43,8 @@ public class SnsOutboundChannelAdapterParser extends AbstractOutboundChannelAdap
 
 		AwsParserUtils.populateExpressionAttribute("topic-arn", builder, element, parserContext);
 		AwsParserUtils.populateExpressionAttribute("subject", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("message-group-id", builder, element, parserContext);
+		AwsParserUtils.populateExpressionAttribute("message-deduplication-id", builder, element, parserContext);
 
 		BeanDefinition message = IntegrationNamespaceUtils.createExpressionDefIfAttributeDefined("body-expression",
 				element);

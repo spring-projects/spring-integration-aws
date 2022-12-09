@@ -55,6 +55,7 @@ import com.amazonaws.services.sns.model.PublishResult;
 
 /**
  * @author Artem Bilan
+ * @author Christopher Smith
  */
 @SpringJUnitConfig
 @DirtiesContext
@@ -92,6 +93,8 @@ public class SnsMessageHandlerTests {
 		assertThat(publishRequest.getMessageStructure()).isEqualTo("json");
 		assertThat(publishRequest.getTopicArn()).isEqualTo("topic");
 		assertThat(publishRequest.getSubject()).isEqualTo("subject");
+		assertThat(publishRequest.getMessageGroupId()).isEqualTo("SUBJECT");
+		assertThat(publishRequest.getMessageDeduplicationId()).isEqualTo("BAR");
 		assertThat(publishRequest.getMessage())
 				.isEqualTo("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}");
 
@@ -136,6 +139,8 @@ public class SnsMessageHandlerTests {
 		public MessageHandler snsMessageHandler() {
 			SnsMessageHandler snsMessageHandler = new SnsMessageHandler(amazonSNS());
 			snsMessageHandler.setTopicArnExpression(PARSER.parseExpression("headers.topic"));
+			snsMessageHandler.setMessageGroupIdExpression(PARSER.parseExpression("headers.subject.toUpperCase()"));
+			snsMessageHandler.setMessageDeduplicationIdExpression(PARSER.parseExpression("headers.foo.toUpperCase()"));
 			snsMessageHandler.setSubjectExpression(PARSER.parseExpression("headers.subject"));
 			snsMessageHandler.setBodyExpression(PARSER.parseExpression("payload"));
 			snsMessageHandler.setOutputChannel(resultChannel());

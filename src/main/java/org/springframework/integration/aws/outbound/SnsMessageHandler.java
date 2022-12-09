@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import org.springframework.core.log.LogMessage;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
 import org.springframework.expression.common.LiteralExpression;
@@ -71,6 +72,8 @@ import io.awspring.cloud.core.env.ResourceIdResolver;
  * </ul>
  *
  * @author Artem Bilan
+ * @author Christopher Smith
+ *
  * @see AmazonSNSAsync
  * @see PublishRequest
  * @see SnsBodyBuilder
@@ -82,6 +85,10 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	private Expression topicArnExpression;
 
 	private Expression subjectExpression;
+
+	private Expression messageGroupIdExpression;
+
+	private Expression messageDeduplicationIdExpression;
 
 	private Expression bodyExpression;
 
@@ -114,9 +121,50 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	}
 
 	/**
+	 * A fixed message-group ID to be set for messages sent to an SNS FIFO topic
+	 * from this handler.
+	 * Equivalent to calling {{@link #setMessageGroupIdExpression(Expression)} with
+	 * a literal string expression.
+	 * @param messageGroupId the group ID to be used for all messages sent from this handler
+	 * @since 2.5.3
+	 */
+	public void setMessageGroupId(String messageGroupId) {
+		Assert.hasText(messageGroupId, "messageGroupId must not be empty.");
+		this.messageGroupIdExpression = new LiteralExpression(messageGroupId);
+	}
+
+
+	/**
+	 * The {@link Expression} to determine the
+	 * <a href="https://docs.aws.amazon.com/sns/latest/dg/fifo-message-grouping.html">message group</a>
+	 * for messages sent to an SNS FIFO topic from this handler.
+	 * @param messageGroupIdExpression the {@link Expression} to produce the message-group ID
+	 * @since 2.5.3
+	 */
+	public void setMessageGroupIdExpression(Expression messageGroupIdExpression) {
+		Assert.notNull(messageGroupIdExpression, "messageGroupIdExpression must not be null.");
+		this.messageGroupIdExpression = messageGroupIdExpression;
+	}
+
+	/**
+	 * The {@link Expression} to determine the deduplication ID for this message.
+	 * SNS FIFO topics
+	 * <a href="https://docs.aws.amazon.com/sns/latest/dg/fifo-message-dedup.html">require a message deduplication ID to be specified</a>,
+	 * either in the adapter configuration or on a {@link PublishRequest} payload
+	 * of the request {@link Message}, unless content-based deduplication is enabled
+	 * on the topic.
+	 * @param messageDeduplicationIdExpression the {@link Expression} to produce the message deduplication ID
+	 * @since 2.5.3
+	 */
+	public void setMessageDeduplicationIdExpression(Expression messageDeduplicationIdExpression) {
+		Assert.notNull(messageDeduplicationIdExpression, "messageDeduplicationIdExpression must not be null.");
+		this.messageDeduplicationIdExpression = messageDeduplicationIdExpression;
+	}
+
+	/**
 	 * The {@link Expression} to produce the SNS notification message. If it evaluates to
 	 * the {@link SnsBodyBuilder} the {@code messageStructure} of the
-	 * {@link PublishRequest} is set to {@code json}. Otherwise the
+	 * {@link PublishRequest} is set to {@code json}. Otherwise, the
 	 * {@link #getConversionService()} is used to convert the evaluation result to the
 	 * {@link String} without setting the {@code messageStructure}.
 	 * @param bodyExpression the {@link Expression} to produce the SNS notification
@@ -170,6 +218,25 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 			if (this.subjectExpression != null) {
 				String subject = this.subjectExpression.getValue(getEvaluationContext(), message, String.class);
 				publishRequest.setSubject(subject);
+			}
+
+			if (this.messageGroupIdExpression != null) {
+				if (!topicArn.endsWith(".fifo")) {
+					logger.warn(LogMessage.format("a messageGroupId will be set for non-FIFO topic '%s'", topicArn));
+				}
+				String messageGroupId =
+						this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
+				publishRequest.setMessageGroupId(messageGroupId);
+			}
+
+			if (this.messageDeduplicationIdExpression != null) {
+				if (!topicArn.endsWith(".fifo")) {
+					logger.warn(
+							LogMessage.format("a messageDeduplicationId will be set for non-FIFO topic '%s'", topicArn));
+				}
+				String messageDeduplicationId =
+						this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
+				publishRequest.setMessageDeduplicationId(messageDeduplicationId);
 			}
 
 			Object snsMessage = message.getPayload();
