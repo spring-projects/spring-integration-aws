@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import org.springframework.core.log.LogMessage;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
 import org.springframework.expression.common.LiteralExpression;
@@ -38,6 +39,7 @@ import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.model.MessageAttributeValue;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
+
 import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
@@ -71,6 +73,7 @@ import io.awspring.cloud.core.env.ResourceIdResolver;
  * </ul>
  *
  * @author Artem Bilan
+ * @author Christopher Smith
  * @see AmazonSNSAsync
  * @see PublishRequest
  * @see SnsBodyBuilder
@@ -82,6 +85,10 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	private Expression topicArnExpression;
 
 	private Expression subjectExpression;
+
+	private Expression messageGroupIdExpression;
+
+	private Expression messageDeduplicationIdExpression;
 
 	private Expression bodyExpression;
 
@@ -111,6 +118,21 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	public void setSubjectExpression(Expression subjectExpression) {
 		Assert.notNull(subjectExpression, "subjectExpression must not be null.");
 		this.subjectExpression = subjectExpression;
+	}
+
+	public void setMessageGroupId(String messageGroupId) {
+	    Assert.hasText(messageGroupId, "messageGroupId must not be empty.");
+	    this.messageGroupIdExpression = new LiteralExpression(messageGroupId);
+	}
+
+	public void setMessageGroupIdExpression(Expression messageGroupIdExpression) {
+	    Assert.notNull(messageGroupIdExpression, "messageGroupIdExpression must not be null.");
+	    this.messageGroupIdExpression = messageGroupIdExpression;
+	}
+
+	public void setMessageDeduplicationIdExpression(Expression messageDeduplicationIdExpression) {
+	    Assert.notNull(messageDeduplicationIdExpression, "messageDeduplicationIdExpression must not be null.");
+		this.messageDeduplicationIdExpression = messageDeduplicationIdExpression;
 	}
 
 	/**
@@ -170,6 +192,22 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 			if (this.subjectExpression != null) {
 				String subject = this.subjectExpression.getValue(getEvaluationContext(), message, String.class);
 				publishRequest.setSubject(subject);
+			}
+
+			if (this.messageGroupIdExpression != null) {
+				if (!topicArn.endsWith(".fifo")) {
+					logger.warn(LogMessage.format("a messageGroupId will be set for non-FIFO topic '%s'", topicArn));
+				}
+				String messageGroupId = this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
+				publishRequest.setMessageGroupId(messageGroupId);
+			}
+
+			if (this.messageDeduplicationIdExpression != null) {
+				if (!topicArn.endsWith(".fifo")) {
+					logger.warn(LogMessage.format("a messageDeduplicationId will be set for non-FIFO topic '%s'", topicArn));
+				}
+				String messageDeduplicationId = this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
+				publishRequest.setMessageDeduplicationId(messageDeduplicationId);
 			}
 
 			Object snsMessage = message.getPayload();

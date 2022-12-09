@@ -985,6 +985,39 @@
 				</xsd:documentation>
 			</xsd:annotation>
 		</xsd:attribute>
+		<xsd:attribute name="message-group-id">
+			<xsd:annotation>
+				<xsd:documentation>
+					The message group ID.
+					Mutually exclusive with 'message-group-id-expression'.
+					SNS FIFO topics require a message group to be specified, either in
+					the adapter configuration or on a 'PublishRequest' payload
+					of the request Message.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="message-group-id-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					The SpEL expression for the message group ID.
+					Mutually exclusive with 'message-group-id'.
+					SNS FIFO topics require a message group to be specified, either in
+					the adapter configuration or on a 'PublishRequest' payload
+					of the request Message.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="message-deduplication-id-expression">
+			<xsd:annotation>
+				<xsd:documentation>
+					The SpEL expression for the message deduplication ID.
+					SNS FIFO topics require a message deduplication ID to be specified, either in
+					the adapter configuration or on a 'PublishRequest' payload
+					of the request Message, unless content-based deduplication is enabled
+					on the topic.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
 		<xsd:attribute name="body-expression">
 			<xsd:annotation>
 				<xsd:documentation>

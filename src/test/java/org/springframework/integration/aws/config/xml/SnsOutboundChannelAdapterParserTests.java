@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * @author Artem Bilan
+ * @author Christopher Smith
  */
 @SpringJUnitConfig
 @DirtiesContext
@@ -79,6 +80,8 @@ class SnsOutboundChannelAdapterParserTests {
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "amazonSns")).isSameAs(this.amazonSns);
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "evaluationContext")).isNotNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "topicArnExpression")).isNull();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "messageGroupIdExpression")).isNull();
+		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "messageDeduplicationIdExpression")).isNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "subjectExpression")).isNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "bodyExpression")).isNull();
 		assertThat(TestUtils.getPropertyValue(this.defaultAdapterHandler, "resourceIdResolver"))
