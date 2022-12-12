@@ -125,9 +125,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	 * from this handler.
 	 * Equivalent to calling {{@link #setMessageGroupIdExpression(Expression)} with
 	 * a literal string expression.
-	 *
 	 * @param messageGroupId the group ID to be used for all messages sent from this handler
-	 *
 	 * @since 2.5.3
 	 */
 	public void setMessageGroupId(String messageGroupId) {
@@ -140,9 +138,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	 * The {@link Expression} to determine the
 	 * <a href="https://docs.aws.amazon.com/sns/latest/dg/fifo-message-grouping.html">message group</a>
 	 * for messages sent to an SNS FIFO topic from this handler.
-	 *
 	 * @param messageGroupIdExpression the {@link Expression} to produce the message-group ID
-	 *
 	 * @since 2.5.3
 	 */
 	public void setMessageGroupIdExpression(Expression messageGroupIdExpression) {
@@ -157,9 +153,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	 * either in the adapter configuration or on a {@link PublishRequest} payload
 	 * of the request {@link Message}, unless content-based deduplication is enabled
 	 * on the topic.
-	 *
 	 * @param messageDeduplicationIdExpression the {@link Expression} to produce the message deduplication ID
-	 *
 	 * @since 2.5.3
 	 */
 	public void setMessageDeduplicationIdExpression(Expression messageDeduplicationIdExpression) {
