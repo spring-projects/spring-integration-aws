@@ -39,7 +39,6 @@ import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.model.MessageAttributeValue;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
-
 import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
@@ -74,6 +73,7 @@ import io.awspring.cloud.core.env.ResourceIdResolver;
  *
  * @author Artem Bilan
  * @author Christopher Smith
+ *
  * @see AmazonSNSAsync
  * @see PublishRequest
  * @see SnsBodyBuilder
@@ -120,18 +120,50 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		this.subjectExpression = subjectExpression;
 	}
 
+	/**
+	 * A fixed message-group ID to be set for messages sent to an SNS FIFO topic
+	 * from this handler.
+	 * Equivalent to calling {{@link #setMessageGroupIdExpression(Expression)} with
+	 * a literal string expression.
+	 *
+	 * @param messageGroupId the group ID to be used for all messages sent from this handler
+	 *
+	 * @since 2.5.3
+	 */
 	public void setMessageGroupId(String messageGroupId) {
-	    Assert.hasText(messageGroupId, "messageGroupId must not be empty.");
-	    this.messageGroupIdExpression = new LiteralExpression(messageGroupId);
+		Assert.hasText(messageGroupId, "messageGroupId must not be empty.");
+		this.messageGroupIdExpression = new LiteralExpression(messageGroupId);
 	}
 
+
+	/**
+	 * The {@link Expression} to determine the
+	 * <a href="https://docs.aws.amazon.com/sns/latest/dg/fifo-message-grouping.html">message group</a>
+	 * for messages sent to an SNS FIFO topic from this handler.
+	 *
+	 * @param messageGroupIdExpression the {@link Expression} to produce the message-group ID
+	 *
+	 * @since 2.5.3
+	 */
 	public void setMessageGroupIdExpression(Expression messageGroupIdExpression) {
-	    Assert.notNull(messageGroupIdExpression, "messageGroupIdExpression must not be null.");
-	    this.messageGroupIdExpression = messageGroupIdExpression;
+		Assert.notNull(messageGroupIdExpression, "messageGroupIdExpression must not be null.");
+		this.messageGroupIdExpression = messageGroupIdExpression;
 	}
 
+	/**
+	 * The {@link Expression} to determine the deduplication ID for this message.
+	 * SNS FIFO topics
+	 * <a href="https://docs.aws.amazon.com/sns/latest/dg/fifo-message-dedup.html">require a message deduplication ID to be specified</a>,
+	 * either in the adapter configuration or on a {@link PublishRequest} payload
+	 * of the request {@link Message}, unless content-based deduplication is enabled
+	 * on the topic.
+	 *
+	 * @param messageDeduplicationIdExpression the {@link Expression} to produce the message deduplication ID
+	 *
+	 * @since 2.5.3
+	 */
 	public void setMessageDeduplicationIdExpression(Expression messageDeduplicationIdExpression) {
-	    Assert.notNull(messageDeduplicationIdExpression, "messageDeduplicationIdExpression must not be null.");
+		Assert.notNull(messageDeduplicationIdExpression, "messageDeduplicationIdExpression must not be null.");
 		this.messageDeduplicationIdExpression = messageDeduplicationIdExpression;
 	}
 
