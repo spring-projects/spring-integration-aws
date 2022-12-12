@@ -462,8 +462,8 @@ The XML variant may look like:
 			channel="notificationChannel"
 			topic-arn="foo"
 			subject="bar"
-      message-group-id="foo-messages"
-      message-deduplication-id-expression="headers.id"
+			message-group-id="foo-messages"
+			message-deduplication-id-expression="headers.id"
 			body-expression="payload.toUpperCase()"/>
 ````
 
