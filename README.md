@@ -437,9 +437,14 @@ The Java Config looks like:
 @Bean
 public MessageHandler snsMessageHandler() {
     SnsMessageHandler handler = new SnsMessageHandler(amazonSns());
-    adapter.setTopicArn("arn:aws:sns:eu-west:123456789012:test);
+    adapter.setTopicArn("arn:aws:sns:eu-west:123456789012:test");
     String bodyExpression = "SnsBodyBuilder.withDefault(payload).forProtocols(payload.substring(0, 140), 'sms')";
     handler.setBodyExpression(spelExpressionParser.parseExpression(bodyExpression));
+
+    // message-group ID and deduplication ID are used for FIFO topics
+    handler.setMessageGroupId("foo-messages");
+    String deduplicationExpression = "headers.id";
+    handler.setMessageDeduplicationIdExpression(spelExpressionParser.parseExpression(deduplicationExpression))''
     return handler;
 }
 ````
@@ -457,11 +462,16 @@ The XML variant may look like:
 			channel="notificationChannel"
 			topic-arn="foo"
 			subject="bar"
+      message-group-id="foo-messages"
+      message-deduplication-id-expression="headers.id"
 			body-expression="payload.toUpperCase()"/>
 ````
 
 Starting with _version 2.0_, the `SnsMessageHandler` can be configured with the `HeaderMapper` to map message headers to the SNS message attributes.
 See `SnsHeaderMapper` implementation for more information and also consult with [Amazon SNS Message Attributes][] about value types and restrictions.   
+
+Starting with _version 2.5.3_, the `SnsMessageHandler` supports sending to SNS FIFO topics using the `messageGroupId`/`messageGroupIdExpression`
+and `messageDeduplicationIdExpression` properties.
 
 ## Metadata Store for Amazon DynamoDB
 
