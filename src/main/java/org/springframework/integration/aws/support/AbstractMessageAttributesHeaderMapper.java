@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 the original author or authors.
+ * Copyright 2018-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.support.utils.PatternMatchUtils;
 import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.support.NativeMessageHeaderAccessor;
 import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 import org.springframework.util.NumberUtils;
@@ -41,14 +42,22 @@ import io.awspring.cloud.messaging.core.MessageAttributeDataTypes;
  *
  * @param <A> the target message attribute type.
  * @author Artem Bilan
+ * @author Christopher Smith
  * @since 2.0
  */
 public abstract class AbstractMessageAttributesHeaderMapper<A> implements HeaderMapper<Map<String, A>> {
 
 	private static final Log logger = LogFactory.getLog(SqsHeaderMapper.class);
 
-	private volatile String[] outboundHeaderNames = {"!" + MessageHeaders.ID, "!" + MessageHeaders.TIMESTAMP,
-			"!" + AwsHeaders.MESSAGE_ID, "!" + AwsHeaders.QUEUE, "!" + AwsHeaders.TOPIC, "*"};
+	private volatile String[] outboundHeaderNames = {
+			"!" + MessageHeaders.ID,
+			"!" + MessageHeaders.TIMESTAMP,
+			"!" + NativeMessageHeaderAccessor.NATIVE_HEADERS,
+			"!" + AwsHeaders.MESSAGE_ID,
+			"!" + AwsHeaders.QUEUE,
+			"!" + AwsHeaders.TOPIC,
+			"*",
+	};
 
 	/**
 	 * Provide the header names that should be mapped to a AWS request object attributes
@@ -58,8 +67,10 @@ public abstract class AbstractMessageAttributesHeaderMapper<A> implements Header
 	 * the names starting with {@code !} symbol, you have to escape it prepending with the
 	 * {@code \} symbol in the pattern definition. Defaults to map all ({@code *}) if the
 	 * type is supported by SQS. The {@link MessageHeaders#ID},
-	 * {@link MessageHeaders#TIMESTAMP}, {@link AwsHeaders#MESSAGE_ID},
-	 * {@link AwsHeaders#QUEUE} and {@link AwsHeaders#TOPIC} are ignored by default.
+	 * {@link MessageHeaders#TIMESTAMP},
+	 * {@link NativeMessageHeaderAccessor.NATIVE_HEADERS},
+	 * {@link AwsHeaders#MESSAGE_ID}, {@link AwsHeaders#QUEUE}, and
+	 * {@link AwsHeaders#TOPIC} are ignored by default.
 	 * @param outboundHeaderNames The inbound header names.
 	 */
 	public void setOutboundHeaderNames(String... outboundHeaderNames) {
