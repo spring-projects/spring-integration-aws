@@ -6,8 +6,8 @@ plugins {
 	id 'org.sonarqube' version '3.1.1'
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '4.1.1'
-	id "io.spring.dependency-management" version '1.0.11.RELEASE'
-	id 'com.jfrog.artifactory' version '4.28.0'
+	id "io.spring.dependency-management" version '1.0.13.RELEASE'
+	id 'com.jfrog.artifactory' version '4.29.0'
 }
 
 description = 'Spring Integration AWS Support'
@@ -26,18 +26,18 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.22.0'
+	assertjVersion = '3.23.1'
 	awaitilityVersion = '4.2.0'
 	dynamodbLockClientVersion = '1.1.0'
-	jacksonVersion = '2.13.2'
+	jacksonVersion = '2.13.4'
 	junitVersion = '5.8.2'
 	servletApiVersion = '4.0.1'
 	localstackVersion = '0.2.20'
 	log4jVersion = '2.17.2'
 	springCloudAwsVersion = '2.4.2'
-	springIntegrationVersion = '5.5.14'
-	kinesisClientVersion = '1.14.8'
-	kinesisProducerVersion = '0.14.12'
+	springIntegrationVersion = '5.5.16'
+	kinesisClientVersion = '1.14.9'
+	kinesisProducerVersion = '0.14.13'
 
 	idPrefix = 'aws'
 
