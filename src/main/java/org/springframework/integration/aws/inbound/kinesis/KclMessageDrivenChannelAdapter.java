@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,24 +24,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
-
-import org.springframework.core.AttributeAccessor;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.core.serializer.support.DeserializingConverter;
-import org.springframework.core.task.SimpleAsyncTaskExecutor;
-import org.springframework.core.task.TaskExecutor;
-import org.springframework.core.task.support.ExecutorServiceAdapter;
-import org.springframework.integration.IntegrationMessageHeaderAccessor;
-import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.endpoint.MessageProducerSupport;
-import org.springframework.integration.mapping.InboundMessageMapper;
-import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
-import org.springframework.integration.support.ErrorMessageStrategy;
-import org.springframework.integration.support.ErrorMessageUtils;
-import org.springframework.integration.support.management.IntegrationManagedResource;
-import org.springframework.jmx.export.annotation.ManagedResource;
-import org.springframework.messaging.Message;
-import org.springframework.util.Assert;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -68,6 +50,24 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.SimpleRecordsFetcherFactory;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import com.amazonaws.services.kinesis.model.Record;
+
+import org.springframework.core.AttributeAccessor;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.serializer.support.DeserializingConverter;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.support.ExecutorServiceAdapter;
+import org.springframework.integration.IntegrationMessageHeaderAccessor;
+import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.endpoint.MessageProducerSupport;
+import org.springframework.integration.mapping.InboundMessageMapper;
+import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
+import org.springframework.integration.support.ErrorMessageStrategy;
+import org.springframework.integration.support.ErrorMessageUtils;
+import org.springframework.integration.support.management.IntegrationManagedResource;
+import org.springframework.jmx.export.annotation.ManagedResource;
+import org.springframework.messaging.Message;
+import org.springframework.util.Assert;
 
 /**
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon

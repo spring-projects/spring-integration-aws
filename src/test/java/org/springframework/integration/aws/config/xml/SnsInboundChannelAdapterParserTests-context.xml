@@ -6,7 +6,7 @@
 	   http://www.springframework.org/schema/integration/aws https://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd">
 
 	<bean id="amazonSns" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="com.amazonaws.services.sns.AmazonSNS"/>
+		<constructor-arg value="com.amazonaws.services.sns.AmazonSNS" type="java.lang.Class"/>
 	</bean>
 
 	<int-aws:sns-inbound-channel-adapter sns="amazonSns"

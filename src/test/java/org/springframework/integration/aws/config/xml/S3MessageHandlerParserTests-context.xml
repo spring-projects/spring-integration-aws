@@ -6,19 +6,21 @@
 	   http://www.springframework.org/schema/integration/aws https://www.springframework.org/schema/integration/aws/spring-integration-aws.xsd">
 
 	<bean id="s3" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="com.amazonaws.services.s3.AmazonS3"/>
+		<constructor-arg value="com.amazonaws.services.s3.AmazonS3" type="java.lang.Class"/>
 	</bean>
 
 	<bean id="s3ProgressListener" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="com.amazonaws.services.s3.transfer.internal.S3ProgressListener"/>
+		<constructor-arg value="com.amazonaws.services.s3.transfer.internal.S3ProgressListener"
+						 type="java.lang.Class"/>
 	</bean>
 
 	<bean id="uploadMetadataProvider" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="org.springframework.integration.aws.outbound.S3MessageHandler$UploadMetadataProvider"/>
+		<constructor-arg value="org.springframework.integration.aws.outbound.S3MessageHandler$UploadMetadataProvider"
+						 type="java.lang.Class"/>
 	</bean>
 
 	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver" />
+		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver" type="java.lang.Class"/>
 	</bean>
 
 	<int-aws:s3-outbound-channel-adapter s3="s3"

@@ -8,7 +8,7 @@
 	   http://www.springframework.org/schema/integration https://www.springframework.org/schema/integration/spring-integration.xsd">
 
 	<bean id="s3" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="com.amazonaws.services.s3.AmazonS3"/>
+		<constructor-arg value="com.amazonaws.services.s3.AmazonS3" type="java.lang.Class"/>
 	</bean>
 
 	<bean id="s3SessionFactory" class="org.springframework.integration.aws.support.S3SessionFactory">
@@ -16,7 +16,7 @@
 	</bean>
 
 	<bean id="comparator" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="java.util.Comparator"/>
+		<constructor-arg value="java.util.Comparator" type="java.lang.Class"/>
 	</bean>
 
 	<int:channel id="s3Channel">

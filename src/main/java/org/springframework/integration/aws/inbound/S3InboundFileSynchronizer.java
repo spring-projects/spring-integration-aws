@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,9 @@ package org.springframework.integration.aws.inbound;
 import java.io.File;
 import java.io.IOException;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.S3Session;
@@ -29,9 +32,6 @@ import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.file.remote.synchronizer.AbstractInboundFileSynchronizer;
 import org.springframework.integration.metadata.SimpleMetadataStore;
 import org.springframework.lang.Nullable;
-
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 /**
  * An implementation of {@link AbstractInboundFileSynchronizer} for Amazon S3.

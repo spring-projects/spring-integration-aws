@@ -22,6 +22,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.amazonaws.services.sqs.AmazonSQSAsync;
+import io.awspring.cloud.core.env.ResourceIdResolver;
+import io.awspring.cloud.messaging.config.SimpleMessageListenerContainerFactory;
+import io.awspring.cloud.messaging.listener.QueueMessageHandler;
+import io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer;
+import io.awspring.cloud.messaging.listener.SqsMessageDeletionPolicy;
+
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.core.task.AsyncTaskExecutor;
@@ -36,13 +43,6 @@ import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.core.DestinationResolver;
 import org.springframework.messaging.handler.HandlerMethod;
 import org.springframework.util.Assert;
-
-import com.amazonaws.services.sqs.AmazonSQSAsync;
-import io.awspring.cloud.core.env.ResourceIdResolver;
-import io.awspring.cloud.messaging.config.SimpleMessageListenerContainerFactory;
-import io.awspring.cloud.messaging.listener.QueueMessageHandler;
-import io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer;
-import io.awspring.cloud.messaging.listener.SqsMessageDeletionPolicy;
 
 /**
  * The {@link MessageProducerSupport} implementation for the Amazon SQS

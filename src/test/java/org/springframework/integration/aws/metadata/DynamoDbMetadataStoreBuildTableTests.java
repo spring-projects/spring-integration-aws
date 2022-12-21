@@ -16,12 +16,8 @@
 
 package org.springframework.integration.aws.metadata;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
-
-import org.junit.jupiter.api.Test;
 
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.dynamodbv2.AbstractAmazonDynamoDBAsync;
@@ -31,6 +27,9 @@ import com.amazonaws.services.dynamodbv2.model.CreateTableResult;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Asiel Caballero
