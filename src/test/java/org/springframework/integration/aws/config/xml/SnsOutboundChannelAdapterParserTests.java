@@ -16,8 +16,9 @@
 
 package org.springframework.integration.aws.config.xml;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.sns.AmazonSNSAsync;
+import io.awspring.cloud.core.env.ResourceIdResolver;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +31,7 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.sns.AmazonSNSAsync;
-import io.awspring.cloud.core.env.ResourceIdResolver;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Artem Bilan

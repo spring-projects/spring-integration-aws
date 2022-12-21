@@ -16,13 +16,8 @@
 
 package org.springframework.integration.aws.lock;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import com.amazonaws.services.dynamodbv2.AbstractAmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.BillingMode;
@@ -37,6 +32,10 @@ import com.amazonaws.services.dynamodbv2.model.PutItemResult;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.dynamodbv2.model.TableDescription;
 import com.amazonaws.services.dynamodbv2.model.TableStatus;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Asiel Caballero

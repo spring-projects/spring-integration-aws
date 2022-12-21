@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ package org.springframework.integration.aws.inbound.kinesis;
 import java.util.Date;
 import java.util.Objects;
 
-import org.springframework.util.Assert;
-
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
+
+import org.springframework.util.Assert;
 
 /**
  * A model to represent a sequence in the shard for particular {@link ShardIteratorType}.

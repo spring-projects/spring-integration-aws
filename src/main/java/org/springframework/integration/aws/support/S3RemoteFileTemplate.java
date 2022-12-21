@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package org.springframework.integration.aws.support;
 
 import java.io.IOException;
 
-import org.springframework.integration.file.remote.ClientCallback;
-import org.springframework.integration.file.remote.RemoteFileTemplate;
-import org.springframework.integration.file.remote.session.SessionFactory;
-
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+
+import org.springframework.integration.file.remote.ClientCallback;
+import org.springframework.integration.file.remote.RemoteFileTemplate;
+import org.springframework.integration.file.remote.session.SessionFactory;
 
 /**
  * An Amazon S3 specific {@link RemoteFileTemplate} extension.

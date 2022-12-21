@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package org.springframework.integration.aws.support.filters;
 
-import org.springframework.integration.file.filters.AbstractSimplePatternFileListFilter;
-
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+
+import org.springframework.integration.file.filters.AbstractSimplePatternFileListFilter;
 
 /**
  * Implementation of {@link AbstractSimplePatternFileListFilter} for Amazon S3.

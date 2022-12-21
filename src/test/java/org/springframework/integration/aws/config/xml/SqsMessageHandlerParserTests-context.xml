@@ -12,19 +12,19 @@
 	<aws-messaging:sqs-async-client id="sqs"/>
 
 	<bean id="resourceIdResolver" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver"/>
+		<constructor-arg value="io.awspring.cloud.core.env.ResourceIdResolver" type="java.lang.Class"/>
 	</bean>
 
 	<bean id="errorMessageStrategy" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="org.springframework.integration.support.ErrorMessageStrategy"/>
+		<constructor-arg value="org.springframework.integration.support.ErrorMessageStrategy" type="java.lang.Class"/>
 	</bean>
 
 	<bean id="messageConverter" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="org.springframework.messaging.converter.MessageConverter"/>
+		<constructor-arg value="org.springframework.messaging.converter.MessageConverter" type="java.lang.Class"/>
 	</bean>
 
 	<bean id="asyncHandler" class="org.mockito.Mockito" factory-method="mock">
-		<constructor-arg value="com.amazonaws.handlers.AsyncHandler"/>
+		<constructor-arg value="com.amazonaws.handlers.AsyncHandler" type="java.lang.Class"/>
 	</bean>
 
 	<int:channel id="failureChannel"/>

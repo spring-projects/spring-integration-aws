@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 
+import io.awspring.cloud.messaging.core.MessageAttributeDataTypes;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -32,12 +33,10 @@ import org.springframework.util.Assert;
 import org.springframework.util.MimeType;
 import org.springframework.util.NumberUtils;
 
-import io.awspring.cloud.messaging.core.MessageAttributeDataTypes;
-
 /**
  * Base {@link HeaderMapper} implementation for common logic in SQS and SNS around message
  * attributes mapping.
- *
+ * <p>
  * The {@link #toHeaders(Map)} is not supported.
  *
  * @param <A> the target message attribute type.
@@ -68,7 +67,7 @@ public abstract class AbstractMessageAttributesHeaderMapper<A> implements Header
 	 * {@code \} symbol in the pattern definition. Defaults to map all ({@code *}) if the
 	 * type is supported by SQS. The {@link MessageHeaders#ID},
 	 * {@link MessageHeaders#TIMESTAMP},
-	 * {@link NativeMessageHeaderAccessor.NATIVE_HEADERS},
+	 * {@link NativeMessageHeaderAccessor#NATIVE_HEADERS},
 	 * {@link AwsHeaders#MESSAGE_ID}, {@link AwsHeaders#QUEUE}, and
 	 * {@link AwsHeaders#TOPIC} are ignored by default.
 	 * @param outboundHeaderNames The inbound header names.

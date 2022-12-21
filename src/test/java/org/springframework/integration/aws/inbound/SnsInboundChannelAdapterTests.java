@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,10 @@
 
 package org.springframework.integration.aws.inbound;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import java.util.Map;
 
+import com.amazonaws.services.sns.AmazonSNS;
+import io.awspring.cloud.messaging.endpoint.NotificationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.BDDMockito;
@@ -46,8 +43,10 @@ import org.springframework.util.StreamUtils;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.context.WebApplicationContext;
 
-import com.amazonaws.services.sns.AmazonSNS;
-import io.awspring.cloud.messaging.endpoint.NotificationStatus;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * @author Artem Bilan

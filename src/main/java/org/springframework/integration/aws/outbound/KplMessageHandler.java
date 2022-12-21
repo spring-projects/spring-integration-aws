@@ -23,26 +23,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.context.Lifecycle;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.core.serializer.support.SerializingConverter;
-import org.springframework.expression.Expression;
-import org.springframework.expression.common.LiteralExpression;
-import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.aws.support.AwsRequestFailureException;
-import org.springframework.integration.expression.ValueExpression;
-import org.springframework.integration.handler.AbstractMessageHandler;
-import org.springframework.integration.mapping.HeaderMapper;
-import org.springframework.integration.mapping.OutboundMessageMapper;
-import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
-import org.springframework.integration.support.MutableMessage;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHeaders;
-import org.springframework.messaging.converter.MessageConversionException;
-import org.springframework.messaging.converter.MessageConverter;
-import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
-
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsync;
@@ -62,6 +42,26 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import org.springframework.context.Lifecycle;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.serializer.support.SerializingConverter;
+import org.springframework.expression.Expression;
+import org.springframework.expression.common.LiteralExpression;
+import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.AwsRequestFailureException;
+import org.springframework.integration.expression.ValueExpression;
+import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.mapping.HeaderMapper;
+import org.springframework.integration.mapping.OutboundMessageMapper;
+import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
+import org.springframework.integration.support.MutableMessage;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.converter.MessageConversionException;
+import org.springframework.messaging.converter.MessageConverter;
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer

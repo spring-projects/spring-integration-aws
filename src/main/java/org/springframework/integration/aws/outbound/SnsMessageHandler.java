@@ -20,6 +20,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.sns.AmazonSNSAsync;
+import com.amazonaws.services.sns.model.MessageAttributeValue;
+import com.amazonaws.services.sns.model.PublishRequest;
+import com.amazonaws.services.sns.model.PublishResult;
+import io.awspring.cloud.core.env.ResourceIdResolver;
+
 import org.springframework.core.log.LogMessage;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
@@ -32,14 +40,6 @@ import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
-
-import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.sns.AmazonSNSAsync;
-import com.amazonaws.services.sns.model.MessageAttributeValue;
-import com.amazonaws.services.sns.model.PublishRequest;
-import com.amazonaws.services.sns.model.PublishResult;
-import io.awspring.cloud.core.env.ResourceIdResolver;
 
 /**
  * The {@link AbstractAwsMessageHandler} implementation to send SNS Notifications

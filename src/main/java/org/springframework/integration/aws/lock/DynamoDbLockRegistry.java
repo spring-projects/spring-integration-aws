@@ -33,19 +33,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import org.springframework.beans.DirectFieldAccessor;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.dao.DataAccessResourceFailureException;
-import org.springframework.integration.support.locks.ExpirableLockRegistry;
-import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
-import org.springframework.util.Assert;
-import org.springframework.util.ReflectionUtils;
-
 import com.amazonaws.services.dynamodbv2.AcquireLockOptions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
@@ -62,6 +49,18 @@ import com.amazonaws.services.dynamodbv2.model.LockTableDoesNotExistException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import org.springframework.beans.DirectFieldAccessor;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.integration.support.locks.ExpirableLockRegistry;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
+import org.springframework.util.Assert;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * An {@link ExpirableLockRegistry} implementation for the AWS DynamoDB. The algorithm is
