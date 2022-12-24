@@ -222,7 +222,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 
 			if (this.messageGroupIdExpression != null) {
 				if (!topicArn.endsWith(".fifo")) {
-					logger.warn(LogMessage.format("a messageGroupId will be set for non-FIFO topic '%s'", topicArn));
+					logger.error(LogMessage.format("a messageGroupId will be set for non-FIFO topic '%s'; this message may be silently dropped", topicArn));
 				}
 				String messageGroupId =
 						this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
@@ -231,8 +231,8 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 
 			if (this.messageDeduplicationIdExpression != null) {
 				if (!topicArn.endsWith(".fifo")) {
-					logger.warn(
-							LogMessage.format("a messageDeduplicationId will be set for non-FIFO topic '%s'", topicArn));
+					logger.error(
+							LogMessage.format("a messageDeduplicationId will be set for non-FIFO topic '%s'; this message may be silently dropped", topicArn));
 				}
 				String messageDeduplicationId =
 						this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
