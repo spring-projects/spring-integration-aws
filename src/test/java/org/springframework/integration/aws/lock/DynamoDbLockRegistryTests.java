@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 
 import java.lang.reflect.Method;
-
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
