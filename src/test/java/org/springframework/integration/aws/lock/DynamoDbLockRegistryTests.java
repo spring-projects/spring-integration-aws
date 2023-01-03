@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
 package org.springframework.integration.aws.lock;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+
+import java.lang.reflect.Method;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -41,10 +44,15 @@ import org.springframework.integration.aws.ExtendedDockerTestUtils;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.util.ReflectionUtils;
 
 import cloud.localstack.docker.LocalstackDockerExtension;
 import cloud.localstack.docker.annotation.LocalstackDockerProperties;
+import com.amazonaws.services.dynamodbv2.AcquireLockOptions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClientOptions;
+import com.amazonaws.services.dynamodbv2.LockItem;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
 import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
@@ -326,6 +334,42 @@ public class DynamoDbLockRegistryTests {
 		Object imse = result.get(10, TimeUnit.SECONDS);
 		assertThat(imse).isInstanceOf(IllegalMonitorStateException.class);
 		assertThat(((Exception) imse).getMessage()).contains("You do not own");
+	}
+
+	@Test
+	void abandonedLock() throws Exception {
+		Method awaitForActiveMethod = ReflectionUtils.findMethod(DynamoDbLockRegistry.class, "awaitForActive");
+		ReflectionUtils.makeAccessible(awaitForActiveMethod);
+		ReflectionUtils.invokeMethod(awaitForActiveMethod, this.dynamoDbLockRegistry);
+
+		AmazonDynamoDBLockClientOptions lockClientOptions =
+				AmazonDynamoDBLockClientOptions.builder(DYNAMO_DB, DynamoDbLockRegistry.DEFAULT_TABLE_NAME)
+						.withPartitionKeyName(DynamoDbLockRegistry.DEFAULT_PARTITION_KEY_NAME)
+						.withSortKeyName(DynamoDbLockRegistry.DEFAULT_SORT_KEY_NAME)
+						.withCreateHeartbeatBackgroundThread(false)
+						.withLeaseDuration(2L)
+						.build();
+		AmazonDynamoDBLockClient lockClient = new AmazonDynamoDBLockClient(lockClientOptions);
+
+		AcquireLockOptions lockOptions =
+				AcquireLockOptions.builder("foo")
+				.withReplaceData(false)
+				.withSortKey(DynamoDbLockRegistry.DEFAULT_SORT_KEY)
+				.build();
+
+		LockItem lockItem = lockClient.acquireLock(lockOptions);
+		assertThat(lockItem).isNotNull();
+
+		lockClient.close();
+
+		Lock lock = this.dynamoDbLockRegistry.obtain("foo");
+		int n = 0;
+		while (!lock.tryLock() && n++ < 100) {
+			Thread.sleep(100);
+		}
+
+		assertThat(n).isLessThan(100);
+		lock.unlock();
 	}
 
 	@Configuration

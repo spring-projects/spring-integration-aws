@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 the original author or authors.
+ * Copyright 2018-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -451,8 +451,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		private void setupDefaultAcquireLockOptionsBuilder() {
 			this.acquireLockOptionsBuilder
 					.withAdditionalTimeToWaitForLock(Long.MAX_VALUE - DynamoDbLockRegistry.this.leaseDuration)
-					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod)
-					.withShouldSkipBlockingWait(false);
+					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod);
 		}
 
 		@Override
@@ -506,13 +505,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 			long additionalTimeToWait = Math
 					.max(TimeUnit.MILLISECONDS.convert(time, unit) - System.currentTimeMillis() + start, 0L);
 
-			this.acquireLockOptionsBuilder.withAdditionalTimeToWaitForLock(additionalTimeToWait)
-					.withRefreshPeriod(DynamoDbLockRegistry.this.refreshPeriod)
-					.withShouldSkipBlockingWait(false);
-
-			if (additionalTimeToWait == 0) {
-				this.acquireLockOptionsBuilder.withShouldSkipBlockingWait(true);
-			}
+			this.acquireLockOptionsBuilder.withAdditionalTimeToWaitForLock(additionalTimeToWait);
 
 			boolean acquired = false;
 			try {
