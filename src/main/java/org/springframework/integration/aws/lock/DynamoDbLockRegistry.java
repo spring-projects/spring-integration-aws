@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -138,12 +137,6 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 
 	private long heartbeatPeriod = 5L;
 
-	/**
-	 * Flag to denote whether the {@link ExecutorService} was provided via the setter and
-	 * thus should not be shutdown when {@link #destroy()} is called.
-	 */
-	private boolean executorExplicitlySet;
-
 	private volatile boolean initialized;
 
 	public DynamoDbLockRegistry(AmazonDynamoDB dynamoDB) {
@@ -205,6 +198,11 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		this.leaseDuration = leaseDuration;
 	}
 
+	/**
+	 * Specify a period in milliseconds how often send locks renewal requests called heartbeat.
+	 * When the value is less than or equal to {@code 0}, the heartbeat is disabled.
+	 * @param heartbeatPeriod the heartbeat period for background thread to renew locks in DB
+	 */
 	public void setHeartbeatPeriod(long heartbeatPeriod) {
 		this.heartbeatPeriod = heartbeatPeriod;
 	}
@@ -228,7 +226,9 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 		if (!this.dynamoDBLockClientExplicitlySet) {
 			AmazonDynamoDBLockClientOptions dynamoDBLockClientOptions = AmazonDynamoDBLockClientOptions
 					.builder(this.dynamoDB, this.tableName).withPartitionKeyName(this.partitionKey)
-					.withSortKeyName(this.sortKeyName).withHeartbeatPeriod(this.heartbeatPeriod)
+					.withSortKeyName(this.sortKeyName)
+					.withCreateHeartbeatBackgroundThread(this.heartbeatPeriod > 0)
+					.withHeartbeatPeriod(this.heartbeatPeriod)
 					.withLeaseDuration(this.leaseDuration).build();
 
 			this.dynamoDBLockClient = new AmazonDynamoDBLockClient(dynamoDBLockClientOptions);
