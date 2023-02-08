@@ -409,12 +409,12 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			shardConsumer.stop();
 		}
 		else {
-				this.logger.debug(() ->
-						"There is no ShardConsumer for shard ["
-								+ shard
-								+ "] in stream ["
-								+ shard
-								+ "] to stop.");
+			this.logger.debug(() ->
+					"There is no ShardConsumer for shard ["
+							+ shard
+							+ "] in stream ["
+							+ stream
+							+ "] to stop.");
 		}
 	}
 
@@ -642,9 +642,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							.compareTo(new BigInteger(checkpoint)) <= 0;
 
 					logger.trace(() -> "The shard [" + shard + "] in stream [" + stream
-								+ "] is closed CLOSED and exhausted with endingSequenceNumber [" + endingSequenceNumber
-								+ "].\nThe last processed checkpoint is [" + checkpoint + "]."
-								+ (skipClosedAndExhaustedShard ? "\nThe shard will be skipped." : ""));
+							+ "] is closed CLOSED and exhausted with endingSequenceNumber [" + endingSequenceNumber
+							+ "].\nThe last processed checkpoint is [" + checkpoint + "]."
+							+ (skipClosedAndExhaustedShard ? "\nThe shard will be skipped." : ""));
 
 					if (skipClosedAndExhaustedShard) {
 						// Skip CLOSED shard which has been exhausted
@@ -969,11 +969,24 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 										}
 										GetShardIteratorRequest shardIteratorRequest =
 												this.shardOffset.toShardIteratorRequest();
-										this.shardIterator =
-												KinesisMessageDrivenChannelAdapter.this
-														.amazonKinesis
-														.getShardIterator(shardIteratorRequest)
-														.getShardIterator();
+										try {
+											this.shardIterator =
+													KinesisMessageDrivenChannelAdapter.this
+															.amazonKinesis
+															.getShardIterator(shardIteratorRequest)
+															.getShardIterator();
+										}
+										catch (com.amazonaws.services.kinesis.model.InvalidArgumentException ex) {
+											if (ex.getErrorMessage()
+													.contains("has reached max possible value for the shard")) {
+
+												logger.info(() ->
+														"The [" + this.shardOffset + "] has been closed. Skipping...");
+											}
+											else {
+												throw ex;
+											}
+										}
 										if (this.shardIterator == null) {
 											// The shard is closed - stop consumer
 											this.state = ConsumerState.STOP;
@@ -1078,9 +1091,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				finally {
 					attributesHolder.remove();
 					if (result != null) {
-                         // If using manual checkpointer, we have to make sure we are allowed to use the next shard iterator
-                         // Because if the manual checkpointer was not set to the latest record, it means there are records to be reprocessed
-                         // and if we use the nextShardIterator, we will be skipping records that need to be reprocessed
+						// If using manual checkpointer, we have to make sure we are allowed to use the next shard iterator
+						// Because if the manual checkpointer was not set to the latest record, it means there are records to be reprocessed
+						// and if we use the nextShardIterator, we will be skipping records that need to be reprocessed
 						List<Record> records = result.getRecords();
 						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
 								!records.isEmpty()) {
@@ -1118,7 +1131,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 								KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.shardOffsetsToConsumer
 										.remove(this.key);
 							}
-							// Shard is closed: nothing to consume any more.
+							// Shard is closed: nothing to consume anymore.
 							// Checkpoint endingSequenceNumber to ensure shard is marked exhausted.
 							// If in CheckpointMode.manual, only checkpoint if lastCheckpointValue is also null, as this
 							// means that no records have ever been read and so the shard was empty
@@ -1184,18 +1197,18 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				// Lets acquire iterator again (using checkpointer for iterator start
 				// sequence number).
 				logger.info(() ->
-							"Shard iterator for ["
-									+ ShardConsumer.this
-									+ "] expired.\n"
-									+ "A new one will be started from the check pointed sequence number.");
+						"Shard iterator for ["
+								+ ShardConsumer.this
+								+ "] expired.\n"
+								+ "A new one will be started from the check pointed sequence number.");
 				this.state = ConsumerState.EXPIRED;
 			}
 			catch (ProvisionedThroughputExceededException ex) {
-					logger.warn(() ->
-							"GetRecords request throttled for ["
-									+ ShardConsumer.this
-									+ "] with the reason: "
-									+ ex.getErrorMessage());
+				logger.warn(() ->
+						"GetRecords request throttled for ["
+								+ ShardConsumer.this
+								+ "] with the reason: "
+								+ ex.getErrorMessage());
 				// We are throttled, so let's sleep
 				prepareSleepState();
 			}
