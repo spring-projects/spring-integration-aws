@@ -93,6 +93,7 @@ dependencyManagement {
 		mavenBom "com.fasterxml.jackson:jackson-bom:$jacksonVersion"
 		mavenBom "org.junit:junit-bom:$junitVersion"
 		mavenBom "org.testcontainers:testcontainers-bom:$testcontainersVersion"
+		mavenBom "org.apache.logging.log4j:log4j-bom:$log4jVersion"
 	}
 }
 
@@ -136,8 +137,10 @@ dependencies {
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:localstack'
 
-	testRuntimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion"
-	testRuntimeOnly "org.apache.logging.log4j:log4j-jcl:$log4jVersion"
+	testRuntimeOnly 'org.apache.logging.log4j:log4j-core'
+	testRuntimeOnly 'org.apache.logging.log4j:log4j-jcl'
+	testRuntimeOnly 'org.apache.logging.log4j:log4j-slf4j-impl'
+	testRuntimeOnly 'org.apache.logging.log4j:log4j-slf4j2-impl'
 	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
