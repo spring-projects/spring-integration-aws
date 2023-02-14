@@ -199,7 +199,7 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 	}
 
 	/**
-	 * Specify a period in milliseconds how often send locks renewal requests called heartbeat.
+	 * Specify a period in seconds how often send locks renewal requests called heartbeat.
 	 * When the value is less than or equal to {@code 0}, the heartbeat is disabled.
 	 * @param heartbeatPeriod the heartbeat period for background thread to renew locks in DB
 	 */
@@ -502,8 +502,9 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, Initializing
 				return false;
 			}
 
-			long additionalTimeToWait = Math
-					.max(TimeUnit.MILLISECONDS.convert(time, unit) - System.currentTimeMillis() + start, 0L);
+			long additionalTimeToWait =
+					TimeUnit.MILLISECONDS.convert(time, unit)
+							- System.currentTimeMillis() + start - DynamoDbLockRegistry.this.leaseDuration;
 
 			this.acquireLockOptionsBuilder.withAdditionalTimeToWaitForLock(additionalTimeToWait);
 
