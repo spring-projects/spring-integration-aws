@@ -341,7 +341,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 		assertThat(lock.tryLock()).isTrue();
 		try {
-			assertThatNoException().isThrownBy(() -> dynamoDbLockRegistry.renewLock("foo"));
+			assertThatNoException().isThrownBy(() -> this.dynamoDbLockRegistry.renewLock("foo"));
 		}
 		finally {
 			lock.unlock();
