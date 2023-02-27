@@ -404,12 +404,16 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	public boolean renew(String lock) {
 		awaitForActive();
 		if (this.heldLocks.contains(lock)) {
+			ValueMap valueMap =
+					new ValueMap()
+							.withNumber(":ttl", ttlEpochSeconds());
+			valueMap.putAll(this.ownerAttribute);
 			UpdateItemSpec updateItemSpec =
 					new UpdateItemSpec()
 							.withPrimaryKey(KEY_ATTR, lock)
 							.withUpdateExpression("SET " + TTL_ATTR + " = :ttl")
 							.withConditionExpression(LOCK_EXISTS_EXPRESSION)
-							.withValueMap(ownerWithCurrentTimeValues());
+							.withValueMap(valueMap);
 			try {
 				this.lockTable.updateItem(updateItemSpec);
 				return true;
