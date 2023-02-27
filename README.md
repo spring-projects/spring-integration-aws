@@ -45,7 +45,6 @@ These dependencies are optional in the project:
 * `com.amazonaws:amazon-kinesis-client` - for KCL-based inbound channel adapter 
 * `com.amazonaws:amazon-kinesis-producer` - for KPL-based `MessageHandler` 
 * `com.amazonaws:aws-java-sdk-dynamodb` - for `DynamoDbMetadataStore` and `DynamoDbLockRegistry`
-* `com.amazonaws:dynamodb-lock-client` - for `DynamoDbLockRegistry`
 
 Consider to include an appropriate dependency into your project when you use particular component from this project. 
 
@@ -607,7 +606,6 @@ Certain components (for example aggregator and resequencer) use a lock obtained 
 The `DefaultLockRegistry` performs this function within a single component; you can now configure an external lock registry on these components. 
 When used with a shared `MessageGroupStore`, the `DynamoDbLockRegistry` can be used to provide this functionality across multiple application instances, such that only one instance can manipulate the group at a time.   
 This implementation can also be used for the distributed leader elections using a [LockRegistryLeaderInitiator][].
-The `com.amazonaws:dynamodb-lock-client` dependency must be present to make a `DynamoDbLockRegistry` working. 
 
 [Spring Cloud AWS]: https://awspring.io/
 [AWS SDK for Java]: https://aws.amazon.com/sdkforjava/

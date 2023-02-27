@@ -32,13 +32,12 @@ repositories {
 ext {
 	assertjVersion = '3.23.1'
 	awaitilityVersion = '4.2.0'
-	dynamodbLockClientVersion = '1.1.0'
 	jacksonVersion = '2.14.1'
 	junitVersion = '5.9.1'
 	servletApiVersion = '6.0.0'
 	log4jVersion = '2.19.0'
 	springCloudAwsVersion = '2.4.2'
-	springIntegrationVersion = '6.0.1'
+	springIntegrationVersion = '6.0.3'
 	kinesisClientVersion = '1.14.9'
 	kinesisProducerVersion = '0.14.13'
 	testcontainersVersion = '1.17.6'
@@ -103,7 +102,7 @@ jacoco {
 
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
-	toolVersion = '10.5.0'
+	toolVersion = '10.7.0'
 }
 
 dependencies {
@@ -120,7 +119,6 @@ dependencies {
 
 	optionalApi 'com.amazonaws:aws-java-sdk-kinesis'
 	optionalApi 'com.amazonaws:aws-java-sdk-dynamodb'
-	optionalApi "com.amazonaws:dynamodb-lock-client:$dynamodbLockClientVersion"
 
 	optionalApi "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
 

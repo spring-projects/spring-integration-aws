@@ -16,19 +16,15 @@
 
 package org.springframework.integration.aws.lock;
 
-import java.lang.reflect.Method;
-import java.util.Map;
+import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 
-import com.amazonaws.services.dynamodbv2.AcquireLockOptions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClientOptions;
-import com.amazonaws.services.dynamodbv2.LockItem;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
 import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
@@ -48,9 +44,9 @@ import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.test.util.TestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
-import org.springframework.util.ReflectionUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * @author Artem Bilan
@@ -66,17 +62,20 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	private final AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
 
 	@Autowired
+	private DynamoDbLockRepository dynamoDbLockRepository;
+
+	@Autowired
 	private DynamoDbLockRegistry dynamoDbLockRegistry;
 
 	@BeforeAll
 	static void setup() {
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		try {
-			DYNAMO_DB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
+			DYNAMO_DB.deleteTableAsync(DynamoDbLockRepository.DEFAULT_TABLE_NAME);
 
 			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
 
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRegistry.DEFAULT_TABLE_NAME))
+			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRepository.DEFAULT_TABLE_NAME))
 					.withPollingStrategy(
 							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
@@ -87,7 +86,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 	@BeforeEach
 	void clear() {
-		this.dynamoDbLockRegistry.expireUnusedOlderThan(0);
+		this.dynamoDbLockRepository.close();
 	}
 
 	@Test
@@ -97,7 +96,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 			Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 			lock.lock();
 			try {
-				assertThat(TestUtils.getPropertyValue(this.dynamoDbLockRegistry, "locks", Map.class)).hasSize(1);
+				assertThat(TestUtils.getPropertyValue(this.dynamoDbLockRepository, "heldLocks", Set.class)).hasSize(1);
 			}
 			finally {
 				lock.unlock();
@@ -112,7 +111,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 			Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 			lock.lockInterruptibly();
 			try {
-				assertThat(TestUtils.getPropertyValue(this.dynamoDbLockRegistry, "locks", Map.class)).hasSize(1);
+				assertThat(TestUtils.getPropertyValue(this.dynamoDbLockRepository, "heldLocks", Set.class)).hasSize(1);
 			}
 			finally {
 				lock.unlock();
@@ -178,11 +177,11 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 		final AtomicBoolean locked = new AtomicBoolean();
 		final CountDownLatch latch = new CountDownLatch(1);
 		Future<Object> result = this.taskExecutor.submit(() -> {
-			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB);
-			registry2.setHeartbeatPeriod(1);
-			registry2.setRefreshPeriod(10);
-			registry2.setLeaseDuration(2);
-			registry2.afterPropertiesSet();
+			DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+			dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(10));
+			dynamoDbLockRepository.afterPropertiesSet();
+			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(dynamoDbLockRepository);
+			registry2.setIdleBetweenTries(Duration.ofMillis(10));
 			Lock lock2 = registry2.obtain("foo");
 			locked.set(lock2.tryLock());
 			latch.countDown();
@@ -193,7 +192,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 				return e;
 			}
 			finally {
-				registry2.destroy();
+				dynamoDbLockRepository.close();
 			}
 			return null;
 		});
@@ -202,7 +201,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 		lock1.unlock();
 		Object ise = result.get(10, TimeUnit.SECONDS);
 		assertThat(ise).isInstanceOf(IllegalMonitorStateException.class);
-		assertThat(((Exception) ise).getMessage()).contains("You do not own");
+		assertThat(((Exception) ise).getMessage()).contains("The current thread doesn't own mutex at 'foo'");
 	}
 
 	@Test
@@ -214,11 +213,11 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 		final CountDownLatch latch3 = new CountDownLatch(1);
 		lock1.lockInterruptibly();
 		this.taskExecutor.submit(() -> {
-			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB);
-			registry2.setHeartbeatPeriod(1);
-			registry2.setRefreshPeriod(10);
-			registry2.setLeaseDuration(2);
-			registry2.afterPropertiesSet();
+			DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+			dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(10));
+			dynamoDbLockRepository.afterPropertiesSet();
+			DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(dynamoDbLockRepository);
+			registry2.setIdleBetweenTries(Duration.ofMillis(10));
 			Lock lock2 = registry2.obtain("foo");
 			try {
 				latch1.countDown();
@@ -232,7 +231,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 			finally {
 				lock2.unlock();
 				latch3.countDown();
-				registry2.destroy();
+				dynamoDbLockRepository.close();
 			}
 			return null;
 		});
@@ -249,17 +248,14 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 	@Test
 	void testTwoThreadsDifferentRegistries() throws Exception {
-		final DynamoDbLockRegistry registry1 = new DynamoDbLockRegistry(DYNAMO_DB);
-		registry1.setHeartbeatPeriod(1);
-		registry1.setRefreshPeriod(10);
-		registry1.setLeaseDuration(2);
-		registry1.afterPropertiesSet();
+		DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+		dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(10));
+		dynamoDbLockRepository.afterPropertiesSet();
+		final DynamoDbLockRegistry registry1 = new DynamoDbLockRegistry(dynamoDbLockRepository);
+		registry1.setIdleBetweenTries(Duration.ofMillis(10));
 
-		final DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(DYNAMO_DB);
-		registry2.setHeartbeatPeriod(1);
-		registry2.setRefreshPeriod(10);
-		registry2.setLeaseDuration(2);
-		registry2.afterPropertiesSet();
+		final DynamoDbLockRegistry registry2 = new DynamoDbLockRegistry(dynamoDbLockRepository);
+		registry2.setIdleBetweenTries(Duration.ofMillis(10));
 
 		final Lock lock1 = registry1.obtain("foo");
 		final AtomicBoolean locked = new AtomicBoolean();
@@ -292,8 +288,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 		assertThat(latch3.await(10, TimeUnit.SECONDS)).isTrue();
 		assertThat(locked.get()).isTrue();
 
-		registry1.destroy();
-		registry2.destroy();
+		dynamoDbLockRepository.close();
 	}
 
 	@Test
@@ -319,34 +314,15 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 		lock.unlock();
 		Object imse = result.get(10, TimeUnit.SECONDS);
 		assertThat(imse).isInstanceOf(IllegalMonitorStateException.class);
-		assertThat(((Exception) imse).getMessage()).contains("You do not own");
+		assertThat(((Exception) imse).getMessage()).contains("The current thread doesn't own mutex at 'foo'");
 	}
 
 	@Test
 	void abandonedLock() throws Exception {
-		Method awaitForActiveMethod = ReflectionUtils.findMethod(DynamoDbLockRegistry.class, "awaitForActive");
-		ReflectionUtils.makeAccessible(awaitForActiveMethod);
-		ReflectionUtils.invokeMethod(awaitForActiveMethod, this.dynamoDbLockRegistry);
-
-		AmazonDynamoDBLockClientOptions lockClientOptions =
-				AmazonDynamoDBLockClientOptions.builder(DYNAMO_DB, DynamoDbLockRegistry.DEFAULT_TABLE_NAME)
-						.withPartitionKeyName(DynamoDbLockRegistry.DEFAULT_PARTITION_KEY_NAME)
-						.withSortKeyName(DynamoDbLockRegistry.DEFAULT_SORT_KEY_NAME)
-						.withCreateHeartbeatBackgroundThread(false)
-						.withLeaseDuration(2L)
-						.build();
-		AmazonDynamoDBLockClient lockClient = new AmazonDynamoDBLockClient(lockClientOptions);
-
-		AcquireLockOptions lockOptions =
-				AcquireLockOptions.builder("foo")
-				.withReplaceData(false)
-				.withSortKey(DynamoDbLockRegistry.DEFAULT_SORT_KEY)
-				.build();
-
-		LockItem lockItem = lockClient.acquireLock(lockOptions);
-		assertThat(lockItem).isNotNull();
-
-		lockClient.close();
+		DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+		dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(10));
+		dynamoDbLockRepository.afterPropertiesSet();
+		this.dynamoDbLockRepository.acquire("foo");
 
 		Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 		int n = 0;
@@ -356,17 +332,36 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 		assertThat(n).isLessThan(100);
 		lock.unlock();
+		dynamoDbLockRepository.close();
+	}
+
+	@Test
+	public void testLockRenew() {
+		final Lock lock = this.dynamoDbLockRegistry.obtain("foo");
+
+		assertThat(lock.tryLock()).isTrue();
+		try {
+			assertThatNoException().isThrownBy(() ->dynamoDbLockRegistry.renewLock("foo"));
+		}
+		finally {
+			lock.unlock();
+		}
 	}
 
 	@Configuration
 	public static class ContextConfiguration {
 
 		@Bean
+		public DynamoDbLockRepository dynamoDbLockRepository() {
+			DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+			dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(2));
+			return dynamoDbLockRepository;
+		}
+
+		@Bean
 		public DynamoDbLockRegistry dynamoDbLockRegistry() {
-			DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(DYNAMO_DB);
-			dynamoDbLockRegistry.setHeartbeatPeriod(1);
-			dynamoDbLockRegistry.setRefreshPeriod(10);
-			dynamoDbLockRegistry.setLeaseDuration(2);
+			DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(dynamoDbLockRepository());
+			dynamoDbLockRegistry.setIdleBetweenTries(Duration.ofMillis(10));
 			return dynamoDbLockRegistry;
 		}
 

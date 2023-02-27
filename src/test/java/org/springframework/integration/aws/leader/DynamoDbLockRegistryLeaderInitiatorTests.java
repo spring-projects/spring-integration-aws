@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 the original author or authors.
+ * Copyright 2018-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.integration.aws.leader;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.lock.DynamoDbLockRegistry;
+import org.springframework.integration.aws.lock.DynamoDbLockRepository;
 import org.springframework.integration.leader.Context;
 import org.springframework.integration.leader.DefaultCandidate;
 import org.springframework.integration.leader.event.LeaderEventPublisher;
@@ -56,11 +58,11 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 	static void init() {
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		try {
-			DYNAMO_DB.deleteTableAsync(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
+			DYNAMO_DB.deleteTableAsync(DynamoDbLockRepository.DEFAULT_TABLE_NAME);
 
 			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
 
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRegistry.DEFAULT_TABLE_NAME))
+			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRepository.DEFAULT_TABLE_NAME))
 					.withPollingStrategy(
 							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
 		}
@@ -71,19 +73,21 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 	@AfterAll
 	static void destroy() {
-		DYNAMO_DB.deleteTable(DynamoDbLockRegistry.DEFAULT_TABLE_NAME);
+		DYNAMO_DB.deleteTable(DynamoDbLockRepository.DEFAULT_TABLE_NAME);
 	}
 
 	@Test
 	void testDistributedLeaderElection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);
 		CountingPublisher countingPublisher = new CountingPublisher(granted);
-		List<DynamoDbLockRegistry> registries = new ArrayList<>();
+		List<DynamoDbLockRepository> repositories = new ArrayList<>();
 		List<LockRegistryLeaderInitiator> initiators = new ArrayList<>();
 		for (int i = 0; i < 2; i++) {
-			DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(DYNAMO_DB);
-			lockRepository.afterPropertiesSet();
-			registries.add(lockRepository);
+			DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+			dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(1));
+			dynamoDbLockRepository.afterPropertiesSet();
+			repositories.add(dynamoDbLockRepository);
+			DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDbLockRepository);
 
 			LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository,
 					new DefaultCandidate("foo#" + i, "bar"));
@@ -162,8 +166,8 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		initiator1.stop();
 
-		for (DynamoDbLockRegistry registry : registries) {
-			registry.destroy();
+		for (DynamoDbLockRepository dynamoDbLockRepository : repositories) {
+			dynamoDbLockRepository.close();
 		}
 	}
 
@@ -172,8 +176,9 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 		CountDownLatch granted = new CountDownLatch(1);
 		CountingPublisher countingPublisher = new CountingPublisher(granted);
 
-		DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(DYNAMO_DB);
-		lockRepository.afterPropertiesSet();
+		DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
+		dynamoDbLockRepository.afterPropertiesSet();
+		DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDbLockRepository);
 
 		LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository);
 		initiator.setLeaderEventPublisher(countingPublisher);
@@ -192,13 +197,13 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		init();
 
-		lockRepository.afterPropertiesSet();
+		dynamoDbLockRepository.afterPropertiesSet();
 
 		assertThat(granted.await(20, TimeUnit.SECONDS)).isTrue();
 
 		initiator.stop();
 
-		lockRepository.destroy();
+		dynamoDbLockRepository.close();
 	}
 
 	private static class CountingPublisher implements LeaderEventPublisher {

@@ -74,6 +74,7 @@ import org.springframework.integration.support.AbstractIntegrationMessageBuilder
 import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.support.ErrorMessageUtils;
 import org.springframework.integration.support.locks.LockRegistry;
+import org.springframework.integration.support.locks.RenewableLockRegistry;
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
@@ -1547,15 +1548,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							Lock lock = this.locks.get(lockFuture.lockKey);
 							if (lock != null) {
 								try {
-									if (lock.tryLock()) {
-										try {
-											lockFuture.complete(true);
-										}
-										finally {
-											lock.unlock();
-										}
-									}
-									else {
+									if (!renewLockInRegistry(lockFuture)) {
 										lockFuture.complete(false);
 										this.locks.remove(lockFuture.lockKey);
 									}
@@ -1598,6 +1591,30 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					}
 				}
 			}
+		}
+
+		private boolean renewLockInRegistry(LockCompletableFuture renewLockFuture) {
+			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry instanceof RenewableLockRegistry renewableLockRegistry) {
+				try {
+					renewableLockRegistry.renewLock(renewLockFuture.lockKey);
+					return renewLockFuture.complete(true);
+				}
+				catch (IllegalStateException ex) {
+					return false;
+				}
+			}
+			else {
+				Lock lock = this.locks.get(renewLockFuture.lockKey);
+				if (lock.tryLock()) {
+					try {
+						return renewLockFuture.complete(true);
+					}
+					finally {
+						lock.unlock();
+					}
+				}
+			}
+			return false;
 		}
 
 		@Override
