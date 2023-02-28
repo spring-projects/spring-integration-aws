@@ -18,8 +18,7 @@ package org.springframework.integration.aws.lock;
 
 import java.io.Closeable;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -435,11 +434,11 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	}
 
 	private long ttlEpochSeconds() {
-		return LocalDateTime.now().plus(this.leaseDuration).toEpochSecond(ZoneOffset.UTC);
+		return Instant.now().plus(this.leaseDuration).getEpochSecond();
 	}
 
 	private static long currentEpochSeconds() {
-		return LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
+		return Instant.now().getEpochSecond();
 	}
 
 }
