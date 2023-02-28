@@ -112,7 +112,7 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	/**
 	 * Default value for the {@link #leaseDuration} property.
 	 */
-	public static final Duration DEFAULT_LEASE_DURATION = Duration.ofSeconds(10);
+	public static final Duration DEFAULT_LEASE_DURATION = Duration.ofSeconds(60);
 
 	private static final Log LOGGER = LogFactory.getLog(DynamoDbLockRegistry.class);
 
@@ -309,7 +309,7 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 							.withProjectionExpression(KEY_ATTR)
 							.withMaxResultSize(1)
 							.withFilterExpression(OWNER_ATTR + " = :owner AND " + TTL_ATTR + " >= :ttl")
-							.withValueMap(ownerWithCurrentTimeValues());
+							.withValueMap(ownerWithTtlValues(currentEpochSeconds()));
 
 			return this.lockTable.query(querySpec).iterator().hasNext();
 		}
@@ -355,15 +355,15 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 							new DeleteItemSpec()
 									.withPrimaryKey(KEY_ATTR, lock)
 									.withConditionExpression(OWNER_ATTR + " = :owner AND " + TTL_ATTR + " < :ttl")
-									.withValueMap(ownerWithCurrentTimeValues())));
+									.withValueMap(ownerWithTtlValues(currentEpochSeconds()))));
 			this.heldLocks.clear();
 		}
 	}
 
-	private ValueMap ownerWithCurrentTimeValues() {
+	private ValueMap ownerWithTtlValues(long epochSeconds) {
 		ValueMap valueMap =
 				new ValueMap()
-						.withNumber(":ttl", currentEpochSeconds());
+						.withNumber(":ttl", epochSeconds);
 		valueMap.putAll(this.ownerAttribute);
 		return valueMap;
 	}
@@ -375,16 +375,17 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	 */
 	public boolean acquire(String lock) {
 		awaitForActive();
+		long currentTime = currentEpochSeconds();
 		PutItemSpec putItemSpec =
 				new PutItemSpec()
 						.withItem(
 								new Item()
 										.withPrimaryKey(KEY_ATTR, lock)
 										.withString(OWNER_ATTR, this.owner)
-										.withLong(CREATED_ATTR, currentEpochSeconds())
+										.withLong(CREATED_ATTR, currentTime)
 										.withLong(TTL_ATTR, ttlEpochSeconds()))
 						.withConditionExpression(LOCK_NOT_EXISTS_EXPRESSION)
-						.withValueMap(ownerWithCurrentTimeValues());
+						.withValueMap(ownerWithTtlValues(currentTime));
 		try {
 			this.lockTable.putItem(putItemSpec);
 			this.heldLocks.add(lock);
@@ -393,7 +394,6 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 		catch (ConditionalCheckFailedException ex) {
 			return false;
 		}
-
 	}
 
 	/**
@@ -404,16 +404,12 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	public boolean renew(String lock) {
 		awaitForActive();
 		if (this.heldLocks.contains(lock)) {
-			ValueMap valueMap =
-					new ValueMap()
-							.withNumber(":ttl", ttlEpochSeconds());
-			valueMap.putAll(this.ownerAttribute);
 			UpdateItemSpec updateItemSpec =
 					new UpdateItemSpec()
 							.withPrimaryKey(KEY_ATTR, lock)
 							.withUpdateExpression("SET " + TTL_ATTR + " = :ttl")
 							.withConditionExpression(LOCK_EXISTS_EXPRESSION)
-							.withValueMap(valueMap);
+							.withValueMap(ownerWithTtlValues(ttlEpochSeconds()));
 			try {
 				this.lockTable.updateItem(updateItemSpec);
 				return true;

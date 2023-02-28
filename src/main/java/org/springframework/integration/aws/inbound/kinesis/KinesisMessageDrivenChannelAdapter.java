@@ -1594,7 +1594,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		}
 
 		private boolean renewLockInRegistry(LockCompletableFuture renewLockFuture) {
-			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry instanceof RenewableLockRegistry renewableLockRegistry) {
+			if (KinesisMessageDrivenChannelAdapter.this.lockRegistry
+					instanceof RenewableLockRegistry renewableLockRegistry) {
+
 				try {
 					renewableLockRegistry.renewLock(renewLockFuture.lockKey);
 					return renewLockFuture.complete(true);

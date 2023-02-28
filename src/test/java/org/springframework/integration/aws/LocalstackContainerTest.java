@@ -39,6 +39,7 @@ import org.testcontainers.utility.DockerImageName;
  * started only once per JVM, therefore the target Docker container is reused automatically.
  *
  * @author Artem Bilan
+ *
  * @since 3.0
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -46,7 +47,7 @@ public interface LocalstackContainerTest {
 
 	LocalStackContainer LOCAL_STACK_CONTAINER =
 			new LocalStackContainer(
-					DockerImageName.parse("localstack/localstack:1.2.0"))
+					DockerImageName.parse("localstack/localstack:1.4.0"))
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,

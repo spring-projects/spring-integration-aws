@@ -17,6 +17,9 @@
 package org.springframework.integration.aws.lock;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -25,12 +28,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.waiters.FixedDelayStrategy;
 import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
 import com.amazonaws.waiters.PollingStrategy;
 import com.amazonaws.waiters.Waiter;
 import com.amazonaws.waiters.WaiterParameters;
+import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -341,10 +346,20 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 		assertThat(lock.tryLock()).isTrue();
 		try {
+			this.dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(60));
 			assertThatNoException().isThrownBy(() -> this.dynamoDbLockRegistry.renewLock("foo"));
+			String ttl =
+					DYNAMO_DB.getItem(DynamoDbLockRepository.DEFAULT_TABLE_NAME,
+									Map.of(DynamoDbLockRepository.KEY_ATTR, new AttributeValue("foo")))
+							.getItem()
+							.get(DynamoDbLockRepository.TTL_ATTR).getN();
+			assertThat(Long.parseLong(ttl))
+					.isCloseTo(LocalDateTime.now().plusSeconds(60).toEpochSecond(ZoneOffset.UTC),
+							Percentage.withPercentage(10));
 		}
 		finally {
 			lock.unlock();
+			this.dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(2));
 		}
 	}
 
