@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,10 @@
 package org.springframework.integration.aws.kinesis;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Date;
 
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import org.junit.jupiter.api.AfterAll;
@@ -31,6 +28,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.StreamStatus;
+import software.amazon.kinesis.common.InitialPositionInStream;
+import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -70,11 +73,11 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStreamKplKcl";
 
-	private static AmazonKinesis AMAZON_KINESIS;
+	private static KinesisAsyncClient AMAZON_KINESIS;
 
-	private static AmazonDynamoDB DYNAMO_DB;
+	private static DynamoDbAsyncClient DYNAMO_DB;
 
-	private static AmazonCloudWatch CLOUD_WATCH;
+	private static CloudWatchAsyncClient CLOUD_WATCH;
 
 	@Autowired
 	private MessageChannel kinesisSendChannel;
@@ -90,11 +93,14 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 		AMAZON_KINESIS = LocalstackContainerTest.kinesisClient();
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		CLOUD_WATCH = LocalstackContainerTest.cloudWatchClient();
-		AMAZON_KINESIS.createStream(TEST_STREAM, 1);
 
 		int n = 0;
-		while (n++ < 100 && !"ACTIVE".equals(
-				AMAZON_KINESIS.describeStream(TEST_STREAM).getStreamDescription().getStreamStatus())) {
+		while (n++ < 100 &&
+				!StreamStatus.ACTIVE.equals(
+						AMAZON_KINESIS.describeStream(request -> request.streamName(TEST_STREAM))
+								.join()
+								.streamDescription()
+								.streamStatus())) {
 
 			Thread.sleep(200);
 		}
@@ -102,8 +108,9 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 
 	@AfterAll
 	static void tearDown() {
-		AMAZON_KINESIS.deleteStream(TEST_STREAM);
+		AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM));
 	}
+
 
 	@Test
 	void testKinesisInboundOutbound() {
@@ -143,14 +150,16 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 	public static class TestConfiguration {
 
 		@Bean
-		public KinesisProducerConfiguration kinesisProducerConfiguration() throws URISyntaxException {
+		public KinesisProducerConfiguration kinesisProducerConfiguration() {
 			URI kinesisUri =
 					LocalstackContainerTest.LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
 			URI cloudWatchUri =
 					LocalstackContainerTest.LOCAL_STACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.CLOUDWATCH);
 
 			return new KinesisProducerConfiguration()
-					.setCredentialsProvider(LocalstackContainerTest.credentialsProvider())
+					.setCredentialsProvider(new AWSStaticCredentialsProvider(
+							new BasicAWSCredentials(LOCAL_STACK_CONTAINER.getAccessKey(),
+									LOCAL_STACK_CONTAINER.getSecretKey())))
 					.setRegion(LocalstackContainerTest.LOCAL_STACK_CONTAINER.getRegion())
 					.setKinesisEndpoint(kinesisUri.getHost())
 					.setKinesisPort(kinesisUri.getPort())
@@ -172,14 +181,13 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 		@Bean
 		public KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter() {
 			KclMessageDrivenChannelAdapter adapter =
-					new KclMessageDrivenChannelAdapter(
-							TEST_STREAM, AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB,
-							LocalstackContainerTest.credentialsProvider());
+					new KclMessageDrivenChannelAdapter(AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB, TEST_STREAM);
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());
 			adapter.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
-			adapter.setStreamInitialSequence(InitialPositionInStream.TRIM_HORIZON);
+			adapter.setStreamInitialSequence(
+					InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
 			adapter.setBindSourceRecord(true);
 			return adapter;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 the original author or authors.
+ * Copyright 2019-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,38 +25,39 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
-import com.amazonaws.services.kinesis.clientlibrary.exceptions.InvalidStateException;
-import com.amazonaws.services.kinesis.clientlibrary.exceptions.ShutdownException;
-import com.amazonaws.services.kinesis.clientlibrary.exceptions.ThrottlingException;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessor;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorCheckpointer;
-import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorFactory;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.SimpleRecordsFetcherFactory;
-import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
-import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializer;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.kinesis.common.ConfigsBuilder;
+import software.amazon.kinesis.common.InitialPositionInStream;
+import software.amazon.kinesis.common.InitialPositionInStreamExtended;
+import software.amazon.kinesis.common.StreamConfig;
+import software.amazon.kinesis.common.StreamIdentifier;
+import software.amazon.kinesis.coordinator.Scheduler;
+import software.amazon.kinesis.exceptions.InvalidStateException;
+import software.amazon.kinesis.exceptions.ShutdownException;
+import software.amazon.kinesis.exceptions.ThrottlingException;
+import software.amazon.kinesis.lifecycle.events.InitializationInput;
+import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
+import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
+import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
+import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
+import software.amazon.kinesis.processor.FormerStreamsLeasesDeletionStrategy;
+import software.amazon.kinesis.processor.MultiStreamTracker;
+import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
+import software.amazon.kinesis.processor.ShardRecordProcessor;
+import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import software.amazon.kinesis.retrieval.KinesisClientRecord;
+import software.amazon.kinesis.retrieval.polling.PollingConfig;
 
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.log.LogMessage;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.core.task.support.ExecutorServiceAdapter;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
@@ -85,34 +86,15 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
-	/**
-	 * Interval to run lease cleanup thread in {@link com.amazonaws.services.kinesis.leases.impl.LeaseCleanupManager}.
-	 */
-	private static final long DEFAULT_LEASE_CLEANUP_INTERVAL_MILLIS = Duration.ofMinutes(1).toMillis();
+	private final ShardRecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
 
-	/**
-	 * Threshold in millis at which to check if there are any completed leases (leases for shards which have been
-	 * closed as a result of a resharding operation) that need to be cleaned up.
-	 */
-	private static final long DEFAULT_COMPLETED_LEASE_CLEANUP_THRESHOLD_MILLIS = Duration.ofMinutes(5).toMillis();
+	private final String[] streams;
 
-	/**
-	 * Threshold in millis at which to check if there are any garbage leases (leases for shards which no longer exist
-	 * in the stream) that need to be cleaned up.
-	 */
-	private static final long DEFAULT_GARBAGE_LEASE_CLEANUP_THRESHOLD_MILLIS = Duration.ofMinutes(30).toMillis();
+	private final KinesisAsyncClient kinesisClient;
 
-	private final RecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
+	private final CloudWatchAsyncClient cloudWatchClient;
 
-	private final String stream;
-
-	private final AmazonKinesis kinesisClient;
-
-	private final AWSCredentialsProvider kinesisProxyCredentialsProvider;
-
-	private final AmazonCloudWatch cloudWatchClient;
-
-	private final AmazonDynamoDB dynamoDBClient;
+	private final DynamoDbAsyncClient dynamoDBClient;
 
 	private TaskExecutor executor = new SimpleAsyncTaskExecutor();
 
@@ -120,9 +102,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
-	private KinesisClientLibConfiguration config;
+	private ConfigsBuilder config;
 
-	private InitialPositionInStream streamInitialSequence = InitialPositionInStream.LATEST;
+	private InitialPositionInStreamExtended streamInitialSequence =
+			InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.LATEST);
 
 	private int idleBetweenPolls = 1000;
 
@@ -138,56 +121,33 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private String workerId = UUID.randomUUID().toString();
 
+	private GlueSchemaRegistryDeserializer glueSchemaRegistryDeserializer;
+
 	private boolean bindSourceRecord;
 
-	private volatile Worker scheduler;
+	private volatile Scheduler scheduler;
 
-	public KclMessageDrivenChannelAdapter(String streams) {
-		this(streams, AmazonKinesisClientBuilder.defaultClient(), AmazonCloudWatchClientBuilder.defaultClient(),
-				AmazonDynamoDBClientBuilder.defaultClient(), new DefaultAWSCredentialsProviderChain());
+	public KclMessageDrivenChannelAdapter(String... streams) {
+		this(KinesisAsyncClient.create(), CloudWatchAsyncClient.create(), DynamoDbAsyncClient.create(), streams);
 	}
 
-	public KclMessageDrivenChannelAdapter(String streams, Regions region) {
-		this(streams, AmazonKinesisClient.builder().withRegion(region).build(),
-				AmazonCloudWatchClient.builder().withRegion(region).build(),
-				AmazonDynamoDBClient.builder().withRegion(region).build(), new DefaultAWSCredentialsProviderChain());
+	public KclMessageDrivenChannelAdapter(Region region, String... streams) {
+		this(KinesisAsyncClient.builder().region(region).build(),
+				CloudWatchAsyncClient.builder().region(region).build(),
+				DynamoDbAsyncClient.builder().region(region).build(),
+				streams);
 	}
 
-	public KclMessageDrivenChannelAdapter(String stream, AmazonKinesis kinesisClient, AmazonCloudWatch cloudWatchClient,
-			AmazonDynamoDB dynamoDBClient, AWSCredentialsProvider kinesisProxyCredentialsProvider) {
+	public KclMessageDrivenChannelAdapter(KinesisAsyncClient kinesisClient, CloudWatchAsyncClient cloudWatchClient,
+			DynamoDbAsyncClient dynamoDBClient, String... streams) {
 
-		Assert.notNull(stream, "'stream' must not be null.");
 		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
 		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
 		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
-		Assert.notNull(kinesisProxyCredentialsProvider, "'kinesisProxyCredentialsProvider' must not be null.");
-		this.stream = stream;
+		this.streams = streams;
 		this.kinesisClient = kinesisClient;
 		this.cloudWatchClient = cloudWatchClient;
 		this.dynamoDBClient = dynamoDBClient;
-		this.kinesisProxyCredentialsProvider = kinesisProxyCredentialsProvider;
-	}
-
-	public KclMessageDrivenChannelAdapter(KinesisClientLibConfiguration kinesisClientLibConfiguration) {
-		this(kinesisClientLibConfiguration,
-				AmazonKinesisClientBuilder.defaultClient(),
-				AmazonCloudWatchClientBuilder.defaultClient(),
-				AmazonDynamoDBClientBuilder.defaultClient());
-	}
-
-	public KclMessageDrivenChannelAdapter(KinesisClientLibConfiguration kinesisClientLibConfiguration,
-			AmazonKinesis kinesisClient, AmazonCloudWatch cloudWatchClient, AmazonDynamoDB dynamoDBClient) {
-
-		Assert.notNull(kinesisClientLibConfiguration, "'kinesisClientLibConfiguration' must not be null.");
-		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
-		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
-		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
-		this.config = kinesisClientLibConfiguration;
-		this.stream = this.config.getStreamName();
-		this.kinesisClient = kinesisClient;
-		this.cloudWatchClient = cloudWatchClient;
-		this.dynamoDBClient = dynamoDBClient;
-		this.kinesisProxyCredentialsProvider = null;
 	}
 
 	public void setExecutor(TaskExecutor executor) {
@@ -197,8 +157,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	public void setConsumerGroup(String consumerGroup) {
 		Assert.hasText(consumerGroup, "'consumerGroup' must not be empty");
-		Assert.isNull(this.config, "'consumerGroup' must be configured as an application name " +
-				"on the provided KinesisClientLibConfiguration");
 		this.consumerGroup = consumerGroup;
 	}
 
@@ -215,22 +173,16 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		this.embeddedHeadersMapper = embeddedHeadersMapper;
 	}
 
-	public void setStreamInitialSequence(InitialPositionInStream streamInitialSequence) {
+	public void setStreamInitialSequence(InitialPositionInStreamExtended streamInitialSequence) {
 		Assert.notNull(streamInitialSequence, "'streamInitialSequence' must not be null");
-		Assert.isNull(this.config, "'streamInitialSequence' must be configured as an 'initialPositionInStream' " +
-				"on the provided KinesisClientLibConfiguration");
 		this.streamInitialSequence = streamInitialSequence;
 	}
 
 	public void setIdleBetweenPolls(int idleBetweenPolls) {
-		Assert.isNull(this.config, "'idleBetweenPolls' must be configured as an 'idleTimeBetweenReadsInMillis' " +
-				"on the provided KinesisClientLibConfiguration");
 		this.idleBetweenPolls = Math.max(250, idleBetweenPolls);
 	}
 
 	public void setConsumerBackoff(int consumerBackoff) {
-		Assert.isNull(this.config, "'consumerBackoff' must be configured as an 'taskBackoffTimeMillis' " +
-				"on the provided KinesisClientLibConfiguration");
 		this.consumerBackoff = Math.max(1000, consumerBackoff);
 	}
 
@@ -268,8 +220,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	 */
 	public void setWorkerId(String workerId) {
 		Assert.hasText(workerId, "'workerId' must not be null or empty");
-		Assert.isNull(this.config, "'workerId' must be configured on the provided KinesisClientLibConfiguration");
 		this.workerId = workerId;
+	}
+
+	public void setGlueSchemaRegistryDeserializer(GlueSchemaRegistryDeserializer glueSchemaRegistryDeserializer) {
+		this.glueSchemaRegistryDeserializer = glueSchemaRegistryDeserializer;
 	}
 
 	/**
@@ -287,41 +242,19 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	protected void onInit() {
 		super.onInit();
 
-		if (this.config == null) {
-			this.config =
-					new KinesisClientLibConfiguration(this.consumerGroup,
-							this.stream,
-							null,
-							null,
-							this.streamInitialSequence,
-							this.kinesisProxyCredentialsProvider,
-							null,
-							null,
-							KinesisClientLibConfiguration.DEFAULT_FAILOVER_TIME_MILLIS,
-							this.workerId,
-							KinesisClientLibConfiguration.DEFAULT_MAX_RECORDS,
-							this.idleBetweenPolls,
-							false,
-							KinesisClientLibConfiguration.DEFAULT_PARENT_SHARD_POLL_INTERVAL_MILLIS,
-							KinesisClientLibConfiguration.DEFAULT_SHARD_SYNC_INTERVAL_MILLIS,
-							KinesisClientLibConfiguration.DEFAULT_CLEANUP_LEASES_UPON_SHARDS_COMPLETION,
-							new ClientConfiguration(),
-							new ClientConfiguration(),
-							new ClientConfiguration(),
-							this.consumerBackoff,
-							KinesisClientLibConfiguration.DEFAULT_METRICS_BUFFER_TIME_MILLIS,
-							KinesisClientLibConfiguration.DEFAULT_METRICS_MAX_QUEUE_SIZE,
-							KinesisClientLibConfiguration.DEFAULT_VALIDATE_SEQUENCE_NUMBER_BEFORE_CHECKPOINTING,
-							null,
-							KinesisClientLibConfiguration.DEFAULT_SHUTDOWN_GRACE_MILLIS,
-							KinesisClientLibConfiguration.DEFAULT_DDB_BILLING_MODE,
-							new SimpleRecordsFetcherFactory(),
-							DEFAULT_LEASE_CLEANUP_INTERVAL_MILLIS,
-							DEFAULT_COMPLETED_LEASE_CLEANUP_THRESHOLD_MILLIS,
-							DEFAULT_GARBAGE_LEASE_CLEANUP_THRESHOLD_MILLIS);
+		if (this.streams.length == 1) {
+			this.config = new ConfigsBuilder(this.streams[0], this.consumerGroup, this.kinesisClient,
+					this.dynamoDBClient, this.cloudWatchClient, this.workerId, this.recordProcessorFactory);
+		}
+		else {
+			this.config = new ConfigsBuilder(new StreamsTracker(), this.consumerGroup, this.kinesisClient,
+					this.dynamoDBClient, this.cloudWatchClient, this.workerId, this.recordProcessorFactory);
 		}
 
-		this.consumerGroup = this.config.getApplicationName();
+		this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
+		this.config.retrievalConfig().glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer);
+		((PollingConfig) this.config.retrievalConfig().retrievalSpecificConfig())
+				.idleTimeBetweenReadsInMillis(this.idleBetweenPolls);
 	}
 
 	@Override
@@ -335,15 +268,14 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		}
 
 		this.scheduler =
-				new Worker
-						.Builder()
-						.kinesisClient(this.kinesisClient)
-						.dynamoDBClient(this.dynamoDBClient)
-						.cloudWatchClient(this.cloudWatchClient)
-						.recordProcessorFactory(this.recordProcessorFactory)
-						.execService(new ExecutorServiceAdapter(this.executor))
-						.config(this.config)
-						.build();
+				new Scheduler(
+						this.config.checkpointConfig(),
+						this.config.coordinatorConfig(),
+						this.config.leaseManagementConfig(),
+						this.config.lifecycleConfig(),
+						this.config.metricsConfig(),
+						this.config.processorConfig(),
+						this.config.retrievalConfig());
 
 		this.executor.execute(this.scheduler);
 	}
@@ -380,15 +312,54 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	@Override
 	public String toString() {
-		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' + ", stream='" + this.stream
-				+ "'}";
+		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' +
+				", stream(s)='" + Arrays.toString(this.streams) + "'}";
 	}
 
-	private class RecordProcessorFactory implements IRecordProcessorFactory {
+	private class RecordProcessorFactory implements ShardRecordProcessorFactory {
 
 		@Override
-		public IRecordProcessor createProcessor() {
-			return new RecordProcessor();
+		public ShardRecordProcessor shardRecordProcessor() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public ShardRecordProcessor shardRecordProcessor(StreamIdentifier streamIdentifier) {
+			return new RecordProcessor(streamIdentifier.streamName());
+		}
+
+	}
+
+	private class StreamsTracker implements MultiStreamTracker {
+
+		private final FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy =
+				new FormerStreamsLeasesDeletionStrategy.AutoDetectionAndDeferredDeletionStrategy() {
+
+					@Override
+					public Duration waitPeriodToDeleteFormerStreams() {
+						return Duration.ZERO;
+					}
+
+				};
+
+		private final List<StreamConfig> streamConfigs =
+				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
+						.map(streamName ->
+								new StreamConfig(StreamIdentifier.singleStreamInstance(streamName),
+										KclMessageDrivenChannelAdapter.this.streamInitialSequence))
+						.toList();
+
+		StreamsTracker() {
+		}
+
+		@Override
+		public List<StreamConfig> streamConfigList() {
+			return this.streamConfigs;
+		}
+
+		@Override
+		public FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy() {
+			return this.formerStreamsLeasesDeletionStrategy;
 		}
 
 	}
@@ -396,25 +367,60 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	/**
 	 * Processes records and checkpoints progress.
 	 */
-	private class RecordProcessor implements IRecordProcessor {
+	private class RecordProcessor implements ShardRecordProcessor {
+
+		private final String stream;
 
 		private String shardId;
 
 		private long nextCheckpointTimeInMillis;
 
+		RecordProcessor(String stream) {
+			this.stream = stream;
+		}
+
 		@Override
-		public void initialize(String shardId) {
-			this.shardId = shardId;
+		public void initialize(InitializationInput initializationInput) {
+			this.shardId = initializationInput.shardId();
 			logger.info(() -> "Initializing record processor for shard: " + this.shardId);
 		}
 
 		@Override
-		public void processRecords(List<Record> records, IRecordProcessorCheckpointer checkpointer) {
+		public void leaseLost(LeaseLostInput leaseLostInput) {
+
+		}
+
+		@Override
+		public void shardEnded(ShardEndedInput shardEndedInput) {
+			logger.info(LogMessage.format("Shard [%s] ended; checkpointing...", this.shardId));
+			try {
+				shardEndedInput.checkpointer().checkpoint();
+			}
+			catch (ShutdownException | InvalidStateException ex) {
+				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
+			}
+		}
+
+		@Override
+		public void shutdownRequested(ShutdownRequestedInput shutdownRequestedInput) {
+			logger.info("Scheduler is shutting down; checkpointing...");
+			try {
+				shutdownRequestedInput.checkpointer().checkpoint();
+			}
+			catch (ShutdownException | InvalidStateException ex) {
+				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
+			}
+		}
+
+		@Override
+		public void processRecords(ProcessRecordsInput processRecordsInput) {
+			List<KinesisClientRecord> records = processRecordsInput.records();
+			RecordProcessorCheckpointer checkpointer = processRecordsInput.checkpointer();
 			logger.debug(() -> "Processing " + records.size() + " records from " + this.shardId);
 
 			try {
 				if (ListenerMode.record.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
-					for (Record record : records) {
+					for (KinesisClientRecord record : records) {
 						processSingleRecord(record, checkpointer);
 						checkpointIfRecordMode(checkpointer, record);
 						checkpointIfPeriodicMode(checkpointer, record);
@@ -431,11 +437,13 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			}
 		}
 
-		private void processSingleRecord(Record record, IRecordProcessorCheckpointer checkpointer) {
+		private void processSingleRecord(KinesisClientRecord record, RecordProcessorCheckpointer checkpointer) {
 			performSend(prepareMessageForRecord(record), record, checkpointer);
 		}
 
-		private void processMultipleRecords(List<Record> records, IRecordProcessorCheckpointer checkpointer) {
+		private void processMultipleRecords(List<KinesisClientRecord> records,
+				RecordProcessorCheckpointer checkpointer) {
+
 			AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(records);
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
 				List<Message<Object>> payload =
@@ -452,10 +460,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 				List<Object> payload = records.stream()
 						.map(r -> {
-							partitionKeys.add(r.getPartitionKey());
-							sequenceNumbers.add(r.getSequenceNumber());
+							partitionKeys.add(r.partitionKey());
+							sequenceNumbers.add(r.sequenceNumber());
 
-							return KclMessageDrivenChannelAdapter.this.converter.convert(r.getData().array());
+							return KclMessageDrivenChannelAdapter.this.converter.convert(r.data().array());
 						})
 						.collect(Collectors.toList());
 
@@ -467,8 +475,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			performSend(messageBuilder, records, checkpointer);
 		}
 
-		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
-			Object payload = record.getData().array();
+		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(KinesisClientRecord record) {
+			Object payload = record.data().array();
 			Message<?> messageToUse = null;
 
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
@@ -491,8 +499,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			}
 
 			AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory().withPayload(payload)
-					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.getPartitionKey())
-					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
+					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
+					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber());
 
 			if (KclMessageDrivenChannelAdapter.this.bindSourceRecord) {
 				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
@@ -506,8 +514,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		}
 
 		private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord,
-				IRecordProcessorCheckpointer checkpointer) {
-			messageBuilder.setHeader(AwsHeaders.RECEIVED_STREAM, KclMessageDrivenChannelAdapter.this.stream)
+				RecordProcessorCheckpointer checkpointer) {
+
+			messageBuilder.setHeader(AwsHeaders.RECEIVED_STREAM, this.stream)
 					.setHeader(AwsHeaders.SHARD, this.shardId);
 
 			if (CheckpointMode.manual.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
@@ -544,14 +553,14 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		 * @param checkpointer checkpointer
 		 * @param record last processed record
 		 */
-		private void checkpoint(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
+		private void checkpoint(RecordProcessorCheckpointer checkpointer, @Nullable KinesisClientRecord record) {
 			logger.info(() -> "Checkpointing shard " + this.shardId);
 			try {
 				if (record == null) {
 					checkpointer.checkpoint();
 				}
 				else {
-					checkpointer.checkpoint(record);
+					checkpointer.checkpoint(record.sequenceNumber());
 				}
 			}
 			catch (ShutdownException se) {
@@ -568,35 +577,26 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			}
 		}
 
-		private void checkpointIfBatchMode(IRecordProcessorCheckpointer checkpointer) {
+		private void checkpointIfBatchMode(RecordProcessorCheckpointer checkpointer) {
 			if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
 				checkpoint(checkpointer, null);
 			}
 		}
 
-		private void checkpointIfRecordMode(IRecordProcessorCheckpointer checkpointer, Record record) {
+		private void checkpointIfRecordMode(RecordProcessorCheckpointer checkpointer, KinesisClientRecord record) {
 			if (CheckpointMode.record.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
 				checkpoint(checkpointer, record);
 			}
 		}
 
-		private void checkpointIfPeriodicMode(IRecordProcessorCheckpointer checkpointer, @Nullable Record record) {
+		private void checkpointIfPeriodicMode(RecordProcessorCheckpointer checkpointer,
+				@Nullable KinesisClientRecord record) {
+
 			if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)
 					&& System.currentTimeMillis() > this.nextCheckpointTimeInMillis) {
 				checkpoint(checkpointer, record);
 				this.nextCheckpointTimeInMillis =
 						System.currentTimeMillis() + KclMessageDrivenChannelAdapter.this.checkpointsInterval;
-			}
-		}
-
-		@Override
-		public void shutdown(IRecordProcessorCheckpointer checkpointer, ShutdownReason reason) {
-			logger.info(() -> "Scheduler is shutting down for reason '" + reason + "'; checkpointing...");
-			try {
-				checkpointer.checkpoint();
-			}
-			catch (ShutdownException | InvalidStateException ex) {
-				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
 			}
 		}
 

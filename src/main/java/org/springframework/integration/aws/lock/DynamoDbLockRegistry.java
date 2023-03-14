@@ -26,8 +26,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-
-import com.amazonaws.services.dynamodbv2.model.TransactionConflictException;
+import software.amazon.awssdk.services.dynamodb.model.TransactionConflictException;
 
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -47,7 +46,7 @@ import org.springframework.util.Assert;
  */
 public class DynamoDbLockRegistry implements ExpirableLockRegistry, RenewableLockRegistry {
 
-	private static final int DEFAULT_IDLE = 100;
+	private static final int DEFAULT_IDLE = 1000;
 
 	private final Map<String, DynamoDbLock> locks = new ConcurrentHashMap<>();
 
@@ -204,6 +203,9 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, RenewableLoc
 				try {
 					while (!(acquired = doLock()) && System.currentTimeMillis() < expire) { //NOSONAR
 						sleepBetweenRetries();
+						if (Thread.currentThread().isInterrupted()) {
+							throw new InterruptedException();
+						}
 					}
 					if (!acquired) {
 						this.delegate.unlock();

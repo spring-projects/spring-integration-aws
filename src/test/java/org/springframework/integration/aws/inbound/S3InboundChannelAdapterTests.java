@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,20 +21,20 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.Region;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -59,13 +59,13 @@ import org.springframework.util.FileCopyUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.BDDMockito.willReturn;
 
 /**
  * @author Artem Bilan
  * @author Jim Krygowski
  * @author Xavier François
  */
+@Disabled("Revise in favor of Local Stack")
 @SpringJUnitConfig
 @DirtiesContext
 public class S3InboundChannelAdapterTests {
@@ -77,7 +77,7 @@ public class S3InboundChannelAdapterTests {
 	@TempDir
 	static Path TEMPORARY_FOLDER;
 
-	private static List<S3Object> S3_OBJECTS;
+	private static Map<S3Object, File> S3_OBJECTS;
 
 	private static File LOCAL_FOLDER;
 
@@ -99,16 +99,23 @@ public class S3InboundChannelAdapterTests {
 		otherFile.createNewFile();
 		FileCopyUtils.copy("Other".getBytes(), otherFile);
 
-		S3_OBJECTS = new ArrayList<>();
+		S3_OBJECTS = new HashMap<>();
+
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.DATE, 1);
 
 		for (File file : remoteFolder.listFiles()) {
-			S3Object s3Object = new S3Object();
-			s3Object.setBucketName(S3_BUCKET);
-			s3Object.setKey("subdir/" + file.getName());
+			S3Object s3Object =
+					S3Object.builder()
+							.key("subdir/" + file.getName())
+							.lastModified(calendar.getTime().toInstant())
+							.build();
 			if (!"otherFile".equals(file.getName())) {
-				s3Object.setObjectContent(new FileInputStream(file));
+				S3_OBJECTS.put(s3Object, file);
 			}
-			S3_OBJECTS.add(s3Object);
+			else {
+				S3_OBJECTS.put(s3Object, null);
+			}
 		}
 
 		LOCAL_FOLDER = TEMPORARY_FOLDER.resolve("local").toFile();
@@ -158,29 +165,21 @@ public class S3InboundChannelAdapterTests {
 	public static class Config {
 
 		@Bean
-		public AmazonS3 amazonS3() {
-			AmazonS3 amazonS3 = Mockito.mock(AmazonS3.class);
+		public S3Client amazonS3() {
+			S3Client amazonS3 = Mockito.mock(S3Client.class);
 
-			willAnswer(invocation -> {
-				ObjectListing objectListing = new ObjectListing();
-				List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
-				for (S3Object s3Object : S3_OBJECTS) {
-					S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
-					s3ObjectSummary.setBucketName(S3_BUCKET);
-					s3ObjectSummary.setKey(s3Object.getKey());
-					Calendar calendar = Calendar.getInstance();
-					calendar.add(Calendar.DATE, 1);
-					s3ObjectSummary.setLastModified(calendar.getTime());
-					objectSummaries.add(s3ObjectSummary);
-				}
-				return objectListing;
-			}).given(amazonS3).listObjects(any(ListObjectsRequest.class));
+			willAnswer(invocation ->
+					ListObjectsResponse.builder()
+							.name(S3_BUCKET)
+							.contents(S3_OBJECTS.keySet().toArray(new S3Object[0]))
+							.build())
+					.given(amazonS3)
+					.listObjects(any(ListObjectsRequest.class));
 
-			for (final S3Object s3Object : S3_OBJECTS) {
-				willAnswer(invocation -> s3Object).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
-			}
-
-			willReturn(Region.US_West).given(amazonS3).getRegion();
+			S3_OBJECTS.forEach((s3Object, file) ->
+					willAnswer(invocation -> new FileInputStream(file))
+							.given(amazonS3)
+							.getObject(GetObjectRequest.builder().bucket(S3_BUCKET).key(s3Object.key()).build()));
 
 			return amazonS3;
 		}

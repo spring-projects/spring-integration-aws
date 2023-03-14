@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,16 @@
 
 package org.springframework.integration.aws.outbound;
 
-import java.nio.ByteBuffer;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
-import com.amazonaws.services.kinesis.model.PutRecordRequest;
-import com.amazonaws.services.kinesis.model.PutRecordResult;
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
-import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordResponse;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -44,7 +43,6 @@ import org.springframework.messaging.MessageHandlingException;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.messaging.converter.MessageConverter;
-import org.springframework.messaging.support.GenericMessage;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
@@ -78,9 +76,11 @@ public class KinesisProducingMessageHandlerTests {
 	protected PollableChannel successChannel;
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testKinesisMessageHandler() {
-		final Message<?> message = MessageBuilder.withPayload("message").build();
+		final Message<?> message =
+				MessageBuilder.withPayload("message")
+						.setErrorChannel(this.errorChannel)
+						.build();
 
 		assertThatExceptionOfType(MessageHandlingException.class)
 				.isThrownBy(() -> this.kinesisSendChannel.send(message))
@@ -94,8 +94,11 @@ public class KinesisProducingMessageHandlerTests {
 				.withCauseInstanceOf(IllegalStateException.class)
 				.withStackTraceContaining("'partitionKey' must not be null for sending a Kinesis record");
 
-		Message<?> message2 = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
-				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();
+		Message<?> message2 =
+				MessageBuilder.fromMessage(message)
+						.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+						.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
+						.build();
 
 		this.kinesisSendChannel.send(message2);
 
@@ -104,41 +107,53 @@ public class KinesisProducingMessageHandlerTests {
 		assertThat(success.getHeaders().get(AwsHeaders.SEQUENCE_NUMBER)).isEqualTo("10");
 		assertThat(success.getPayload()).isEqualTo("message");
 
-		message2 = MessageBuilder.fromMessage(message).setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
-				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10").build();
+		message2 =
+				MessageBuilder.fromMessage(message)
+						.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
+						.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
+						.build();
 
 		this.kinesisSendChannel.send(message2);
 
 		Message<?> failed = this.errorChannel.receive(10000);
 		AwsRequestFailureException putRecordFailure = (AwsRequestFailureException) failed.getPayload();
 		assertThat(putRecordFailure.getCause().getMessage()).isEqualTo("putRecordRequestEx");
-		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getStreamName()).isEqualTo("foo");
-		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getPartitionKey()).isEqualTo("fooKey");
-		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getSequenceNumberForOrdering()).isEqualTo("10");
-		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getExplicitHashKey()).isNull();
-		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).getData())
-				.isEqualTo(ByteBuffer.wrap("message".getBytes()));
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).streamName()).isEqualTo("foo");
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).partitionKey()).isEqualTo("fooKey");
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).sequenceNumberForOrdering()).isEqualTo("10");
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).explicitHashKey()).isNull();
+		assertThat(((PutRecordRequest) putRecordFailure.getRequest()).data())
+				.isEqualTo(SdkBytes.fromUtf8String("message"));
 
-		message2 = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
-				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
+		PutRecordsRequestEntry testRecordEntry =
+				PutRecordsRequestEntry.builder()
+						.data(SdkBytes.fromUtf8String("test"))
+						.partitionKey("testKey")
+						.build();
+
+		message2 =
+				MessageBuilder.withPayload(
+								PutRecordsRequest.builder()
+										.streamName("myStream")
+										.records(testRecordEntry)
+										.build())
+						.setErrorChannel(this.errorChannel)
+						.build();
 
 		this.kinesisSendChannel.send(message2);
 
 		success = this.successChannel.receive(10000);
-		assertThat(((PutRecordsRequest) success.getPayload()).getRecords()).containsExactlyInAnyOrder(
-				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
-
-		message2 = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
-				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
+		assertThat(((PutRecordsRequest) success.getPayload()).records())
+				.containsExactlyInAnyOrder(testRecordEntry);
 
 		this.kinesisSendChannel.send(message2);
 
 		failed = this.errorChannel.receive(10000);
 		AwsRequestFailureException putRecordsFailure = (AwsRequestFailureException) failed.getPayload();
 		assertThat(putRecordsFailure.getCause().getMessage()).isEqualTo("putRecordsRequestEx");
-		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getStreamName()).isEqualTo("myStream");
-		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).getRecords()).containsExactlyInAnyOrder(
-				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
+		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).streamName()).isEqualTo("myStream");
+		assertThat(((PutRecordsRequest) putRecordsFailure.getRequest()).records())
+				.containsExactlyInAnyOrder(testRecordEntry);
 	}
 
 	@Configuration
@@ -146,33 +161,25 @@ public class KinesisProducingMessageHandlerTests {
 	public static class ContextConfiguration {
 
 		@Bean
-		@SuppressWarnings("unchecked")
-		public AmazonKinesisAsync amazonKinesis() {
-			AmazonKinesisAsync mock = mock(AmazonKinesisAsync.class);
+		public KinesisAsyncClient amazonKinesis() {
+			KinesisAsyncClient mock = mock(KinesisAsyncClient.class);
 
-			given(mock.putRecordAsync(any(PutRecordRequest.class), any(AsyncHandler.class))).willAnswer(invocation -> {
-				PutRecordRequest request = invocation.getArgument(0);
-				AsyncHandler<PutRecordRequest, PutRecordResult> handler = invocation.getArgument(1);
-				PutRecordResult result = new PutRecordResult()
-						.withSequenceNumber(request.getSequenceNumberForOrdering()).withShardId("shardId-1");
-				handler.onSuccess(new PutRecordRequest(), result);
-				return mock(Future.class);
-			}).willAnswer(invocation -> {
-				AsyncHandler<?, ?> handler = invocation.getArgument(1);
-				handler.onError(new RuntimeException("putRecordRequestEx"));
-				return mock(Future.class);
-			});
-
-			given(mock.putRecordsAsync(any(PutRecordsRequest.class), any(AsyncHandler.class)))
+			given(mock.putRecord(any(PutRecordRequest.class)))
 					.willAnswer(invocation -> {
-						AsyncHandler<PutRecordsRequest, PutRecordsResult> handler = invocation.getArgument(1);
-						handler.onSuccess(new PutRecordsRequest(), new PutRecordsResult());
-						return mock(Future.class);
-					}).willAnswer(invocation -> {
-				AsyncHandler<?, ?> handler = invocation.getArgument(1);
-				handler.onError(new RuntimeException("putRecordsRequestEx"));
-				return mock(Future.class);
-			});
+						PutRecordRequest request = invocation.getArgument(0);
+						PutRecordResponse.Builder result =
+								PutRecordResponse.builder()
+										.sequenceNumber(request.sequenceNumberForOrdering())
+										.shardId("shardId-1");
+						return CompletableFuture.completedFuture(result.build());
+					})
+					.willAnswer(invocation ->
+							CompletableFuture.failedFuture(new RuntimeException("putRecordRequestEx")));
+
+			given(mock.putRecords(any(PutRecordsRequest.class)))
+					.willAnswer(invocation -> CompletableFuture.completedFuture(PutRecordsResponse.builder().build()))
+					.willAnswer(invocation ->
+							CompletableFuture.failedFuture(new RuntimeException("putRecordsRequestEx")));
 
 			return mock;
 		}
@@ -191,9 +198,8 @@ public class KinesisProducingMessageHandlerTests {
 		@ServiceActivator(inputChannel = "kinesisSendChannel")
 		public MessageHandler kinesisMessageHandler() {
 			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis());
-			kinesisMessageHandler.setSync(true);
+			kinesisMessageHandler.setAsync(true);
 			kinesisMessageHandler.setOutputChannel(successChannel());
-			kinesisMessageHandler.setFailureChannel(errorChannel());
 			kinesisMessageHandler.setMessageConverter(new MessageConverter() {
 
 				private SerializingConverter serializingConverter = new SerializingConverter();

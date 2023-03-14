@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@ import java.util.Map;
 import org.springframework.util.Assert;
 
 /**
- * An utility class to simplify an SNS Message body building. Can be used from the
+ * A utility class to simplify an SNS Message body building. Can be used from the
  * {@code SnsMessageHandler#bodyExpression} definition or directly in case of manual
- * {@link com.amazonaws.services.sns.model.PublishRequest} building.
+ * {@link software.amazon.awssdk.services.sns.model.PublishRequest} building.
  *
  * @author Artem Bilan
  */

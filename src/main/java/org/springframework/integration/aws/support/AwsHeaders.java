@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -115,5 +115,13 @@ public abstract class AwsHeaders {
 	 * The {@value RAW_RECORD} header represents received Kinesis record(s).
 	 */
 	public static final String RAW_RECORD = PREFIX + "rawRecord";
+
+	/**
+	 * The {@value TRANSFER_LISTENER} header for
+	 * {@link software.amazon.awssdk.transfer.s3.progress.TransferListener}
+	 * callback used in the {@link org.springframework.integration.aws.outbound.S3MessageHandler}
+	 * for file uploads.
+	 */
+	public static final String TRANSFER_LISTENER = PREFIX + "transferListener";
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,15 @@
 
 package org.springframework.integration.aws.outbound;
 
-import java.nio.ByteBuffer;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
-import com.amazonaws.services.kinesis.model.PutRecordRequest;
-import com.amazonaws.services.kinesis.model.PutRecordResult;
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -51,7 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -66,16 +63,13 @@ import static org.mockito.Mockito.verify;
 public class KinesisMessageHandlerTests {
 
 	@Autowired
-	protected AmazonKinesisAsync amazonKinesis;
+	protected KinesisAsyncClient amazonKinesis;
 
 	@Autowired
 	protected MessageChannel kinesisSendChannel;
 
 	@Autowired
 	protected KinesisMessageHandler kinesisMessageHandler;
-
-	@Autowired
-	protected AsyncHandler<?, ?> asyncHandler;
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -101,46 +95,43 @@ public class KinesisMessageHandlerTests {
 
 		ArgumentCaptor<PutRecordRequest> putRecordRequestArgumentCaptor = ArgumentCaptor
 				.forClass(PutRecordRequest.class);
-		ArgumentCaptor<AsyncHandler<PutRecordRequest, PutRecordResult>> asyncHandlerArgumentCaptor = ArgumentCaptor
-				.forClass((Class<AsyncHandler<PutRecordRequest, PutRecordResult>>) (Class<?>) AsyncHandler.class);
 
-		verify(this.amazonKinesis).putRecordAsync(putRecordRequestArgumentCaptor.capture(),
-				asyncHandlerArgumentCaptor.capture());
+		verify(this.amazonKinesis).putRecord(putRecordRequestArgumentCaptor.capture());
 
 		PutRecordRequest putRecordRequest = putRecordRequestArgumentCaptor.getValue();
 
-		assertThat(putRecordRequest.getStreamName()).isEqualTo("foo");
-		assertThat(putRecordRequest.getPartitionKey()).isEqualTo("fooKey");
-		assertThat(putRecordRequest.getSequenceNumberForOrdering()).isEqualTo("10");
-		assertThat(putRecordRequest.getExplicitHashKey()).isNull();
+		assertThat(putRecordRequest.streamName()).isEqualTo("foo");
+		assertThat(putRecordRequest.partitionKey()).isEqualTo("fooKey");
+		assertThat(putRecordRequest.sequenceNumberForOrdering()).isEqualTo("10");
+		assertThat(putRecordRequest.explicitHashKey()).isNull();
 
 		Message<?> messageToCheck = new EmbeddedJsonHeadersMessageMapper()
-				.toMessage(putRecordRequest.getData().array());
+				.toMessage(putRecordRequest.data().asByteArray());
 
 		assertThat(messageToCheck.getHeaders()).contains(entry("foo", "bar"));
 		assertThat(messageToCheck.getPayload()).isEqualTo("message".getBytes());
 
-		AsyncHandler<?, ?> asyncHandler = asyncHandlerArgumentCaptor.getValue();
-
-		RuntimeException testingException = new RuntimeException("testingException");
-		asyncHandler.onError(testingException);
-
-		verify(this.asyncHandler).onError(eq(testingException));
-
-		message2 = new GenericMessage<>(new PutRecordsRequest().withStreamName("myStream").withRecords(
-				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey")));
+		message2 = new GenericMessage<>(PutRecordsRequest.builder()
+				.streamName("myStream").records(request ->
+						request.data(SdkBytes.fromByteArray("test".getBytes()))
+								.partitionKey("testKey"))
+				.build());
 
 		this.kinesisSendChannel.send(message2);
 
 		ArgumentCaptor<PutRecordsRequest> putRecordsRequestArgumentCaptor = ArgumentCaptor
 				.forClass(PutRecordsRequest.class);
-		verify(this.amazonKinesis).putRecordsAsync(putRecordsRequestArgumentCaptor.capture(), any(AsyncHandler.class));
+		verify(this.amazonKinesis).putRecords(putRecordsRequestArgumentCaptor.capture());
 
 		PutRecordsRequest putRecordsRequest = putRecordsRequestArgumentCaptor.getValue();
 
-		assertThat(putRecordsRequest.getStreamName()).isEqualTo("myStream");
-		assertThat(putRecordsRequest.getRecords()).containsExactlyInAnyOrder(
-				new PutRecordsRequestEntry().withData(ByteBuffer.wrap("test".getBytes())).withPartitionKey("testKey"));
+		assertThat(putRecordsRequest.streamName()).isEqualTo("myStream");
+		assertThat(putRecordsRequest.records())
+				.containsExactlyInAnyOrder(
+						PutRecordsRequestEntry.builder()
+								.data(SdkBytes.fromByteArray("test".getBytes()))
+								.partitionKey("testKey")
+								.build());
 	}
 
 	@Configuration
@@ -149,30 +140,23 @@ public class KinesisMessageHandlerTests {
 
 		@Bean
 		@SuppressWarnings("unchecked")
-		public AmazonKinesisAsync amazonKinesis() {
-			AmazonKinesisAsync mock = mock(AmazonKinesisAsync.class);
+		public KinesisAsyncClient amazonKinesis() {
+			KinesisAsyncClient mock = mock(KinesisAsyncClient.class);
 
-			given(mock.putRecordAsync(any(PutRecordRequest.class), any(AsyncHandler.class)))
-					.willReturn(mock(Future.class));
+			given(mock.putRecord(any(PutRecordRequest.class)))
+					.willReturn(mock(CompletableFuture.class));
 
-			given(mock.putRecordsAsync(any(PutRecordsRequest.class), any(AsyncHandler.class)))
-					.willReturn(mock(Future.class));
+			given(mock.putRecords(any(PutRecordsRequest.class)))
+					.willReturn(mock(CompletableFuture.class));
 
 			return mock;
-		}
-
-		@Bean
-		@SuppressWarnings("unchecked")
-		public AsyncHandler<?, ?> asyncHandler() {
-			return mock(AsyncHandler.class);
 		}
 
 		@Bean
 		@ServiceActivator(inputChannel = "kinesisSendChannel")
 		public MessageHandler kinesisMessageHandler() {
 			KinesisMessageHandler kinesisMessageHandler = new KinesisMessageHandler(amazonKinesis());
-			kinesisMessageHandler.setSync(true);
-			kinesisMessageHandler.setAsyncHandler(asyncHandler());
+			kinesisMessageHandler.setAsync(true);
 			kinesisMessageHandler.setMessageConverter(new MessageConverter() {
 
 				private SerializingConverter serializingConverter = new SerializingConverter();

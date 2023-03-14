@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@ package org.springframework.integration.aws.outbound;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.sns.AmazonSNSAsync;
-import com.amazonaws.services.sns.model.MessageAttributeValue;
-import com.amazonaws.services.sns.model.PublishRequest;
-import com.amazonaws.services.sns.model.PublishResult;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
+import software.amazon.awssdk.services.sns.model.CreateTopicResponse;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -66,13 +67,12 @@ public class SnsMessageHandlerTests {
 	private MessageChannel sendToSnsChannel;
 
 	@Autowired
-	private AmazonSNSAsync amazonSNS;
+	private SnsAsyncClient amazonSNS;
 
 	@Autowired
 	private PollableChannel resultChannel;
 
 	@Test
-	@SuppressWarnings("unchecked")
 	void testSnsMessageHandler() {
 		SnsBodyBuilder payload = SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "sms");
 
@@ -85,27 +85,27 @@ public class SnsMessageHandlerTests {
 		assertThat(reply).isNotNull();
 
 		ArgumentCaptor<PublishRequest> captor = ArgumentCaptor.forClass(PublishRequest.class);
-		verify(this.amazonSNS).publishAsync(captor.capture(), any(AsyncHandler.class));
+		verify(this.amazonSNS).publish(captor.capture());
 
 		PublishRequest publishRequest = captor.getValue();
 
-		assertThat(publishRequest.getMessageStructure()).isEqualTo("json");
-		assertThat(publishRequest.getTopicArn()).isEqualTo("topic");
-		assertThat(publishRequest.getSubject()).isEqualTo("subject");
-		assertThat(publishRequest.getMessageGroupId()).isEqualTo("SUBJECT");
-		assertThat(publishRequest.getMessageDeduplicationId()).isEqualTo("BAR");
-		assertThat(publishRequest.getMessage())
+		assertThat(publishRequest.messageStructure()).isEqualTo("json");
+		assertThat(publishRequest.topicArn()).isEqualTo("arn:aws:sns:eu-west-1:111111111111:topic");
+		assertThat(publishRequest.subject()).isEqualTo("subject");
+		assertThat(publishRequest.messageGroupId()).isEqualTo("SUBJECT");
+		assertThat(publishRequest.messageDeduplicationId()).isEqualTo("BAR");
+		assertThat(publishRequest.message())
 				.isEqualTo("{\"default\":\"foo\",\"sms\":\"{\\\"foo\\\" : \\\"bar\\\"}\"}");
 
-		Map<String, MessageAttributeValue> messageAttributes = publishRequest.getMessageAttributes();
+		Map<String, MessageAttributeValue> messageAttributes = publishRequest.messageAttributes();
 
 		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.ID);
 		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
 		assertThat(messageAttributes).containsKey("foo");
-		assertThat(messageAttributes.get("foo").getStringValue()).isEqualTo("bar");
+		assertThat(messageAttributes.get("foo").stringValue()).isEqualTo("bar");
 
 		assertThat(reply.getHeaders().get(AwsHeaders.MESSAGE_ID)).isEqualTo("111");
-		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("topic");
+		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("arn:aws:sns:eu-west-1:111111111111:topic");
 		assertThat(reply.getPayload()).isSameAs(payload);
 	}
 
@@ -115,15 +115,21 @@ public class SnsMessageHandlerTests {
 
 		@Bean
 		@SuppressWarnings("unchecked")
-		public AmazonSNSAsync amazonSNS() {
-			AmazonSNSAsync mock = mock(AmazonSNSAsync.class);
+		public SnsAsyncClient amazonSNS() {
+			SnsAsyncClient mock = mock(SnsAsyncClient.class);
 
-			willAnswer(invocation -> {
-				PublishResult publishResult = new PublishResult().withMessageId("111");
-				AsyncHandler<PublishRequest, PublishResult> asyncHandler = invocation.getArgument(1);
-				asyncHandler.onSuccess(invocation.getArgument(0), publishResult);
-				return CompletableFuture.completedFuture(publishResult);
-			}).given(mock).publishAsync(any(PublishRequest.class), any(AsyncHandler.class));
+			willAnswer(invocation ->
+					CompletableFuture.completedFuture(
+							CreateTopicResponse.builder()
+									.topicArn("arn:aws:sns:eu-west-1:111111111111:topic")
+									.build()))
+					.given(mock)
+					.createTopic(any(Consumer.class));
+
+			willAnswer(invocation ->
+					CompletableFuture.completedFuture(PublishResponse.builder().messageId("111").build()))
+					.given(mock)
+					.publish(any(PublishRequest.class));
 
 			return mock;
 		}
@@ -142,6 +148,7 @@ public class SnsMessageHandlerTests {
 			snsMessageHandler.setMessageDeduplicationIdExpression(PARSER.parseExpression("headers.foo.toUpperCase()"));
 			snsMessageHandler.setSubjectExpression(PARSER.parseExpression("headers.subject"));
 			snsMessageHandler.setBodyExpression(PARSER.parseExpression("payload"));
+			snsMessageHandler.setAsync(true);
 			snsMessageHandler.setOutputChannel(resultChannel());
 			SnsHeaderMapper headerMapper = new SnsHeaderMapper();
 			headerMapper.setOutboundHeaderNames("foo");

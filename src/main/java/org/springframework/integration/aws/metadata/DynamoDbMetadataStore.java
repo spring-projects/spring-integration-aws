@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,49 +16,42 @@
 
 package org.springframework.integration.aws.metadata;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.document.AttributeUpdate;
-import com.amazonaws.services.dynamodbv2.document.DynamoDB;
-import com.amazonaws.services.dynamodbv2.document.Expected;
-import com.amazonaws.services.dynamodbv2.document.Item;
-import com.amazonaws.services.dynamodbv2.document.Table;
-import com.amazonaws.services.dynamodbv2.document.spec.DeleteItemSpec;
-import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
-import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.BillingMode;
-import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.CreateTableResult;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ReturnValue;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.dynamodbv2.model.TimeToLiveSpecification;
-import com.amazonaws.services.dynamodbv2.model.UpdateTimeToLiveRequest;
-import com.amazonaws.waiters.FixedDelayStrategy;
-import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
-import com.amazonaws.waiters.PollingStrategy;
-import com.amazonaws.waiters.Waiter;
-import com.amazonaws.waiters.WaiterHandler;
-import com.amazonaws.waiters.WaiterParameters;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BillingMode;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
+import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateTimeToLiveRequest;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.util.Assert;
 
 /**
- * The {@link ConcurrentMetadataStore} for the {@link AmazonDynamoDB}.
+ * The {@link ConcurrentMetadataStore} for the {@link DynamoDbAsyncClient}.
  *
  * @author Artem Bilan
  * @author Asiel Caballero
@@ -66,23 +59,35 @@ import org.springframework.util.Assert;
  */
 public class DynamoDbMetadataStore implements ConcurrentMetadataStore, InitializingBean {
 
+	private static final Log logger = LogFactory.getLog(DynamoDbMetadataStore.class);
+
 	/**
 	 * The {@value DEFAULT_TABLE_NAME} default name for the metadata table in the
 	 * DynamoDB.
 	 */
 	public static final String DEFAULT_TABLE_NAME = "SpringIntegrationMetadataStore";
 
-	private static final Log logger = LogFactory.getLog(DynamoDbMetadataStore.class);
+	/**
+	 * The {@value KEY} as a default name for partition key in the table.
+	 */
+	public static final String KEY = "metadataKey";
 
-	private static final String KEY = "KEY";
+	/**
+	 * The {@value VALUE} as a default name for value attribute.
+	 */
+	public static final String VALUE = "metadataValue";
 
-	private static final String VALUE = "VALUE";
+	/**
+	 * The {@value TTL} as a default name for time-to-live attribute.
+	 */
+	public static final String TTL = "expireAt";
 
-	private static final String TTL = "TTL";
+	private static final String KEY_NOT_EXISTS_EXPRESSION =
+			String.format("attribute_not_exists(%s)", KEY);
 
-	private final AmazonDynamoDBAsync dynamoDB;
+	private final DynamoDbAsyncClient dynamoDB;
 
-	private final Table table;
+	private final String tableName;
 
 	private final CountDownLatch createTableLatch = new CountDownLatch(1);
 
@@ -100,15 +105,15 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 	private volatile boolean initialized;
 
-	public DynamoDbMetadataStore(AmazonDynamoDBAsync dynamoDB) {
+	public DynamoDbMetadataStore(DynamoDbAsyncClient dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
 	}
 
-	public DynamoDbMetadataStore(AmazonDynamoDBAsync dynamoDB, String tableName) {
+	public DynamoDbMetadataStore(DynamoDbAsyncClient dynamoDB, String tableName) {
 		Assert.notNull(dynamoDB, "'dynamoDB' must not be null.");
 		Assert.hasText(tableName, "'tableName' must not be empty.");
 		this.dynamoDB = dynamoDB;
-		this.table = new DynamoDB(this.dynamoDB).getTable(tableName);
+		this.tableName = tableName;
 
 	}
 
@@ -138,9 +143,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	 * non-positive value ({@code <= 0}), the TTL is disabled on the table.
 	 * @param timeToLive period in seconds for items expiration.
 	 * @since 2.0
-	 * @see <a href=
-	 * "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">DynamoDB
-	 * TTL</a>
+	 * @see <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">DynamoDB TTL</a>
 	 */
 	public void setTimeToLive(int timeToLive) {
 		this.timeToLive = timeToLive;
@@ -148,101 +151,79 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 	@Override
 	public void afterPropertiesSet() {
-		try {
-			if (isTableAvailable()) {
-				return;
-			}
-
-			CreateTableRequest createTableRequest = new CreateTableRequest().withTableName(this.table.getTableName())
-					.withKeySchema(new KeySchemaElement(KEY, KeyType.HASH))
-					.withAttributeDefinitions(new AttributeDefinition(KEY, ScalarAttributeType.S))
-					.withBillingMode(this.billingMode);
-
-			if (BillingMode.PROVISIONED.equals(this.billingMode)) {
-				createTableRequest.withProvisionedThroughput(
-						new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
-			}
-
-			this.dynamoDB.createTableAsync(createTableRequest,
-					new AsyncHandler<CreateTableRequest, CreateTableResult>() {
-
-						@Override
-						public void onError(Exception e) {
-							logger.error(
-									"Cannot create DynamoDb table: " + DynamoDbMetadataStore.this.table.getTableName(),
-									e);
-							DynamoDbMetadataStore.this.createTableLatch.countDown();
+		this.dynamoDB.describeTable(request -> request.tableName(this.tableName))
+				.thenRun(() -> { })
+				.exceptionallyCompose((ex) -> {
+					Throwable cause = ex.getCause();
+					if (cause instanceof ResourceNotFoundException) {
+						if (logger.isInfoEnabled()) {
+							logger.info("No table '" + this.tableName + "'. Creating one...");
 						}
+						return createTable();
+					}
+					else {
+						return rethrowAsRuntimeException(cause);
+					}
+				})
+				.thenCompose(result -> updateTimeToLiveIfAny())
+				.exceptionally((ex) -> {
+					logger.error("Cannot create DynamoDb table: " + this.tableName, ex.getCause());
+					return null;
+				})
+				.thenRun(this.createTableLatch::countDown);
 
-						@Override
-						public void onSuccess(CreateTableRequest request, CreateTableResult createTableResult) {
-							Waiter<DescribeTableRequest> waiter = DynamoDbMetadataStore.this.dynamoDB.waiters()
-									.tableExists();
+		this.initialized = true;
+	}
 
-							WaiterParameters<DescribeTableRequest> waiterParameters = new WaiterParameters<>(
-									new DescribeTableRequest(DynamoDbMetadataStore.this.table.getTableName()))
-											.withPollingStrategy(new PollingStrategy(
-													new MaxAttemptsRetryStrategy(
-															DynamoDbMetadataStore.this.createTableRetries),
-													new FixedDelayStrategy(
-															DynamoDbMetadataStore.this.createTableDelay)));
+	private CompletableFuture<Void> createTable() {
+		CreateTableRequest.Builder createTableRequest =
+				CreateTableRequest.builder()
+						.tableName(this.tableName)
+						.keySchema(KeySchemaElement.builder()
+								.attributeName(KEY)
+								.keyType(KeyType.HASH)
+								.build())
+						.attributeDefinitions(AttributeDefinition.builder()
+								.attributeName(KEY)
+								.attributeType(ScalarAttributeType.S)
+								.build())
+						.billingMode(this.billingMode);
 
-							waiter.runAsync(waiterParameters, new WaiterHandler<DescribeTableRequest>() {
+		if (BillingMode.PROVISIONED.equals(this.billingMode)) {
+			createTableRequest.provisionedThroughput(ProvisionedThroughput.builder()
+					.readCapacityUnits(this.readCapacity)
+					.writeCapacityUnits(this.writeCapacity)
+					.build());
+		}
 
-								@Override
-								public void onWaitSuccess(DescribeTableRequest request) {
-									updateTimeToLiveIfAny();
-									DynamoDbMetadataStore.this.createTableLatch.countDown();
-									DynamoDbMetadataStore.this.table.describe();
-								}
+		return this.dynamoDB.createTable(createTableRequest.build())
+				.thenCompose(result ->
+						this.dynamoDB.waiter()
+								.waitUntilTableExists(request -> request.tableName(this.tableName),
+										waiter -> waiter
+												.maxAttempts(this.createTableRetries)
+												.backoffStrategy(FixedDelayBackoffStrategy.create(
+														Duration.ofSeconds(this.createTableDelay)))))
+				.thenRun(() -> { });
+	}
 
-								@Override
-								public void onWaitFailure(Exception e) {
-									logger.error("Cannot describe DynamoDb table: "
-											+ DynamoDbMetadataStore.this.table.getTableName(), e);
-									DynamoDbMetadataStore.this.createTableLatch.countDown();
-								}
+	private CompletableFuture<?> updateTimeToLiveIfAny() {
+		if (this.timeToLive != null) {
+			UpdateTimeToLiveRequest.Builder updateTimeToLiveRequest =
+					UpdateTimeToLiveRequest.builder()
+							.tableName(this.tableName)
+							.timeToLiveSpecification(ttl -> ttl.attributeName(TTL).enabled(this.timeToLive > 0));
 
-							});
+			return this.dynamoDB.updateTimeToLive(updateTimeToLiveRequest.build())
+					.exceptionally((ex) -> {
+						if (logger.isWarnEnabled()) {
+							logger.warn("The error during 'updateTimeToLive' request", ex);
 						}
-
+						return null;
 					});
 		}
-		finally {
-			this.initialized = true;
-		}
-	}
 
-	private boolean isTableAvailable() {
-		try {
-			this.table.describe();
-			updateTimeToLiveIfAny();
-			this.createTableLatch.countDown();
-			return true;
-		}
-		catch (ResourceNotFoundException e) {
-			if (logger.isInfoEnabled()) {
-				logger.info("No table '" + this.table.getTableName() + "'. Creating one...");
-			}
-			return false;
-		}
-	}
-
-	private void updateTimeToLiveIfAny() {
-		if (this.timeToLive != null) {
-			UpdateTimeToLiveRequest updateTimeToLiveRequest = new UpdateTimeToLiveRequest()
-					.withTableName(this.table.getTableName()).withTimeToLiveSpecification(
-							new TimeToLiveSpecification().withAttributeName(TTL).withEnabled(this.timeToLive > 0));
-
-			try {
-				this.dynamoDB.updateTimeToLive(updateTimeToLiveRequest);
-			}
-			catch (AmazonDynamoDBException e) {
-				if (logger.isWarnEnabled()) {
-					logger.warn("The error during 'updateTimeToLive' request", e);
-				}
-			}
-		}
+		return CompletableFuture.completedFuture(null);
 	}
 
 	private void awaitForActive() {
@@ -253,7 +234,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			throw new IllegalStateException("The DynamoDb table " + this.table.getTableName()
+			throw new IllegalStateException("The DynamoDb table " + this.tableName
 					+ " has not been created during " + this.createTableRetries * this.createTableDelay + " seconds");
 		}
 	}
@@ -265,13 +246,20 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item = new Item().withPrimaryKey(KEY, key).withString(VALUE, value);
+		Map<String, AttributeValue> attributes = new HashMap<>();
+		attributes.put(KEY, AttributeValue.fromS(key));
+		attributes.put(VALUE, AttributeValue.fromS(value));
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
-			item = item.withLong(TTL, (System.currentTimeMillis() + this.timeToLive) / 1000);
+			attributes.put(TTL, AttributeValue.fromN("" + Instant.now().plusMillis(this.timeToLive).getEpochSecond()));
 		}
 
-		this.table.putItem(item);
+		PutItemRequest.Builder putItemRequest =
+				PutItemRequest.builder()
+						.tableName(this.tableName)
+						.item(attributes);
+
+		this.dynamoDB.putItem(putItemRequest.build()).join();
 	}
 
 	@Override
@@ -280,9 +268,17 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item = this.table.getItem(KEY, key);
-
-		return getValueIfAny(item);
+		try {
+			return this.dynamoDB.getItem(request -> request
+							.tableName(this.tableName)
+							.key(Map.of(KEY, AttributeValue.fromS(key))))
+					.thenApply(GetItemResponse::item)
+					.thenApply(DynamoDbMetadataStore::getValueIfAny)
+					.join();
+		}
+		catch (CompletionException ex) {
+			return rethrowAsRuntimeException(ex.getCause());
+		}
 	}
 
 	@Override
@@ -292,20 +288,36 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey(KEY, key)
-				.withAttributeUpdate(new AttributeUpdate(VALUE).put(value)).withExpected(new Expected(KEY).notExist());
+		Map<String, AttributeValue> attributes = new HashMap<>();
+		attributes.put(":value", AttributeValue.fromS(value));
+
+		String updateExpression = "SET " + VALUE + " = :value";
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
-			updateItemSpec = updateItemSpec.addAttributeUpdate(
-					new AttributeUpdate(TTL).put((System.currentTimeMillis() + this.timeToLive) / 1000));
+			updateExpression += ", " + TTL + " = :ttl";
+			attributes.put(":ttl", AttributeValue.fromN("" + Instant.now().plusMillis(this.timeToLive).getEpochSecond()));
 		}
 
+		UpdateItemRequest.Builder updateItemRequest =
+				UpdateItemRequest.builder()
+						.tableName(this.tableName)
+						.key(Map.of(KEY, AttributeValue.fromS(key)))
+						.conditionExpression(KEY_NOT_EXISTS_EXPRESSION)
+						.updateExpression(updateExpression)
+						.expressionAttributeValues(attributes);
+
 		try {
-			this.table.updateItem(updateItemSpec);
+			this.dynamoDB.updateItem(updateItemRequest.build()).join();
 			return null;
 		}
-		catch (ConditionalCheckFailedException e) {
-			return get(key);
+		catch (CompletionException ex) {
+			Throwable cause = ex.getCause();
+			if (cause instanceof ConditionalCheckFailedException) {
+				return get(key);
+			}
+			else {
+				return rethrowAsRuntimeException(cause);
+			}
 		}
 	}
 
@@ -317,20 +329,36 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		UpdateItemSpec updateItemSpec = new UpdateItemSpec().withPrimaryKey(KEY, key)
-				.withAttributeUpdate(new AttributeUpdate(VALUE).put(newValue))
-				.withExpected(new Expected(VALUE).eq(oldValue)).withReturnValues(ReturnValue.UPDATED_NEW);
+		Map<String, AttributeValue> attributes = new HashMap<>();
+		attributes.put(":newValue", AttributeValue.fromS(newValue));
+		attributes.put(":oldValue", AttributeValue.fromS(oldValue));
+
+		String updateExpression = "SET " + VALUE + " = :newValue";
 
 		if (this.timeToLive != null && this.timeToLive > 0) {
-			updateItemSpec = updateItemSpec.addAttributeUpdate(
-					new AttributeUpdate(TTL).put((System.currentTimeMillis() + this.timeToLive) / 1000));
+			updateExpression += ", " + TTL + " = :ttl";
+			attributes.put(":ttl", AttributeValue.fromN("" + Instant.now().plusMillis(this.timeToLive).getEpochSecond()));
 		}
 
+		UpdateItemRequest.Builder updateItemRequest =
+				UpdateItemRequest.builder()
+						.tableName(this.tableName)
+						.key(Map.of(KEY, AttributeValue.fromS(key)))
+						.conditionExpression(VALUE + " = :oldValue")
+						.updateExpression(updateExpression)
+						.expressionAttributeValues(attributes)
+						.returnValues(ReturnValue.UPDATED_NEW);
+
 		try {
-			return this.table.updateItem(updateItemSpec).getItem() != null;
+			return this.dynamoDB.updateItem(updateItemRequest.build()).join().hasAttributes();
 		}
-		catch (ConditionalCheckFailedException e) {
-			return false;
+		catch (CompletionException ex) {
+			if (ex.getCause() instanceof ConditionalCheckFailedException) {
+				return false;
+			}
+			else {
+				return rethrowAsRuntimeException(ex.getCause());
+			}
 		}
 	}
 
@@ -340,28 +368,44 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 
 		awaitForActive();
 
-		Item item = this.table
-				.deleteItem(new DeleteItemSpec().withPrimaryKey(KEY, key).withReturnValues(ReturnValue.ALL_OLD))
-				.getItem();
-
-		return getValueIfAny(item);
+		try {
+			return this.dynamoDB
+					.deleteItem(request -> request
+							.tableName(this.tableName)
+							.key(Map.of(KEY, AttributeValue.fromS(key)))
+							.returnValues(ReturnValue.ALL_OLD))
+					.thenApply(DeleteItemResponse::attributes)
+					.thenApply(DynamoDbMetadataStore::getValueIfAny)
+					.join();
+		}
+		catch (CompletionException ex) {
+			return rethrowAsRuntimeException(ex.getCause());
+		}
 	}
 
-	private static String getValueIfAny(Item item) {
-		if (item != null) {
-			return item.getString(VALUE);
+	private static String getValueIfAny(Map<String, AttributeValue> item) {
+		if (item.containsKey(VALUE)) {
+			return item.get(VALUE).s();
 		}
 		else {
 			return null;
 		}
 	}
 
+	private static <T> T rethrowAsRuntimeException(Throwable cause) {
+		if (cause instanceof RuntimeException runtimeException) {
+			throw runtimeException;
+		}
+		else {
+			throw new IllegalStateException(cause);
+		}
+	}
+
 	@Override
 	public String toString() {
-		return "DynamoDbMetadataStore{" + "table=" + this.table + ", createTableRetries=" + this.createTableRetries
+		return "DynamoDbMetadataStore{" + "table=" + this.tableName + ", createTableRetries=" + this.createTableRetries
 				+ ", createTableDelay=" + this.createTableDelay + ", billingMode=" + this.billingMode
 				+ ", readCapacity=" + this.readCapacity + ", writeCapacity=" + this.writeCapacity
 				+ ", timeToLive=" + this.timeToLive + '}';
 	}
-
 }

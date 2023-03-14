@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 the original author or authors.
+ * Copyright 2022-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,19 @@
 
 package org.springframework.integration.aws;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsyncClientBuilder;
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
-import com.amazonaws.services.kinesis.AmazonKinesisAsyncClientBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 /**
  * The base contract for JUnit tests based on the container for Localstack.
@@ -51,40 +50,42 @@ public interface LocalstackContainerTest {
 					.withServices(
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
-							LocalStackContainer.Service.CLOUDWATCH);
+							LocalStackContainer.Service.CLOUDWATCH,
+							LocalStackContainer.Service.S3);
 
 	@BeforeAll
 	static void startContainer() {
 		LOCAL_STACK_CONTAINER.start();
 	}
 
-	static AmazonDynamoDBAsync dynamoDbClient() {
-		return applyAwsClientOptions(AmazonDynamoDBAsyncClientBuilder.standard(), LocalStackContainer.Service.DYNAMODB);
+	static DynamoDbAsyncClient dynamoDbClient() {
+		return applyAwsClientOptions(DynamoDbAsyncClient.builder(), LocalStackContainer.Service.DYNAMODB);
 	}
 
-	static AmazonKinesisAsync kinesisClient() {
-		return applyAwsClientOptions(AmazonKinesisAsyncClientBuilder.standard(), LocalStackContainer.Service.KINESIS);
+	static KinesisAsyncClient kinesisClient() {
+		return applyAwsClientOptions(KinesisAsyncClient.builder(), LocalStackContainer.Service.KINESIS);
 	}
 
-	static AmazonCloudWatch cloudWatchClient() {
-		return applyAwsClientOptions(AmazonCloudWatchClientBuilder.standard(), LocalStackContainer.Service.CLOUDWATCH);
+	static CloudWatchAsyncClient cloudWatchClient() {
+		return applyAwsClientOptions(CloudWatchAsyncClient.builder(), LocalStackContainer.Service.CLOUDWATCH);
 	}
 
-	static AWSCredentialsProvider credentialsProvider() {
-		return new AWSStaticCredentialsProvider(
-				new BasicAWSCredentials(
-						LOCAL_STACK_CONTAINER.getAccessKey(),
-						LOCAL_STACK_CONTAINER.getSecretKey()));
+	static S3AsyncClient s3Client() {
+		return applyAwsClientOptions(S3AsyncClient.builder(), LocalStackContainer.Service.CLOUDWATCH);
+	}
+
+	static AwsCredentialsProvider credentialsProvider() {
+		return StaticCredentialsProvider.create(
+				AwsBasicCredentials.create(LOCAL_STACK_CONTAINER.getAccessKey(), LOCAL_STACK_CONTAINER.getSecretKey()));
 	}
 
 	private static <B extends AwsClientBuilder<B, T>, T> T applyAwsClientOptions(B clientBuilder,
 			LocalStackContainer.Service serviceToBuild) {
 
-		return clientBuilder.withEndpointConfiguration(
-						new AwsClientBuilder.EndpointConfiguration(
-								LOCAL_STACK_CONTAINER.getEndpointOverride(serviceToBuild).toString(),
-								LOCAL_STACK_CONTAINER.getRegion()))
-				.withCredentials(credentialsProvider())
+		return clientBuilder
+				.region(Region.of(LOCAL_STACK_CONTAINER.getRegion()))
+				.credentialsProvider(credentialsProvider())
+				.endpointOverride(LOCAL_STACK_CONTAINER.getEndpointOverride(serviceToBuild))
 				.build();
 	}
 

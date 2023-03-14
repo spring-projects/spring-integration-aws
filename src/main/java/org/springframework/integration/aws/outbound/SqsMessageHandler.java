@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,20 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 
-import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.sqs.AmazonSQSAsync;
-import com.amazonaws.services.sqs.model.MessageAttributeValue;
-import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
-import com.amazonaws.services.sqs.model.SendMessageBatchResult;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
-import com.amazonaws.services.sqs.model.SendMessageResult;
-import io.awspring.cloud.core.env.ResourceIdResolver;
-import io.awspring.cloud.messaging.support.destination.DynamicQueueUrlDestinationResolver;
+import io.awspring.cloud.sqs.QueueAttributesResolver;
+import io.awspring.cloud.sqs.listener.QueueNotFoundStrategy;
+import software.amazon.awssdk.awscore.AwsRequest;
+import software.amazon.awssdk.awscore.AwsResponse;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageResponse;
 
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
@@ -38,11 +38,9 @@ import org.springframework.integration.aws.support.SqsHeaderMapper;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.mapping.HeaderMapper;
-import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.converter.GenericMessageConverter;
 import org.springframework.messaging.converter.MessageConverter;
-import org.springframework.messaging.core.DestinationResolver;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -54,19 +52,20 @@ import org.springframework.util.StringUtils;
  * @author Rahul Pilani
  * @author Taylor Wicksell
  * @author Seth Kelly
- * @see AmazonSQSAsync#sendMessageAsync(SendMessageRequest, AsyncHandler)
+ *
+ * @see SqsAsyncClient#sendMessage(SendMessageRequest)
  * @see com.amazonaws.handlers.AsyncHandler
  *
  */
 public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, MessageAttributeValue>> {
 
-	private final AmazonSQSAsync amazonSqs;
-
-	private final DestinationResolver<?> destinationResolver;
+	private final SqsAsyncClient amazonSqs;
 
 	private MessageConverter messageConverter;
 
 	private Expression queueExpression;
+
+	private QueueNotFoundStrategy queueNotFoundStrategy = QueueNotFoundStrategy.FAIL;
 
 	private Expression delayExpression;
 
@@ -74,20 +73,9 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 
 	private Expression messageDeduplicationIdExpression;
 
-	public SqsMessageHandler(AmazonSQSAsync amazonSqs) {
-		this(amazonSqs, (ResourceIdResolver) null);
-	}
-
-	public SqsMessageHandler(AmazonSQSAsync amazonSqs, ResourceIdResolver resourceIdResolver) {
-		this(amazonSqs, new DynamicQueueUrlDestinationResolver(amazonSqs, resourceIdResolver));
-	}
-
-	public SqsMessageHandler(AmazonSQSAsync amazonSqs, DestinationResolver<?> destinationResolver) {
+	public SqsMessageHandler(SqsAsyncClient amazonSqs) {
 		Assert.notNull(amazonSqs, "'amazonSqs' must not be null");
-		Assert.notNull(destinationResolver, "'destinationResolver' must not be null");
-
 		this.amazonSqs = amazonSqs;
-		this.destinationResolver = destinationResolver;
 		doSetHeaderMapper(new SqsHeaderMapper());
 	}
 
@@ -103,6 +91,16 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	public void setQueueExpression(Expression queueExpression) {
 		Assert.notNull(queueExpression, "'queueExpression' must not be null");
 		this.queueExpression = queueExpression;
+	}
+
+	/**
+	 * Set a {@link QueueNotFoundStrategy}; defaults to {@link QueueNotFoundStrategy#FAIL}.
+	 * @param queueNotFoundStrategy the {@link QueueNotFoundStrategy} to use.
+	 * @since 3.0
+	 */
+	public void setQueueNotFoundStrategy(QueueNotFoundStrategy queueNotFoundStrategy) {
+		Assert.notNull(queueNotFoundStrategy, "'queueNotFoundStrategy' must not be null");
+		this.queueNotFoundStrategy = queueNotFoundStrategy;
 	}
 
 	public void setDelay(int delaySeconds) {
@@ -151,86 +149,97 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	@Override
 	protected void onInit() {
 		super.onInit();
-
 		if (this.messageConverter == null) {
 			this.messageConverter = new GenericMessageConverter(getConversionService());
 		}
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected Future<?> handleMessageToAws(Message<?> message) {
+	protected AwsRequest messageToAwsRequest(Message<?> message) {
 		Object payload = message.getPayload();
 		if (payload instanceof SendMessageBatchRequest) {
-			AsyncHandler<SendMessageBatchRequest, SendMessageBatchResult> asyncHandler = obtainAsyncHandler(message,
-					(SendMessageBatchRequest) payload);
-			return this.amazonSqs.sendMessageBatchAsync((SendMessageBatchRequest) payload, asyncHandler);
+			return (SendMessageBatchRequest) payload;
 		}
-
-		SendMessageRequest sendMessageRequest;
 		if (payload instanceof SendMessageRequest) {
-			sendMessageRequest = (SendMessageRequest) payload;
+			return (SendMessageRequest) payload;
 		}
-		else {
-			String queue = message.getHeaders().get(AwsHeaders.QUEUE, String.class);
-			if (!StringUtils.hasText(queue) && this.queueExpression != null) {
-				queue = this.queueExpression.getValue(getEvaluationContext(), message, String.class);
-			}
-			Assert.state(queue != null,
-					"'queue' must not be null for sending an SQS message. "
-							+ "Consider configuring this handler with a 'queue'( or 'queueExpression') or supply an "
-							+ "'aws_queue' message header");
 
-			String queueUrl = (String) this.destinationResolver.resolveDestination(queue);
-			String messageBody = (String) this.messageConverter.fromMessage(message, String.class);
-			sendMessageRequest = new SendMessageRequest(queueUrl, messageBody);
-
-			if (this.delayExpression != null) {
-				Integer delay = this.delayExpression.getValue(getEvaluationContext(), message, Integer.class);
-				sendMessageRequest.setDelaySeconds(delay);
-			}
-
-			if (this.messageGroupIdExpression != null) {
-				String messageGroupId = this.messageGroupIdExpression.getValue(getEvaluationContext(), message,
-						String.class);
-				sendMessageRequest.setMessageGroupId(messageGroupId);
-			}
-
-			if (this.messageDeduplicationIdExpression != null) {
-				String messageDeduplicationId = this.messageDeduplicationIdExpression.getValue(getEvaluationContext(),
-						message, String.class);
-				sendMessageRequest.setMessageDeduplicationId(messageDeduplicationId);
-			}
-
-			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper = getHeaderMapper();
-			if (headerMapper != null) {
-				mapHeaders(message, sendMessageRequest, headerMapper);
-			}
+		SendMessageRequest.Builder sendMessageRequest = SendMessageRequest.builder();
+		String queue = message.getHeaders().get(AwsHeaders.QUEUE, String.class);
+		if (!StringUtils.hasText(queue) && this.queueExpression != null) {
+			queue = this.queueExpression.getValue(getEvaluationContext(), message, String.class);
 		}
-		AsyncHandler<SendMessageRequest, SendMessageResult> asyncHandler = obtainAsyncHandler(message,
-				sendMessageRequest);
-		return this.amazonSqs.sendMessageAsync(sendMessageRequest, asyncHandler);
+		Assert.state(queue != null,
+				"'queue' must not be null for sending an SQS message. "
+						+ "Consider configuring this handler with a 'queue'( or 'queueExpression') or supply an "
+						+ "'aws_queue' message header");
+
+		String queueUrl = resolveQueueUrl(queue);
+
+		String messageBody = (String) this.messageConverter.fromMessage(message, String.class);
+		sendMessageRequest.queueUrl(queueUrl).messageBody(messageBody);
+
+		if (this.delayExpression != null) {
+			Integer delay = this.delayExpression.getValue(getEvaluationContext(), message, Integer.class);
+			sendMessageRequest.delaySeconds(delay);
+		}
+
+		if (this.messageGroupIdExpression != null) {
+			String messageGroupId =
+					this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
+			sendMessageRequest.messageGroupId(messageGroupId);
+		}
+
+		if (this.messageDeduplicationIdExpression != null) {
+			String messageDeduplicationId =
+					this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
+			sendMessageRequest.messageDeduplicationId(messageDeduplicationId);
+		}
+
+		mapHeaders(message, sendMessageRequest);
+		return sendMessageRequest.build();
 	}
 
-	private void mapHeaders(Message<?> message, SendMessageRequest sendMessageRequest,
-			HeaderMapper<Map<String, MessageAttributeValue>> headerMapper) {
+	private String resolveQueueUrl(String queue) {
+		return QueueAttributesResolver.builder()
+				.sqsAsyncClient(this.amazonSqs)
+				.queueNotFoundStrategy(this.queueNotFoundStrategy)
+				.queueAttributeNames(Collections.emptyList())
+				.queueName(queue)
+				.build()
+				.resolveQueueAttributes()
+				.join()
+				.getQueueUrl();
+	}
 
-		HashMap<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-		headerMapper.fromHeaders(message.getHeaders(), messageAttributes);
-		if (!messageAttributes.isEmpty()) {
-			sendMessageRequest.setMessageAttributes(messageAttributes);
+	private void mapHeaders(Message<?> message, SendMessageRequest.Builder sendMessageRequest) {
+		HeaderMapper<Map<String, MessageAttributeValue>> headerMapper = getHeaderMapper();
+		if (headerMapper != null) {
+			HashMap<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+			headerMapper.fromHeaders(message.getHeaders(), messageAttributes);
+			if (!messageAttributes.isEmpty()) {
+				sendMessageRequest.messageAttributes(messageAttributes);
+			}
 		}
 	}
 
 	@Override
-	protected void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
-			AmazonWebServiceRequest request, Object result) {
-
-		if (result instanceof SendMessageResult) {
-			SendMessageResult sendMessageResult = (SendMessageResult) result;
-			messageBuilder.setHeaderIfAbsent(AwsHeaders.MESSAGE_ID, sendMessageResult.getMessageId());
-			messageBuilder.setHeaderIfAbsent(AwsHeaders.SEQUENCE_NUMBER, sendMessageResult.getSequenceNumber());
+	protected CompletableFuture<? extends AwsResponse> handleMessageToAws(Message<?> message, AwsRequest request) {
+		if (request instanceof SendMessageBatchRequest sendMessageBatchRequest) {
+			return this.amazonSqs.sendMessageBatch(sendMessageBatchRequest);
 		}
+		else {
+			return this.amazonSqs.sendMessage((SendMessageRequest) request);
+		}
+	}
+
+	@Override
+	protected Map<String, ?> additionalOnSuccessHeaders(AwsRequest request, AwsResponse response) {
+		if (response instanceof SendMessageResponse sendMessageResponse) {
+			return Map.of(AwsHeaders.MESSAGE_ID, sendMessageResponse.messageId(),
+					AwsHeaders.SEQUENCE_NUMBER, sendMessageResponse.sequenceNumber());
+		}
+		return null;
 	}
 
 }

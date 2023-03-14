@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 
-import io.awspring.cloud.messaging.core.MessageAttributeDataTypes;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -118,18 +117,18 @@ public abstract class AbstractMessageAttributesHeaderMapper<A> implements Header
 	}
 
 	private A getBinaryMessageAttribute(ByteBuffer messageHeaderValue) {
-		return buildMessageAttribute(MessageAttributeDataTypes.BINARY, messageHeaderValue);
+		return buildMessageAttribute("Binary", messageHeaderValue);
 	}
 
 	private A getStringMessageAttribute(String messageHeaderValue) {
-		return buildMessageAttribute(MessageAttributeDataTypes.STRING, messageHeaderValue);
+		return buildMessageAttribute("String", messageHeaderValue);
 	}
 
 	private A getNumberMessageAttribute(Object messageHeaderValue) {
 		Assert.isTrue(NumberUtils.STANDARD_NUMBER_TYPES.contains(messageHeaderValue.getClass()),
 				"Only standard number types are accepted as message header.");
 
-		return buildMessageAttribute(MessageAttributeDataTypes.NUMBER + "." + messageHeaderValue.getClass().getName(),
+		return buildMessageAttribute("Number." + messageHeaderValue.getClass().getName(),
 				messageHeaderValue);
 	}
 

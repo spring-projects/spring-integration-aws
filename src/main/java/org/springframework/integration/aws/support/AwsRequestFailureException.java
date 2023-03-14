@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.integration.aws.support;
 
-import com.amazonaws.AmazonWebServiceRequest;
+import software.amazon.awssdk.awscore.AwsRequest;
 
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessagingException;
@@ -25,20 +25,22 @@ import org.springframework.messaging.MessagingException;
  * An exception that is the payload of an {@code ErrorMessage} when a send fails.
  *
  * @author Jacob Severson
+ * @author Artem Bilan
+ *
  * @since 1.1
  */
 public class AwsRequestFailureException extends MessagingException {
 
 	private static final long serialVersionUID = 1L;
 
-	private final AmazonWebServiceRequest request;
+	private final AwsRequest request;
 
-	public AwsRequestFailureException(Message<?> message, AmazonWebServiceRequest request, Throwable cause) {
+	public AwsRequestFailureException(Message<?> message, AwsRequest request, Throwable cause) {
 		super(message, cause);
 		this.request = request;
 	}
 
-	public AmazonWebServiceRequest getRequest() {
+	public AwsRequest getRequest() {
 		return this.request;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ package org.springframework.integration.aws.inbound;
 
 import java.util.Map;
 
-import com.amazonaws.services.sns.AmazonSNS;
-import io.awspring.cloud.messaging.endpoint.NotificationStatus;
+import io.awspring.cloud.sns.handlers.NotificationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.BDDMockito;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.ConfirmSubscriptionRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +45,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.verify;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,7 +61,7 @@ public class SnsInboundChannelAdapterTests {
 	private WebApplicationContext context;
 
 	@Autowired
-	private AmazonSNS amazonSns;
+	private SnsClient amazonSns;
 
 	@Autowired
 	private PollableChannel inputChannel;
@@ -100,7 +101,11 @@ public class SnsInboundChannelAdapterTests {
 
 		notificationStatus.confirmSubscription();
 
-		verify(this.amazonSns).confirmSubscription("arn:aws:sns:eu-west-1:111111111111:mySampleTopic", "111");
+		verify(this.amazonSns).confirmSubscription(
+				ConfirmSubscriptionRequest.builder()
+						.topicArn("arn:aws:sns:eu-west-1:111111111111:mySampleTopic")
+						.token("111")
+						.build());
 	}
 
 	@Test
@@ -139,7 +144,11 @@ public class SnsInboundChannelAdapterTests {
 
 		notificationStatus.confirmSubscription();
 
-		verify(this.amazonSns).confirmSubscription("arn:aws:sns:eu-west-1:111111111111:mySampleTopic", "233");
+		verify(this.amazonSns).confirmSubscription(
+				ConfirmSubscriptionRequest.builder()
+						.topicArn("arn:aws:sns:eu-west-1:111111111111:mySampleTopic")
+						.token("233")
+						.build());
 	}
 
 	@Configuration
@@ -147,8 +156,8 @@ public class SnsInboundChannelAdapterTests {
 	public static class ContextConfiguration {
 
 		@Bean
-		public AmazonSNS amazonSns() {
-			return BDDMockito.mock(AmazonSNS.class);
+		public SnsClient amazonSns() {
+			return mock(SnsClient.class);
 		}
 
 		@Bean

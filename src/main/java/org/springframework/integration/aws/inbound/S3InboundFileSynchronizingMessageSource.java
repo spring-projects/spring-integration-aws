@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.springframework.integration.aws.inbound;
 import java.io.File;
 import java.util.Comparator;
 
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.file.remote.synchronizer.AbstractInboundFileSynchronizer;
 import org.springframework.integration.file.remote.synchronizer.AbstractInboundFileSynchronizingMessageSource;
@@ -31,14 +31,15 @@ import org.springframework.integration.file.remote.synchronizer.AbstractInboundF
  * @author Artem Bilan
  */
 public class S3InboundFileSynchronizingMessageSource
-		extends AbstractInboundFileSynchronizingMessageSource<S3ObjectSummary> {
+		extends AbstractInboundFileSynchronizingMessageSource<S3Object> {
 
-	public S3InboundFileSynchronizingMessageSource(AbstractInboundFileSynchronizer<S3ObjectSummary> synchronizer) {
+	public S3InboundFileSynchronizingMessageSource(AbstractInboundFileSynchronizer<S3Object> synchronizer) {
 		super(synchronizer);
 	}
 
-	public S3InboundFileSynchronizingMessageSource(AbstractInboundFileSynchronizer<S3ObjectSummary> synchronizer,
+	public S3InboundFileSynchronizingMessageSource(AbstractInboundFileSynchronizer<S3Object> synchronizer,
 			Comparator<File> comparator) {
+
 		super(synchronizer, comparator);
 	}
 

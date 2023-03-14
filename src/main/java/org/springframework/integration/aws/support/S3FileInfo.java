@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.springframework.integration.aws.support;
 
 import java.util.Date;
 
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.file.remote.AbstractFileInfo;
 import org.springframework.util.Assert;
@@ -28,15 +28,17 @@ import org.springframework.util.Assert;
  * implementation.
  *
  * @author Christian Tzolov
+ * @author Artem Bilan
+ *
  * @since 1.1
  */
-public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
+public class S3FileInfo extends AbstractFileInfo<S3Object> {
 
-	private final S3ObjectSummary s3ObjectSummary;
+	private final S3Object s3Object;
 
-	public S3FileInfo(S3ObjectSummary s3ObjectSummary) {
-		Assert.notNull(s3ObjectSummary, "s3ObjectSummary must not be null");
-		this.s3ObjectSummary = s3ObjectSummary;
+	public S3FileInfo(S3Object s3Object) {
+		Assert.notNull(s3Object, "s3Object must not be null");
+		this.s3Object = s3Object;
 	}
 
 	@Override
@@ -51,22 +53,22 @@ public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
 
 	@Override
 	public long getSize() {
-		return this.s3ObjectSummary.getSize();
+		return this.s3Object.size();
 	}
 
 	@Override
 	public long getModified() {
-		return this.s3ObjectSummary.getLastModified().getTime();
+		return this.s3Object.lastModified().getEpochSecond();
 	}
 
 	@Override
 	public String getFilename() {
-		return this.s3ObjectSummary.getKey();
+		return this.s3Object.key();
 	}
 
 	/**
 	 * A permissions representation string. Throws {@link UnsupportedOperationException}
-	 * to avoid extra {@link com.amazonaws.services.s3.AmazonS3#getObjectAcl} REST call.
+	 * to avoid extra {@link software.amazon.awssdk.services.s3.S3Client#getObjectAcl} REST call.
 	 * The target application amy choose to do that by its logic.
 	 * @return the permissions representation string.
 	 */
@@ -76,8 +78,8 @@ public class S3FileInfo extends AbstractFileInfo<S3ObjectSummary> {
 	}
 
 	@Override
-	public S3ObjectSummary getFileInfo() {
-		return this.s3ObjectSummary;
+	public S3Object getFileInfo() {
+		return this.s3Object;
 	}
 
 	@Override

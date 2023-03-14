@@ -20,45 +20,42 @@ import java.io.Closeable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.document.Item;
-import com.amazonaws.services.dynamodbv2.document.Table;
-import com.amazonaws.services.dynamodbv2.document.spec.DeleteItemSpec;
-import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
-import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
-import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
-import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.BillingMode;
-import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.amazonaws.services.dynamodbv2.model.TableStatus;
-import com.amazonaws.services.dynamodbv2.model.TimeToLiveSpecification;
-import com.amazonaws.services.dynamodbv2.model.UpdateTimeToLiveRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BillingMode;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
+import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
+import software.amazon.awssdk.services.dynamodb.model.Select;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
-import org.springframework.util.ReflectionUtils;
 
 /**
  * Encapsulation of the DynamoDB shunting that is needed for locks.
@@ -106,7 +103,7 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 			String.format("attribute_exists(%s) AND %s = :owner", KEY_ATTR, OWNER_ATTR);
 
 	private static final String LOCK_NOT_EXISTS_EXPRESSION =
-			String.format("attribute_not_exists(%s) OR %s < :ttl OR (%s)", KEY_ATTR, TTL_ATTR, LOCK_EXISTS_EXPRESSION);
+			String.format("attribute_not_exists(%s) OR %s = :owner OR %s < :ttl", KEY_ATTR, OWNER_ATTR, TTL_ATTR);
 
 	/**
 	 * Default value for the {@link #leaseDuration} property.
@@ -121,9 +118,9 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 
 	private final Set<String> heldLocks = Collections.synchronizedSet(new HashSet<>());
 
-	private final AmazonDynamoDB dynamoDB;
+	private final DynamoDbAsyncClient dynamoDB;
 
-	private final Table lockTable;
+	private final String tableName;
 
 	private BillingMode billingMode = BillingMode.PAY_PER_REQUEST;
 
@@ -135,17 +132,17 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 
 	private Duration leaseDuration = DEFAULT_LEASE_DURATION;
 
-	private Map<String, Object> ownerAttribute;
+	private Map<String, AttributeValue> ownerAttribute;
 
 	private volatile boolean initialized;
 
-	public DynamoDbLockRepository(AmazonDynamoDB dynamoDB) {
+	public DynamoDbLockRepository(DynamoDbAsyncClient dynamoDB) {
 		this(dynamoDB, DEFAULT_TABLE_NAME);
 	}
 
-	public DynamoDbLockRepository(AmazonDynamoDB dynamoDB, String tableName) {
+	public DynamoDbLockRepository(DynamoDbAsyncClient dynamoDB, String tableName) {
 		this.dynamoDB = dynamoDB;
-		this.lockTable = new Table(this.dynamoDB, tableName);
+		this.tableName = tableName;
 	}
 
 	public void setBillingMode(BillingMode billingMode) {
@@ -179,7 +176,7 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	}
 
 	public String getTableName() {
-		return this.lockTable.getTableName();
+		return this.tableName;
 	}
 
 	public String getOwner() {
@@ -188,109 +185,92 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 
 	@Override
 	public void afterPropertiesSet() {
-		this.customizableThreadFactory
-				.newThread(() -> {
-					try {
-						if (!lockTableExists()) {
-							if (LOGGER.isInfoEnabled()) {
-								LOGGER.info("No table '" + getTableName() + "'. Creating one...");
-							}
-							createLockTableInDynamoDB();
-							int i = 0;
-							// We need up to one minute to wait until table is created on AWS.
-							while (i++ < 60) {
-								if (lockTableExists()) {
-									this.dynamoDB.updateTimeToLive(
-											new UpdateTimeToLiveRequest()
-													.withTableName(getTableName())
-													.withTimeToLiveSpecification(
-															new TimeToLiveSpecification()
-																	.withEnabled(true)
-																	.withAttributeName(TTL_ATTR)));
-									return;
-								}
-								else {
-									try {
-										// This is allowed minimum for constant AWS requests.
-										Thread.sleep(1000);
-									}
-									catch (InterruptedException e) {
-										ReflectionUtils.rethrowRuntimeException(e);
-									}
-								}
-							}
 
-							LOGGER.error("Cannot describe DynamoDb table: " + getTableName());
+		this.dynamoDB.describeTable(request -> request.tableName(this.tableName))
+				.thenRun(() -> {
+				})
+				.exceptionallyCompose((ex) -> {
+					Throwable cause = ex.getCause();
+					if (cause instanceof ResourceNotFoundException) {
+						if (LOGGER.isInfoEnabled()) {
+							LOGGER.info("No table '" + getTableName() + "'. Creating one...");
 						}
+						return createTable();
 					}
-					finally {
-						// Release create table barrier either way.
-						// If there is an error during creation/description,
-						// we defer the actual ResourceNotFoundException to the end-user active
-						// calls.
-						this.createTableLatch.countDown();
+					else {
+						return rethrowAsRuntimeException(cause);
 					}
 				})
-				.start();
+				.exceptionally((ex) -> {
+					LOGGER.error("Cannot create DynamoDb table: " + this.tableName, ex.getCause());
+					return null;
+				})
+				.thenRun(this.createTableLatch::countDown);
 
-
-		this.ownerAttribute = Map.of(":owner", this.owner);
+		this.ownerAttribute = Map.of(":owner", AttributeValue.fromS(this.owner));
 		this.initialized = true;
 	}
 
-	private boolean lockTableExists() {
-		try {
-			DescribeTableResult result = this.dynamoDB.describeTable(new DescribeTableRequest(getTableName()));
-			return Set.of(TableStatus.ACTIVE, TableStatus.UPDATING)
-					.contains(TableStatus.fromValue(result.getTable().getTableStatus()));
-		}
-		catch (ResourceNotFoundException e) {
-			// This exception indicates the table doesn't exist.
-			return false;
-		}
-	}
-
-	/**
+	/*
 	 * Creates a DynamoDB table with the right schema for it to be used by this locking library.
 	 * The table should be set up in advance,
 	 * because it takes a few minutes for DynamoDB to provision a new instance.
 	 * If table already exists no exception.
 	 */
-	private void createLockTableInDynamoDB() {
-		try {
-			CreateTableRequest createTableRequest =
-					new CreateTableRequest()
-							.withTableName(getTableName())
-							.withKeySchema(new KeySchemaElement(KEY_ATTR, KeyType.HASH))
-							.withAttributeDefinitions(new AttributeDefinition(KEY_ATTR, ScalarAttributeType.S))
-							.withBillingMode(this.billingMode);
+	private CompletableFuture<Void> createTable() {
+		CreateTableRequest.Builder createTableRequest =
+				CreateTableRequest.builder()
+						.tableName(this.tableName)
+						.keySchema(KeySchemaElement.builder()
+								.attributeName(KEY_ATTR)
+								.keyType(KeyType.HASH)
+								.build())
+						.attributeDefinitions(AttributeDefinition.builder()
+								.attributeName(KEY_ATTR)
+								.attributeType(ScalarAttributeType.S)
+								.build())
+						.billingMode(this.billingMode);
 
-			if (BillingMode.PROVISIONED.equals(this.billingMode)) {
-				createTableRequest.setProvisionedThroughput(
-						new ProvisionedThroughput(this.readCapacity, this.writeCapacity));
-			}
+		if (BillingMode.PROVISIONED.equals(this.billingMode)) {
+			createTableRequest.provisionedThroughput(ProvisionedThroughput.builder()
+					.readCapacityUnits(this.readCapacity)
+					.writeCapacityUnits(this.writeCapacity)
+					.build());
+		}
 
-			this.dynamoDB.createTable(createTableRequest);
-		}
-		catch (ResourceInUseException ex) {
-			// Swallow an exception and you should check for table existence
-		}
+		return this.dynamoDB.createTable(createTableRequest.build())
+				.thenCompose(result ->
+						this.dynamoDB.waiter()
+								.waitUntilTableExists(request -> request.tableName(this.tableName),
+										waiter -> waiter
+												.maxAttempts(60)
+												.backoffStrategy(
+														FixedDelayBackoffStrategy.create(Duration.ofSeconds(1)))))
+				.thenCompose((response) -> updateTimeToLive())
+				.thenRun(() -> {
+				});
+	}
+
+	private CompletableFuture<?> updateTimeToLive() {
+		return this.dynamoDB.updateTimeToLive(ttlRequest ->
+				ttlRequest.tableName(this.tableName)
+						.timeToLiveSpecification(ttlSpec -> ttlSpec.enabled(true).attributeName(TTL_ATTR)));
 	}
 
 	private void awaitForActive() {
 		Assert.state(this.initialized,
 				() -> "The component has not been initialized: " + this + ".\n Is it declared as a bean?");
 
-		IllegalStateException illegalStateException = new IllegalStateException(
-				"The DynamoDb table " + getTableName() + " has not been created during " + 60 + " seconds");
 		try {
 			if (!this.createTableLatch.await(60, TimeUnit.SECONDS)) {
-				throw illegalStateException;
+				throw new IllegalStateException(
+						"The DynamoDb table " + getTableName() + " has not been created during " + 60 + " seconds");
 			}
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			throw illegalStateException;
+			throw new IllegalStateException(
+					"The DynamoDb table " + getTableName() + " has not been created and waiting thread is interrupted");
 		}
 	}
 
@@ -302,15 +282,28 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	public boolean isAcquired(String lock) {
 		awaitForActive();
 		if (this.heldLocks.contains(lock)) {
-			QuerySpec querySpec =
-					new QuerySpec()
-							.withHashKey(KEY_ATTR, lock)
-							.withProjectionExpression(KEY_ATTR)
-							.withMaxResultSize(1)
-							.withFilterExpression(OWNER_ATTR + " = :owner AND " + TTL_ATTR + " >= :ttl")
-							.withValueMap(ownerWithTtlValues(currentEpochSeconds()));
+			Map<String, AttributeValue> values = ownerWithTtlValues(currentEpochSeconds());
+			values.put(":lock", AttributeValue.fromS(lock));
 
-			return this.lockTable.query(querySpec).iterator().hasNext();
+			QueryRequest.Builder queryRequest =
+					QueryRequest.builder()
+							.tableName(this.tableName)
+							.select(Select.COUNT)
+							.limit(1)
+							.keyConditionExpression(KEY_ATTR + " = :lock")
+							.filterExpression(OWNER_ATTR + " = :owner AND " + TTL_ATTR + " >= :ttl")
+							.expressionAttributeValues(values);
+
+			try {
+				return this.dynamoDB.query(queryRequest.build()).get().count() > 0;
+			}
+			catch (CompletionException | ExecutionException ex) {
+				rethrowAsRuntimeException(ex.getCause());
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return rethrowAsRuntimeException(ex);
+			}
 		}
 		return false;
 	}
@@ -328,18 +321,26 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 
 	private void deleteFromDb(String lock) {
 		doDelete(
-				new DeleteItemSpec()
-						.withPrimaryKey(KEY_ATTR, lock)
-						.withConditionExpression(OWNER_ATTR + " = :owner")
-						.withValueMap(this.ownerAttribute));
+				DeleteItemRequest.builder()
+						.key(Map.of(KEY_ATTR, AttributeValue.fromS(lock)))
+						.conditionExpression(OWNER_ATTR + " = :owner")
+						.expressionAttributeValues(this.ownerAttribute));
 	}
 
-	private void doDelete(DeleteItemSpec deleteItemSpec) {
+	private void doDelete(DeleteItemRequest.Builder deleteItemRequest) {
 		try {
-			this.lockTable.deleteItem(deleteItemSpec);
+			this.dynamoDB.deleteItem(deleteItemRequest.tableName(this.tableName).build()).get();
 		}
-		catch (ConditionalCheckFailedException ex) {
+		catch (CompletionException | ExecutionException ex) {
+			Throwable cause = ex.getCause();
 			// Ignore - assuming no record in DB anymore.
+			if (!(cause instanceof ConditionalCheckFailedException)) {
+				rethrowAsRuntimeException(cause);
+			}
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			rethrowAsRuntimeException(ex);
 		}
 	}
 
@@ -351,18 +352,17 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 		synchronized (this.heldLocks) {
 			this.heldLocks.forEach((lock) ->
 					doDelete(
-							new DeleteItemSpec()
-									.withPrimaryKey(KEY_ATTR, lock)
-									.withConditionExpression(OWNER_ATTR + " = :owner AND " + TTL_ATTR + " < :ttl")
-									.withValueMap(ownerWithTtlValues(currentEpochSeconds()))));
+							DeleteItemRequest.builder()
+									.key(Map.of(KEY_ATTR, AttributeValue.fromS(lock)))
+									.conditionExpression(OWNER_ATTR + " = :owner AND " + TTL_ATTR + " < :ttl")
+									.expressionAttributeValues(ownerWithTtlValues(currentEpochSeconds()))));
 			this.heldLocks.clear();
 		}
 	}
 
-	private ValueMap ownerWithTtlValues(long epochSeconds) {
-		ValueMap valueMap =
-				new ValueMap()
-						.withNumber(":ttl", epochSeconds);
+	private Map<String, AttributeValue> ownerWithTtlValues(long epochSeconds) {
+		Map<String, AttributeValue> valueMap = new HashMap<>();
+		valueMap.put(":ttl", AttributeValue.fromN("" + epochSeconds));
 		valueMap.putAll(this.ownerAttribute);
 		return valueMap;
 	}
@@ -372,26 +372,40 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	 * @param lock the key for lock to acquire.
 	 * @return acquired or not.
 	 */
-	public boolean acquire(String lock) {
+	public boolean acquire(String lock) throws InterruptedException {
 		awaitForActive();
+		if (Thread.currentThread().isInterrupted()) {
+			throw new InterruptedException();
+		}
 		long currentTime = currentEpochSeconds();
-		PutItemSpec putItemSpec =
-				new PutItemSpec()
-						.withItem(
-								new Item()
-										.withPrimaryKey(KEY_ATTR, lock)
-										.withString(OWNER_ATTR, this.owner)
-										.withLong(CREATED_ATTR, currentTime)
-										.withLong(TTL_ATTR, ttlEpochSeconds()))
-						.withConditionExpression(LOCK_NOT_EXISTS_EXPRESSION)
-						.withValueMap(ownerWithTtlValues(currentTime));
+
+		Map<String, AttributeValue> item = new HashMap<>();
+		item.put(KEY_ATTR, AttributeValue.fromS(lock));
+		item.put(OWNER_ATTR, AttributeValue.fromS(this.owner));
+		item.put(CREATED_ATTR, AttributeValue.fromN("" + currentTime));
+		item.put(TTL_ATTR, AttributeValue.fromN("" + ttlEpochSeconds()));
+		PutItemRequest.Builder putItemRequest =
+				PutItemRequest.builder()
+						.tableName(this.tableName)
+						.item(item)
+						.conditionExpression(LOCK_NOT_EXISTS_EXPRESSION)
+						.expressionAttributeValues(ownerWithTtlValues(currentTime));
 		try {
-			this.lockTable.putItem(putItemSpec);
-			this.heldLocks.add(lock);
+			this.dynamoDB.putItem(putItemRequest.build())
+					.thenRun(() -> this.heldLocks.add(lock))
+					.get();
 			return true;
 		}
-		catch (ConditionalCheckFailedException ex) {
+		catch (CompletionException | ExecutionException ex) {
+			Throwable cause = ex.getCause();
+			if (!(cause instanceof ConditionalCheckFailedException)) {
+				rethrowAsRuntimeException(cause);
+			}
 			return false;
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw ex;
 		}
 	}
 
@@ -403,18 +417,27 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	public boolean renew(String lock) {
 		awaitForActive();
 		if (this.heldLocks.contains(lock)) {
-			UpdateItemSpec updateItemSpec =
-					new UpdateItemSpec()
-							.withPrimaryKey(KEY_ATTR, lock)
-							.withUpdateExpression("SET " + TTL_ATTR + " = :ttl")
-							.withConditionExpression(LOCK_EXISTS_EXPRESSION)
-							.withValueMap(ownerWithTtlValues(ttlEpochSeconds()));
+			UpdateItemRequest.Builder updateItemRequest =
+					UpdateItemRequest.builder()
+							.tableName(this.tableName)
+							.key(Map.of(KEY_ATTR, AttributeValue.fromS(lock)))
+							.updateExpression("SET " + TTL_ATTR + " = :ttl")
+							.conditionExpression(LOCK_EXISTS_EXPRESSION)
+							.expressionAttributeValues(ownerWithTtlValues(ttlEpochSeconds()));
 			try {
-				this.lockTable.updateItem(updateItemSpec);
+				this.dynamoDB.updateItem(updateItemRequest.build()).get();
 				return true;
 			}
-			catch (ConditionalCheckFailedException ex) {
+			catch (CompletionException | ExecutionException ex) {
+				Throwable cause = ex.getCause();
+				if (!(cause instanceof ConditionalCheckFailedException)) {
+					rethrowAsRuntimeException(cause);
+				}
 				return false;
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				return rethrowAsRuntimeException(ex.getCause());
 			}
 		}
 		return false;
@@ -439,6 +462,15 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 
 	private static long currentEpochSeconds() {
 		return Instant.now().getEpochSecond();
+	}
+
+	private static <T> T rethrowAsRuntimeException(Throwable cause) {
+		if (cause instanceof RuntimeException runtimeException) {
+			throw runtimeException;
+		}
+		else {
+			throw new IllegalStateException(cause);
+		}
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.integration.aws.support.filters;
 
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.file.filters.AbstractPersistentAcceptOnceFileListFilter;
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
@@ -27,30 +27,30 @@ import org.springframework.integration.metadata.ConcurrentMetadataStore;
  *
  * @author Artem Bilan
  */
-public class S3PersistentAcceptOnceFileListFilter extends AbstractPersistentAcceptOnceFileListFilter<S3ObjectSummary> {
+public class S3PersistentAcceptOnceFileListFilter extends AbstractPersistentAcceptOnceFileListFilter<S3Object> {
 
 	public S3PersistentAcceptOnceFileListFilter(ConcurrentMetadataStore store, String prefix) {
 		super(store, prefix);
 	}
 
 	@Override
-	protected long modified(S3ObjectSummary file) {
-		return (file != null) ? file.getLastModified().getTime() : 0L;
+	protected long modified(S3Object file) {
+		return (file != null) ? file.lastModified().getEpochSecond() : 0L;
 	}
 
 	@Override
-	protected String fileName(S3ObjectSummary file) {
-		return (file != null) ? file.getKey() : null;
+	protected String fileName(S3Object file) {
+		return (file != null) ? file.key() : null;
 	}
 
 	/**
 	 * Always return false since no directory notion in S3.
-	 * @param file the {@link S3ObjectSummary}
+	 * @param file the {@link S3Object}
 	 * @return always false: S3 does not have a notion of directory
 	 * @since 2.5
 	 */
 	@Override
-	protected boolean isDirectory(S3ObjectSummary file) {
+	protected boolean isDirectory(S3Object file) {
 		return false;
 	}
 

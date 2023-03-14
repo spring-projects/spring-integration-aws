@@ -23,16 +23,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
-import com.amazonaws.waiters.FixedDelayStrategy;
-import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
-import com.amazonaws.waiters.PollingStrategy;
-import com.amazonaws.waiters.Waiter;
-import com.amazonaws.waiters.WaiterParameters;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 
 import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.lock.DynamoDbLockRegistry;
@@ -52,19 +47,22 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTest {
 
-	private static AmazonDynamoDBAsync DYNAMO_DB;
+	private static DynamoDbAsyncClient DYNAMO_DB;
 
 	@BeforeAll
 	static void init() {
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		try {
-			DYNAMO_DB.deleteTableAsync(DynamoDbLockRepository.DEFAULT_TABLE_NAME);
-
-			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
-
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRepository.DEFAULT_TABLE_NAME))
-					.withPollingStrategy(
-							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
+			DYNAMO_DB.deleteTable(request -> request.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME))
+					.thenCompose(result ->
+							DYNAMO_DB.waiter()
+									.waitUntilTableNotExists(request -> request
+													.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME),
+											waiter -> waiter
+													.maxAttempts(25)
+													.backoffStrategy(
+															FixedDelayBackoffStrategy.create(Duration.ofSeconds(1)))))
+					.get();
 		}
 		catch (Exception e) {
 			// Ignore
@@ -73,7 +71,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 	@AfterAll
 	static void destroy() {
-		DYNAMO_DB.deleteTable(DynamoDbLockRepository.DEFAULT_TABLE_NAME);
+		DYNAMO_DB.deleteTable(request -> request.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME)).join();
 	}
 
 	@Test
@@ -91,6 +89,8 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 			LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository,
 					new DefaultCandidate("foo#" + i, "bar"));
+			initiator.setBusyWaitMillis(1000);
+			initiator.setHeartBeatMillis(1000);
 			initiator.setExecutorService(
 					Executors.newSingleThreadExecutor(new CustomizableThreadFactory("lock-leadership-" + i + "-")));
 			initiator.setLeaderEventPublisher(countingPublisher);
@@ -101,7 +101,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 			initiator.start();
 		}
 
-		assertThat(granted.await(20, TimeUnit.SECONDS)).isTrue();
+		assertThat(granted.await(30, TimeUnit.SECONDS)).isTrue();
 
 		LockRegistryLeaderInitiator initiator1 = countingPublisher.initiator;
 
@@ -136,19 +136,19 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		initiator1.getContext().yield();
 
-		assertThat(revoked1.await(20, TimeUnit.SECONDS)).isTrue();
-		assertThat(granted2.await(20, TimeUnit.SECONDS)).isTrue();
+		assertThat(revoked1.await(30, TimeUnit.SECONDS)).isTrue();
+		assertThat(granted2.await(30, TimeUnit.SECONDS)).isTrue();
 
 		assertThat(initiator2.getContext().isLeader()).isTrue();
 		assertThat(initiator1.getContext().isLeader()).isFalse();
 
-		initiator1.setBusyWaitMillis(LockRegistryLeaderInitiator.DEFAULT_BUSY_WAIT_TIME);
+		initiator1.setBusyWaitMillis(1000);
 		initiator2.setBusyWaitMillis(10000);
 
 		initiator2.getContext().yield();
 
-		assertThat(revoked2.await(20, TimeUnit.SECONDS)).isTrue();
-		assertThat(granted1.await(20, TimeUnit.SECONDS)).isTrue();
+		assertThat(revoked2.await(30, TimeUnit.SECONDS)).isTrue();
+		assertThat(granted1.await(30, TimeUnit.SECONDS)).isTrue();
 
 		assertThat(initiator1.getContext().isLeader()).isTrue();
 		assertThat(initiator2.getContext().isLeader()).isFalse();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,38 +16,32 @@
 
 package org.springframework.integration.aws.support;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import io.awspring.cloud.core.env.ResourceIdResolver;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.file.remote.session.SessionFactory;
 import org.springframework.integration.file.remote.session.SharedSessionCapable;
 import org.springframework.util.Assert;
 
 /**
- * An Amazon S3 specific {@link SessionFactory} implementation. Also this class implements
+ * An Amazon S3 specific {@link SessionFactory} implementation. Also, this class implements
  * {@link SharedSessionCapable} around the single instance, since the {@link S3Session} is
- * simple thread-safe wrapper for the {@link AmazonS3}.
+ * simple thread-safe wrapper for the {@link S3Client}.
  *
  * @author Artem Bilan
  * @author Xavier François
  */
-public class S3SessionFactory implements SessionFactory<S3ObjectSummary>, SharedSessionCapable {
+public class S3SessionFactory implements SessionFactory<S3Object>, SharedSessionCapable {
 
 	private final S3Session s3Session;
 
 	public S3SessionFactory() {
-		this(AmazonS3ClientBuilder.defaultClient());
+		this(S3Client.create());
 	}
 
-	public S3SessionFactory(AmazonS3 amazonS3) {
-		this(amazonS3, null);
-	}
-
-	public S3SessionFactory(AmazonS3 amazonS3, ResourceIdResolver resourceIdResolver) {
+	public S3SessionFactory(S3Client amazonS3) {
 		Assert.notNull(amazonS3, "'amazonS3' must not be null.");
-		this.s3Session = new S3Session(amazonS3, resourceIdResolver);
+		this.s3Session = new S3Session(amazonS3);
 	}
 
 	@Override

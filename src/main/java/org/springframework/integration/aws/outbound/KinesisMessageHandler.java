@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,16 @@
 package org.springframework.integration.aws.outbound;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.Future;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
-import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
-import com.amazonaws.services.kinesis.model.PutRecordRequest;
-import com.amazonaws.services.kinesis.model.PutRecordResult;
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsResult;
+import software.amazon.awssdk.awscore.AwsRequest;
+import software.amazon.awssdk.awscore.AwsResponse;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordResponse;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.serializer.support.SerializingConverter;
@@ -35,8 +36,8 @@ import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.mapping.OutboundMessageMapper;
-import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.integration.support.MutableMessage;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.converter.MessageConversionException;
@@ -53,13 +54,12 @@ import org.springframework.util.StringUtils;
  *
  * @since 1.1
  *
- * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
- * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)
- * @see com.amazonaws.handlers.AsyncHandler
+ * @see KinesisAsyncClient#putRecord(PutRecordRequest)
+ * @see KinesisAsyncClient#putRecords(PutRecordsRequest)
  */
 public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 
-	private final AmazonKinesisAsync amazonKinesis;
+	private final KinesisAsyncClient amazonKinesis;
 
 	private MessageConverter messageConverter = new ConvertingFromMessageConverter(new SerializingConverter());
 
@@ -73,7 +73,7 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 
 	private OutboundMessageMapper<byte[]> embeddedHeadersMapper;
 
-	public KinesisMessageHandler(AmazonKinesisAsync amazonKinesis) {
+	public KinesisMessageHandler(KinesisAsyncClient amazonKinesis) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		this.amazonKinesis = amazonKinesis;
 	}
@@ -167,21 +167,14 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 	}
 
 	@Override
-	protected Future<?> handleMessageToAws(Message<?> message) {
-		if (message.getPayload() instanceof PutRecordsRequest) {
-			AsyncHandler<PutRecordsRequest, PutRecordsResult> asyncHandler = obtainAsyncHandler(message,
-					(PutRecordsRequest) message.getPayload());
-
-			return this.amazonKinesis.putRecordsAsync((PutRecordsRequest) message.getPayload(), asyncHandler);
+	protected AwsRequest messageToAwsRequest(Message<?> message) {
+		if (message.getPayload() instanceof PutRecordsRequest putRecordsRequest) {
+			return putRecordsRequest;
 		}
 		else {
-			final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
-					? (PutRecordRequest) message.getPayload() : buildPutRecordRequest(message);
-
-			AsyncHandler<PutRecordRequest, PutRecordResult> asyncHandler = obtainAsyncHandler(message,
-					putRecordRequest);
-
-			return this.amazonKinesis.putRecordAsync(putRecordRequest, asyncHandler);
+			return message.getPayload() instanceof PutRecordRequest putRecordRequest
+					? putRecordRequest
+					: buildPutRecordRequest(message);
 		}
 	}
 
@@ -214,14 +207,14 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 
 		Object payload = message.getPayload();
 
-		ByteBuffer data = null;
+		SdkBytes data = null;
 
 		Message<?> messageToEmbed = null;
 
-		if (payload instanceof ByteBuffer) {
-			data = (ByteBuffer) payload;
+		if (payload instanceof ByteBuffer byteBuffer) {
+			data = SdkBytes.fromByteBuffer(byteBuffer);
 			if (this.embeddedHeadersMapper != null) {
-				messageToEmbed = new MutableMessage<>(data.array(), messageHeaders);
+				messageToEmbed = new MutableMessage<>(data.asByteArray(), messageHeaders);
 			}
 		}
 		else {
@@ -234,7 +227,7 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 				messageToEmbed = new MutableMessage<>(bytes, messageHeaders);
 			}
 			else {
-				data = ByteBuffer.wrap(bytes);
+				data = SdkBytes.fromByteArray(bytes);
 			}
 		}
 
@@ -242,25 +235,40 @@ public class KinesisMessageHandler extends AbstractAwsMessageHandler<Void> {
 			try {
 				byte[] bytes = this.embeddedHeadersMapper.fromMessage(messageToEmbed);
 				Assert.notNull(bytes, "payload cannot be null");
-				data = ByteBuffer.wrap(bytes);
+				data = SdkBytes.fromByteArray(bytes);
 			}
 			catch (Exception ex) {
 				throw new MessageConversionException(message, "Cannot embedded headers to payload", ex);
 			}
 		}
 
-		return new PutRecordRequest().withStreamName(stream).withPartitionKey(partitionKey)
-				.withExplicitHashKey(explicitHashKey).withSequenceNumberForOrdering(sequenceNumber).withData(data);
+		return PutRecordRequest.builder()
+				.streamName(stream)
+				.partitionKey(partitionKey)
+				.explicitHashKey(explicitHashKey)
+				.sequenceNumberForOrdering(sequenceNumber)
+				.data(data)
+				.build();
 	}
 
 	@Override
-	protected void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
-			AmazonWebServiceRequest request, Object result) {
-
-		if (result instanceof PutRecordResult) {
-			messageBuilder.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
-					.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber());
+	protected CompletableFuture<? extends AwsResponse> handleMessageToAws(Message<?> message, AwsRequest request) {
+		if (request instanceof PutRecordsRequest putRecordsRequest) {
+			return this.amazonKinesis.putRecords(putRecordsRequest);
 		}
+		else {
+			return this.amazonKinesis.putRecord((PutRecordRequest) request);
+		}
+	}
+
+	@Nullable
+	@Override
+	protected Map<String, ?> additionalOnSuccessHeaders(AwsRequest request, AwsResponse response) {
+		if (response instanceof PutRecordResponse putRecordResponse) {
+			return Map.of(AwsHeaders.SHARD, putRecordResponse.shardId(),
+					AwsHeaders.SEQUENCE_NUMBER, putRecordResponse.sequenceNumber());
+		}
+		return null;
 	}
 
 }

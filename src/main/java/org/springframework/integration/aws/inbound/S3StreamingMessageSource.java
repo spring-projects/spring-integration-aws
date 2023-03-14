@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.aws.support.S3FileInfo;
 import org.springframework.integration.aws.support.S3Session;
@@ -36,24 +36,22 @@ import org.springframework.integration.metadata.SimpleMetadataStore;
  *
  * @author Christian Tzolov
  * @author Artem Bilan
+ *
  * @since 1.1
  */
-public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<S3ObjectSummary> {
+public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessageSource<S3Object> {
 
-	public S3StreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template) {
+	public S3StreamingMessageSource(RemoteFileTemplate<S3Object> template) {
 		super(template, null);
 	}
 
-	public S3StreamingMessageSource(RemoteFileTemplate<S3ObjectSummary> template,
-			Comparator<S3ObjectSummary> comparator) {
-
+	public S3StreamingMessageSource(RemoteFileTemplate<S3Object> template, Comparator<S3Object> comparator) {
 		super(template, comparator);
-
 		doSetFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "s3StreamingMessageSource"));
 	}
 
 	@Override
-	protected List<AbstractFileInfo<S3ObjectSummary>> asFileInfoList(Collection<S3ObjectSummary> collection) {
+	protected List<AbstractFileInfo<S3Object>> asFileInfoList(Collection<S3Object> collection) {
 		return collection.stream().map(S3FileInfo::new).collect(Collectors.toList());
 	}
 
@@ -63,8 +61,8 @@ public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessage
 	}
 
 	@Override
-	protected AbstractFileInfo<S3ObjectSummary> poll() {
-		AbstractFileInfo<S3ObjectSummary> file = super.poll();
+	protected AbstractFileInfo<S3Object> poll() {
+		AbstractFileInfo<S3Object> file = super.poll();
 		if (file != null) {
 			S3Session s3Session = (S3Session) getRemoteFileTemplate().getSession();
 			file.setRemoteDirectory(s3Session.normalizeBucketName(file.getRemoteDirectory()));
@@ -73,7 +71,7 @@ public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessage
 	}
 
 	@Override
-	protected boolean isDirectory(S3ObjectSummary file) {
+	protected boolean isDirectory(S3Object file) {
 		return false;
 	}
 

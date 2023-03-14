@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,25 @@
 
 package org.springframework.integration.aws.inbound;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-import com.amazonaws.services.kinesis.model.GetRecordsRequest;
-import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
-import com.amazonaws.services.kinesis.model.ListShardsRequest;
-import com.amazonaws.services.kinesis.model.ListShardsResult;
-import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
-import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.kinesis.model.SequenceNumberRange;
-import com.amazonaws.services.kinesis.model.Shard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
+import software.amazon.awssdk.services.kinesis.model.GetShardIteratorResponse;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
+import software.amazon.awssdk.services.kinesis.model.Record;
+import software.amazon.awssdk.services.kinesis.model.Shard;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,7 +106,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	private KinesisMessageDrivenChannelAdapter reshardingChannelAdapter;
 
 	@Autowired
-	private AmazonKinesis amazonKinesisForResharding;
+	private KinesisAsyncClient amazonKinesisForResharding;
 
 	@Autowired
 	private Config config;
@@ -117,7 +117,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 	}
 
 	@Test
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	void testKinesisMessageDrivenChannelAdapter() {
 		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
@@ -241,7 +241,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 
-
 	}
 
 	@Test
@@ -282,60 +281,137 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		private final AtomicReference<KinesisShardEndedEvent> shardEndedEventReference = new AtomicReference<>();
 
 		@Bean
-		public AmazonKinesis amazonKinesis() {
-			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
+		@SuppressWarnings("unchecked")
+		public KinesisAsyncClient amazonKinesis() {
+			KinesisAsyncClient amazonKinesis = mock(KinesisAsyncClient.class);
 
-			given(amazonKinesis.listShards(new ListShardsRequest().withStreamName(STREAM1))).willReturn(
-					new ListShardsResult()
-							.withShards(new Shard().withShardId("1").withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("2").withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("3").withSequenceNumberRange(
-											new SequenceNumberRange().withEndingSequenceNumber("1")))
-			);
+			given(amazonKinesis.listShards(any(ListShardsRequest.class)))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									ListShardsResponse.builder()
+											.shards(
+													Shard.builder()
+															.shardId("1")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("2")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("3")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("1"))
+															.build()
+											)
+											.build()));
 
 			String shard1Iterator1 = "shard1Iterator1";
 			String shard1Iterator2 = "shard1Iterator2";
 
 			given(amazonKinesis.getShardIterator(KinesisShardOffset.latest(STREAM1, "1").toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator1),
-							new GetShardIteratorResult().withShardIterator(shard1Iterator2));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shard1Iterator1)
+											.build()),
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shard1Iterator2)
+											.build()));
 
 			String shard2Iterator1 = "shard2Iterator1";
 
 			given(amazonKinesis.getShardIterator(KinesisShardOffset.latest(STREAM1, "2").toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shard2Iterator1));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shard2Iterator1)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator1).withLimit(25)))
-					.willThrow(new ProvisionedThroughputExceededException("Iterator throttled"))
-					.willThrow(new ExpiredIteratorException("Iterator expired"));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard1Iterator1)
+							.limit(25)
+							.build()))
+					.willThrow(ProvisionedThroughputExceededException.builder().message("Iterator throttled").build())
+					.willThrow(ExpiredIteratorException.builder().message("Iterator expired").build());
 
 			SerializingConverter serializingConverter = new SerializingConverter();
 
 			String shard1Iterator3 = "shard1Iterator3";
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator2).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator3).withRecords(
-							new Record().withPartitionKey("partition1").withSequenceNumber("1")
-									.withData(ByteBuffer.wrap(serializingConverter.convert("foo"))),
-							new Record().withPartitionKey("partition1").withSequenceNumber("2")
-									.withData(ByteBuffer.wrap(serializingConverter.convert("bar")))));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard1Iterator2)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shard1Iterator3)
+											.records(
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("1")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("foo")))
+															.build(),
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("2")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("bar")))
+															.build())
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard2Iterator1).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shard2Iterator1));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard2Iterator1)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shard2Iterator1)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator3).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator3));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard1Iterator3)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shard1Iterator3)
+											.build()));
 
 			String shard1Iterator4 = "shard1Iterator4";
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "1").toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator4));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shard1Iterator4)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator4).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator3)
-							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber("2")
-									.withData(ByteBuffer.wrap(serializingConverter.convert("bar")))));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard1Iterator4)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shard1Iterator3)
+											.records(
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("2")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("bar")))
+															.build())
+											.build()));
 
 
 			String shard1Iterator5 = "shard1Iterator5";
@@ -343,29 +419,70 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "2").toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator5));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shard1Iterator5)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator5).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator6)
-							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber("3")
-									.withData(ByteBuffer.wrap(serializingConverter.convert("foo"))),
-									new Record().withPartitionKey("partition1").withSequenceNumber("4")
-											.withData(ByteBuffer.wrap(serializingConverter.convert("bar"))),
-									new Record().withPartitionKey("partition1").withSequenceNumber("5")
-											.withData(ByteBuffer.wrap(serializingConverter.convert("foobar")))));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard1Iterator5)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shard1Iterator6)
+											.records(
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("3")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("foo")))
+															.build(),
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("4")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("bar")))
+															.build(),
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("5")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("foobar")))
+															.build())
+											.build()));
 
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.afterSequenceNumber(STREAM1, "1", "3").toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shard1Iterator6));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shard1Iterator6)
+											.build())
+					);
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shard1Iterator6).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shard1Iterator6)
-							.withRecords(
-									new Record().withPartitionKey("partition1").withSequenceNumber("4")
-											.withData(ByteBuffer.wrap(serializingConverter.convert("bar"))),
-									new Record().withPartitionKey("partition1").withSequenceNumber("5")
-											.withData(ByteBuffer.wrap(serializingConverter.convert("foobar")))));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shard1Iterator6)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shard1Iterator6)
+											.records(
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("4")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("bar")))
+															.build(),
+													Record.builder()
+															.partitionKey("partition1")
+															.sequenceNumber("5")
+															.data(SdkBytes.fromByteArray(serializingConverter.convert("foobar")))
+															.build())
+											.build()));
 
 			return amazonKinesis;
 		}
@@ -380,8 +497,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 		@Bean
 		public KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
-			KinesisMessageDrivenChannelAdapter adapter = new KinesisMessageDrivenChannelAdapter(amazonKinesis(),
-					STREAM1);
+			KinesisMessageDrivenChannelAdapter adapter =
+					new KinesisMessageDrivenChannelAdapter(amazonKinesis(), STREAM1);
 			adapter.setAutoStartup(false);
 			adapter.setOutputChannel(kinesisChannel());
 			adapter.setCheckpointStore(checkpointStore());
@@ -406,51 +523,84 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		}
 
 		@Bean
-		public AmazonKinesis amazonKinesisForResharding() {
-			AmazonKinesis amazonKinesis = mock(AmazonKinesis.class);
+		public KinesisAsyncClient amazonKinesisForResharding() {
+			KinesisAsyncClient amazonKinesis = mock(KinesisAsyncClient.class);
 
 			// kinesis handles adding a shard by closing a shard and opening 2 new instead, creating a scenario where it
-			// happens couple of times
-			given(amazonKinesis.listShards(new ListShardsRequest().withStreamName(STREAM_FOR_RESHARDING)))
-					.willReturn(new ListShardsResult()
-							.withShards(
-									new Shard().withShardId("closedShard1")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("10"))))
-					.willReturn(new ListShardsResult()
-							.withShards(
-									new Shard().withShardId("closedShard1")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("10")),
-									new Shard().withShardId("newShard2")
-											.withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("newShard3")
-											.withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("closedShard4")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("40")),
-									new Shard().withShardId("closedEmptyShard5")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("50"))))
-					.willReturn(new ListShardsResult()
-							.withShards(
-									new Shard().withShardId("closedShard1")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("10")),
-									new Shard().withShardId("newShard2")
-											.withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("newShard3")
-											.withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("closedShard4")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("40")),
-									new Shard().withShardId("closedEmptyShard5")
-											.withSequenceNumberRange(new SequenceNumberRange()
-													.withEndingSequenceNumber("50")),
-									new Shard().withShardId("newShard6")
-											.withSequenceNumberRange(new SequenceNumberRange()),
-									new Shard().withShardId("newShard7")
-											.withSequenceNumberRange(new SequenceNumberRange())));
+			// happens couple times
+			given(amazonKinesis.listShards(any(ListShardsRequest.class)))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									ListShardsResponse.builder()
+											.shards(Shard.builder()
+													.shardId("closedShard1")
+													.sequenceNumberRange(range -> range.endingSequenceNumber("10"))
+													.build())
+											.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									ListShardsResponse.builder()
+											.shards(
+													Shard.builder()
+															.shardId("closedShard1")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("10"))
+															.build(),
+													Shard.builder()
+															.shardId("newShard2")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("newShard3")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("closedShard4")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("40"))
+															.build(),
+													Shard.builder()
+															.shardId("closedEmptyShard5")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("50"))
+															.build())
+											.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									ListShardsResponse.builder()
+											.shards(
+													Shard.builder()
+															.shardId("closedShard1")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("10"))
+															.build(),
+													Shard.builder()
+															.shardId("newShard2")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("newShard3")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("closedShard4")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("40"))
+															.build(),
+													Shard.builder()
+															.shardId("closedEmptyShard5")
+															.sequenceNumberRange(range -> range.endingSequenceNumber("50"))
+															.build(),
+													Shard.builder()
+															.shardId("newShard6")
+															.sequenceNumberRange(range -> {
+															})
+															.build(),
+													Shard.builder()
+															.shardId("newShard7")
+															.sequenceNumberRange(range -> {
+															})
+															.build())
+											.build()));
 
 
 			setClosedShard(amazonKinesis, "1");
@@ -464,49 +614,94 @@ public class KinesisMessageDrivenChannelAdapterTests {
 			return amazonKinesis;
 		}
 
-		private void setClosedShard(AmazonKinesis amazonKinesis, String shardIndex) {
+		private void setClosedShard(KinesisAsyncClient amazonKinesis, String shardIndex) {
 			String shardIterator = String.format("shard%sIterator1", shardIndex);
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "closedShard" + shardIndex)
 							.toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shardIterator));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shardIterator)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shardIterator).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(null)
-							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber(shardIndex)
-									.withData(ByteBuffer.wrap("foo".getBytes()))));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shardIterator)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(null)
+											.records(Record.builder()
+													.partitionKey("partition1")
+													.sequenceNumber(shardIndex)
+													.data(SdkBytes.fromUtf8String("foo"))
+													.build())
+											.build()));
 		}
 
-		private void setClosedEmptyShard(AmazonKinesis amazonKinesis, String shardIndex) {
+		private void setClosedEmptyShard(KinesisAsyncClient amazonKinesis, String shardIndex) {
 			String shardIterator = String.format("shard%sIterator1", shardIndex);
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "closedEmptyShard" + shardIndex)
 							.toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shardIterator));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shardIterator)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shardIterator).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(null));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shardIterator)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(null)
+											.build()));
 		}
 
-		private void setNewShard(AmazonKinesis amazonKinesis, String shardIndex) {
+		private void setNewShard(KinesisAsyncClient amazonKinesis, String shardIndex) {
 			String shardIterator1 = String.format("shard%sIterator1", shardIndex);
 			String shardIterator2 = String.format("shard%sIterator2", shardIndex);
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "newShard" + shardIndex).toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shardIterator1));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shardIterator1)
+											.build()));
 
-			given(amazonKinesis.getRecords(new GetRecordsRequest().withShardIterator(shardIterator2).withLimit(25)))
-					.willReturn(new GetRecordsResult().withNextShardIterator(shardIterator2)
-							.withRecords(new Record().withPartitionKey("partition1").withSequenceNumber(shardIndex)
-									.withData(ByteBuffer.wrap("foo".getBytes()))));
+			given(amazonKinesis.getRecords(
+					GetRecordsRequest.builder()
+							.shardIterator(shardIterator2)
+							.limit(25)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetRecordsResponse.builder()
+											.nextShardIterator(shardIterator2)
+											.records(Record.builder()
+													.partitionKey("partition1")
+													.sequenceNumber(shardIndex)
+													.data(SdkBytes.fromUtf8String("foo")).build())
+											.build()));
 
 
 			given(amazonKinesis.getShardIterator(
 					KinesisShardOffset.latest(STREAM_FOR_RESHARDING, "newShard" + shardIndex).toShardIteratorRequest()))
-					.willReturn(new GetShardIteratorResult().withShardIterator(shardIterator2));
+					.willReturn(
+							CompletableFuture.completedFuture(
+									GetShardIteratorResponse.builder()
+											.shardIterator(shardIterator2)
+											.build()));
 		}
 
 		@Bean
@@ -547,7 +742,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		@Override
 		public boolean replace(String key, String oldValue, String newValue) {
 			if ("SpringIntegration:streamForResharding:closedShard4".equals(key)) {
-				throw new ProvisionedThroughputExceededException("Throughput exceeded");
+				throw ProvisionedThroughputExceededException.builder().message("Throughput exceeded").build();
 			}
 
 			return super.replace(key, oldValue, newValue);

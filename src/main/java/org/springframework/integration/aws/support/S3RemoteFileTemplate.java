@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 package org.springframework.integration.aws.support;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.file.remote.ClientCallback;
 import org.springframework.integration.file.remote.RemoteFileTemplate;
@@ -31,13 +31,13 @@ import org.springframework.integration.file.remote.session.SessionFactory;
  *
  * @author Artem Bilan
  */
-public class S3RemoteFileTemplate extends RemoteFileTemplate<S3ObjectSummary> {
+public class S3RemoteFileTemplate extends RemoteFileTemplate<S3Object> {
 
 	public S3RemoteFileTemplate() {
 		this(new S3SessionFactory());
 	}
 
-	public S3RemoteFileTemplate(AmazonS3 amazonS3) {
+	public S3RemoteFileTemplate(S3Client amazonS3) {
 		this(new S3SessionFactory(amazonS3));
 	}
 
@@ -45,7 +45,7 @@ public class S3RemoteFileTemplate extends RemoteFileTemplate<S3ObjectSummary> {
 	 * Construct a {@link RemoteFileTemplate} with the supplied session factory.
 	 * @param sessionFactory the session factory.
 	 */
-	public S3RemoteFileTemplate(SessionFactory<S3ObjectSummary> sessionFactory) {
+	public S3RemoteFileTemplate(SessionFactory<S3Object> sessionFactory) {
 		super(sessionFactory);
 	}
 
@@ -60,8 +60,8 @@ public class S3RemoteFileTemplate extends RemoteFileTemplate<S3ObjectSummary> {
 		try {
 			return this.sessionFactory.getSession().exists(path);
 		}
-		catch (IOException e) {
-			throw new AmazonS3Exception("Failed to check the path " + path, e);
+		catch (IOException ex) {
+			throw new UncheckedIOException("Failed to check the path " + path, ex);
 		}
 	}
 

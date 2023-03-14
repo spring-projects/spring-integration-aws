@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,22 +22,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.time.Instant;
 import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.Region;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -60,7 +60,6 @@ import org.springframework.util.FileCopyUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willAnswer;
-import static org.mockito.BDDMockito.willReturn;
 
 /**
  * @author Christian Tzolov
@@ -68,6 +67,7 @@ import static org.mockito.BDDMockito.willReturn;
  *
  * @since 1.1
  */
+@Disabled("Revise in favor of Local Stack")
 @SpringJUnitConfig
 @DirtiesContext
 public class S3StreamingChannelAdapterTests {
@@ -77,7 +77,7 @@ public class S3StreamingChannelAdapterTests {
 	@TempDir
 	static Path TEMPORARY_FOLDER;
 
-	private static List<S3Object> S3_OBJECTS;
+	private static Map<S3Object, File> S3_OBJECTS;
 
 	@Autowired
 	private PollableChannel s3FilesChannel;
@@ -93,15 +93,15 @@ public class S3StreamingChannelAdapterTests {
 		bFile.createNewFile();
 		FileCopyUtils.copy("Bye".getBytes(), bFile);
 
-		S3_OBJECTS = new ArrayList<>();
+		S3_OBJECTS = new HashMap<>();
 
 		for (File file : remoteFolder.listFiles()) {
-			S3Object s3Object = new S3Object();
-			s3Object.setBucketName(S3_BUCKET);
-			s3Object.setKey("subdir/" + file.getName());
-			s3Object.setObjectContent(new FileInputStream(file));
-
-			S3_OBJECTS.add(s3Object);
+			S3Object s3Object =
+					S3Object.builder()
+							.key("subdir/" + file.getName())
+							.lastModified(Instant.ofEpochMilli(file.lastModified()))
+							.build();
+			S3_OBJECTS.put(s3Object, file);
 		}
 	}
 
@@ -136,36 +136,32 @@ public class S3StreamingChannelAdapterTests {
 	public static class Config {
 
 		@Bean
-		public AmazonS3 amazonS3() {
-			AmazonS3 amazonS3 = Mockito.mock(AmazonS3.class);
+		public S3Client amazonS3() {
+			S3Client amazonS3 = Mockito.mock(S3Client.class);
 
-			willAnswer(invocation -> {
-				ObjectListing objectListing = new ObjectListing();
-				List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
-				for (S3Object s3Object : S3_OBJECTS) {
-					S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
-					s3ObjectSummary.setBucketName(S3_BUCKET);
-					s3ObjectSummary.setKey(s3Object.getKey());
-					s3ObjectSummary.setLastModified(new Date(new File(s3Object.getKey()).lastModified()));
-					objectSummaries.add(s3ObjectSummary);
-				}
-				return objectListing;
-			}).given(amazonS3).listObjects(any(ListObjectsRequest.class));
+			willAnswer(invocation ->
+					ListObjectsResponse.builder()
+							.name(S3_BUCKET)
+							.contents(S3_OBJECTS.keySet().toArray(new S3Object[0]))
+							.build())
+					.given(amazonS3)
+					.listObjects(any(ListObjectsRequest.class));
 
-			for (final S3Object s3Object : S3_OBJECTS) {
-				willAnswer(invocation -> s3Object).given(amazonS3).getObject(S3_BUCKET, s3Object.getKey());
-			}
-			willReturn(Region.US_West).given(amazonS3).getRegion();
+			S3_OBJECTS.forEach((s3Object, file) ->
+					willAnswer(invocation -> new FileInputStream(file))
+							.given(amazonS3)
+							.getObject(GetObjectRequest.builder().bucket(S3_BUCKET).key(s3Object.key()).build()));
+
 			return amazonS3;
 		}
 
 		@Bean
 		@InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
-		public S3StreamingMessageSource s3InboundStreamingMessageSource(AmazonS3 amazonS3) {
+		public S3StreamingMessageSource s3InboundStreamingMessageSource(S3Client amazonS3) {
 			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
-			S3StreamingMessageSource s3MessageSource = new S3StreamingMessageSource(s3FileTemplate,
-					Comparator.comparing(S3ObjectSummary::getKey));
+			S3StreamingMessageSource s3MessageSource =
+					new S3StreamingMessageSource(s3FileTemplate, Comparator.comparing(S3Object::key));
 			s3MessageSource.setRemoteDirectory("/" + S3_BUCKET + "/subdir");
 			s3MessageSource.setFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "streaming"));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package org.springframework.integration.aws.support.filters;
 
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.integration.file.filters.AbstractSimplePatternFileListFilter;
 
@@ -25,19 +25,19 @@ import org.springframework.integration.file.filters.AbstractSimplePatternFileLis
  *
  * @author Artem Bilan
  */
-public class S3SimplePatternFileListFilter extends AbstractSimplePatternFileListFilter<S3ObjectSummary> {
+public class S3SimplePatternFileListFilter extends AbstractSimplePatternFileListFilter<S3Object> {
 
 	public S3SimplePatternFileListFilter(String pattern) {
 		super(pattern);
 	}
 
 	@Override
-	protected String getFilename(S3ObjectSummary file) {
-		return (file != null) ? file.getKey() : null;
+	protected String getFilename(S3Object file) {
+		return (file != null) ? file.key() : null;
 	}
 
 	@Override
-	protected boolean isDirectory(S3ObjectSummary file) {
+	protected boolean isDirectory(S3Object file) {
 		return false;
 	}
 

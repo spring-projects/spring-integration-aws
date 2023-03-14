@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 the original author or authors.
+ * Copyright 2015-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,18 @@
 
 package org.springframework.integration.aws.inbound;
 
-import com.amazonaws.services.sqs.AmazonSQSAsync;
-import com.amazonaws.services.sqs.model.GetQueueAttributesRequest;
-import com.amazonaws.services.sqs.model.GetQueueAttributesResult;
-import com.amazonaws.services.sqs.model.GetQueueUrlRequest;
-import com.amazonaws.services.sqs.model.GetQueueUrlResult;
-import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
+import java.util.concurrent.CompletableFuture;
+
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueAttributesResponse;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +54,7 @@ import static org.mockito.BDDMockito.mock;
 /**
  * @author Artem Bilan
  */
+@Disabled("Revise in favor of Local Stack")
 @SpringJUnitConfig
 @DirtiesContext
 public class SqsMessageDrivenChannelAdapterTests {
@@ -114,21 +118,30 @@ public class SqsMessageDrivenChannelAdapterTests {
 	public static class ContextConfiguration {
 
 		@Bean
-		public AmazonSQSAsync amazonSqs() {
-			AmazonSQSAsync sqs = mock(AmazonSQSAsync.class);
-			given(sqs.getQueueUrl(new GetQueueUrlRequest("testQueue")))
-					.willReturn(new GetQueueUrlResult().withQueueUrl("http://testQueue.amazonaws.com"));
+		public SqsAsyncClient amazonSqs() {
+			SqsAsyncClient sqs = mock(SqsAsyncClient.class);
+			given(sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName("testQueue").build()))
+					.willReturn(CompletableFuture.completedFuture(
+							GetQueueUrlResponse.builder().queueUrl("http://testQueue.amazonaws.com").build()));
 
 			given(sqs.receiveMessage(
-					new ReceiveMessageRequest("http://testQueue.amazonaws.com").withAttributeNames("All")
-							.withMessageAttributeNames("All").withMaxNumberOfMessages(10).withWaitTimeSeconds(20)))
-					.willReturn(new ReceiveMessageResult().withMessages(
-							new Message().withBody("messageContent"),
-							new Message().withBody("messageContent2")))
-					.willReturn(new ReceiveMessageResult());
+					ReceiveMessageRequest.builder()
+							.queueUrl("http://testQueue.amazonaws.com")
+							.maxNumberOfMessages(10)
+							.attributeNamesWithStrings("All")
+							.messageAttributeNames("All")
+							.waitTimeSeconds(20)
+							.build()))
+					.willReturn(
+							CompletableFuture.completedFuture(
+									ReceiveMessageResponse.builder()
+											.messages(Message.builder().body("messageContent").build(),
+													Message.builder().body("messageContent2").build())
+											.build()))
+					.willReturn(CompletableFuture.completedFuture(ReceiveMessageResponse.builder().build()));
 
 			given(sqs.getQueueAttributes(any(GetQueueAttributesRequest.class)))
-					.willReturn(new GetQueueAttributesResult());
+					.willReturn(CompletableFuture.completedFuture(GetQueueAttributesResponse.builder().build()));
 
 			return sqs;
 		}

@@ -17,11 +17,11 @@
 package org.springframework.integration.aws.inbound.kinesis;
 
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -44,18 +45,20 @@ import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-import com.amazonaws.services.kinesis.model.GetRecordsRequest;
-import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
-import com.amazonaws.services.kinesis.model.LimitExceededException;
-import com.amazonaws.services.kinesis.model.ListShardsRequest;
-import com.amazonaws.services.kinesis.model.ListShardsResult;
-import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
-import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.kinesis.model.Shard;
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
+import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
+import software.amazon.awssdk.services.kinesis.model.GetShardIteratorResponse;
+import software.amazon.awssdk.services.kinesis.model.InvalidArgumentException;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
+import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
+import software.amazon.awssdk.services.kinesis.model.Record;
+import software.amazon.awssdk.services.kinesis.model.Shard;
+import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationEventPublisher;
@@ -106,7 +109,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
-	private final AmazonKinesis amazonKinesis;
+	private final KinesisAsyncClient amazonKinesis;
 
 	private final String[] streams;
 
@@ -184,7 +187,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	@Nullable
 	private Function<List<Shard>, List<Shard>> shardListFilter;
 
-	public KinesisMessageDrivenChannelAdapter(AmazonKinesis amazonKinesis, String... streams) {
+	public KinesisMessageDrivenChannelAdapter(KinesisAsyncClient amazonKinesis, String... streams) {
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		Assert.notEmpty(streams, "'streams' must not be null.");
 		this.amazonKinesis = amazonKinesis;
@@ -192,7 +195,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	public KinesisMessageDrivenChannelAdapter(
-			AmazonKinesis amazonKinesis, KinesisShardOffset... shardOffsets) {
+			KinesisAsyncClient amazonKinesis, KinesisShardOffset... shardOffsets) {
 
 		Assert.notNull(amazonKinesis, "'amazonKinesis' must not be null.");
 		Assert.notEmpty(shardOffsets, "'shardOffsets' must not be null.");
@@ -270,7 +273,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * The maximum record to poll per on get-records request. Not greater then {@code 10000}.
 	 * @param recordsLimit the number of records to for per on get-records request.
-	 * @see GetRecordsRequest#setLimit
+	 * @see GetRecordsRequest.Builder#limit(Integer)
 	 */
 	public void setRecordsLimit(int recordsLimit) {
 		Assert.isTrue(recordsLimit > 0, "'recordsLimit' must be more than 0");
@@ -449,16 +452,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	@ManagedOperation
-	public void resetCheckpointForShardToSequenceNumber(
-			String stream, String shard, String sequenceNumber) {
-		restartShardConsumerForOffset(
-				KinesisShardOffset.atSequenceNumber(stream, shard, sequenceNumber));
+	public void resetCheckpointForShardToSequenceNumber(String stream, String shard, String sequenceNumber) {
+		restartShardConsumerForOffset(KinesisShardOffset.atSequenceNumber(stream, shard, sequenceNumber));
 	}
 
 	@ManagedOperation
 	public void resetCheckpointForShardAtTimestamp(String stream, String shard, long timestamp) {
-		restartShardConsumerForOffset(
-				KinesisShardOffset.atTimestamp(stream, shard, new Date(timestamp)));
+		restartShardConsumerForOffset(KinesisShardOffset.atTimestamp(stream, shard, Instant.ofEpochSecond(timestamp)));
 	}
 
 	private void restartShardConsumerForOffset(KinesisShardOffset shardOffset) {
@@ -559,41 +559,41 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					"Kinesis could not read shards from stream with name [" + stream + "] ");
 		}
 
-		ListShardsRequest listShardsRequest = new ListShardsRequest().withStreamName(stream);
+		String nextToken = null;
+		ListShardsRequest.Builder listShardsRequest = ListShardsRequest.builder().streamName(stream);
 
 		try {
-			ListShardsResult listShardsResult = this.amazonKinesis.listShards(listShardsRequest);
-			while (true) {
-				shardList.addAll(listShardsResult.getShards());
-				if (listShardsResult.getNextToken() == null) {
-					break;
-				}
-				else {
-					listShardsResult =
-							this.amazonKinesis.listShards(new ListShardsRequest()
-									.withNextToken(listShardsResult.getNextToken()));
-				}
+			do {
+				ListShardsResponse listShardsResult =
+						this.amazonKinesis.listShards(listShardsRequest.nextToken(nextToken).build()).join();
+				shardList.addAll(listShardsResult.shards());
+				nextToken = listShardsResult.nextToken();
 			}
-
+			while (nextToken != null);
 		}
-		catch (LimitExceededException limitExceededException) {
-			logger.info(() ->
-					"Got LimitExceededException when listing stream ["
-							+ stream
-							+ "]. "
-							+ "Backing off for ["
-							+ this.describeStreamBackoff
-							+ "] millis.");
+		catch (CompletionException ex) {
+			if (ex.getCause() instanceof LimitExceededException) {
+				logger.info(() ->
+						"Got LimitExceededException when listing stream ["
+								+ stream
+								+ "]. "
+								+ "Backing off for ["
+								+ this.describeStreamBackoff
+								+ "] millis.");
 
-			try {
-				Thread.sleep(this.describeStreamBackoff);
-				readShardList(stream, retryCount + 1);
+				try {
+					Thread.sleep(this.describeStreamBackoff);
+					readShardList(stream, retryCount + 1);
+				}
+				catch (InterruptedException interrupt) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException(
+							"The [describeStream] thread for the stream [" + stream + "] has been interrupted.",
+							interrupt);
+				}
 			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-				throw new IllegalStateException(
-						"The [describeStream] thread for the stream [" + stream + "] has been interrupted.",
-						ex);
+			else {
+				throw ex;
 			}
 		}
 
@@ -634,8 +634,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		try {
 			for (Shard shard : shards) {
-				String key = buildCheckpointKeyForShard(stream, shard.getShardId());
-				String endingSequenceNumber = shard.getSequenceNumberRange().getEndingSequenceNumber();
+				String key = buildCheckpointKeyForShard(stream, shard.shardId());
+				String endingSequenceNumber = shard.sequenceNumberRange().endingSequenceNumber();
 				if (endingSequenceNumber != null) {
 					String checkpoint = this.checkpointStore.get(key);
 
@@ -698,7 +698,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 				for (Shard shard : shardsToConsume) {
 					KinesisShardOffset shardOffset = new KinesisShardOffset(this.streamInitialSequence);
-					shardOffset.setShard(shard.getShardId());
+					shardOffset.setShard(shard.shardId());
 					shardOffset.setStream(stream);
 					boolean addedOffset;
 					synchronized (this.shardOffsets) {
@@ -975,11 +975,13 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 													KinesisMessageDrivenChannelAdapter.this
 															.amazonKinesis
 															.getShardIterator(shardIteratorRequest)
-															.getShardIterator();
+															.thenApply(GetShardIteratorResponse::shardIterator)
+															.join();
 										}
-										catch (com.amazonaws.services.kinesis.model.InvalidArgumentException ex) {
-											if (ex.getErrorMessage()
-													.contains("has reached max possible value for the shard")) {
+										catch (CompletionException ex) {
+											if (ex.getCause() instanceof InvalidArgumentException cause &&
+													cause.getMessage()
+															.contains("has reached max possible value for the shard")) {
 
 												logger.info(() ->
 														"The [" + this.shardOffset + "] has been closed. Skipping...");
@@ -1073,16 +1075,18 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		private Runnable processTask() {
 			return () -> {
-				GetRecordsRequest getRecordsRequest = new GetRecordsRequest();
-				getRecordsRequest.setShardIterator(this.shardIterator);
-				getRecordsRequest.setLimit(KinesisMessageDrivenChannelAdapter.this.recordsLimit);
+				GetRecordsRequest getRecordsRequest =
+						GetRecordsRequest.builder()
+								.shardIterator(this.shardIterator)
+								.limit(KinesisMessageDrivenChannelAdapter.this.recordsLimit)
+								.build();
 
-				GetRecordsResult result = null;
+				GetRecordsResponse result = null;
 
 				try {
 					result = getRecords(getRecordsRequest);
 					if (result != null) {
-						List<Record> records = result.getRecords();
+						List<Record> records = result.records();
 
 						if (!records.isEmpty()) {
 							processRecords(records);
@@ -1095,36 +1099,36 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						// If using manual checkpointer, we have to make sure we are allowed to use the next shard iterator
 						// Because if the manual checkpointer was not set to the latest record, it means there are records to be reprocessed
 						// and if we use the nextShardIterator, we will be skipping records that need to be reprocessed
-						List<Record> records = result.getRecords();
+						List<Record> records = result.records();
 						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
 								!records.isEmpty()) {
 							logger.info("Manual checkpointer. Must validate if should use getNextShardIterator()");
-							String lastRecordSequence = records.get(records.size() - 1).getSequenceNumber();
+							String lastRecordSequence = records.get(records.size() - 1).sequenceNumber();
 							String lastCheckpointSequence = this.checkpointer.getCheckpoint();
 							if (lastCheckpointSequence.equals(lastRecordSequence)) {
 								logger.info("latestCheckpointSequence is same as latestRecordSequence. " +
-										"" +
 										"Should getNextShardIterator()");
 								// Means the manual checkpointer has processed the last record, Should move forward
-								this.shardIterator = result.getNextShardIterator();
+								this.shardIterator = result.nextShardIterator();
 							}
 							else {
-								logger.info("latestCheckpointSequence is not the same as latestRecordSequence" +
-										". Should Get a new iterator AFTER_SEQUENCE_NUMBER latestCheckpointSequence");
+								logger.info("latestCheckpointSequence is not the same as latestRecordSequence. " +
+										"Should Get a new iterator AFTER_SEQUENCE_NUMBER latestCheckpointSequence");
 								// Something wrong happened and not all records were processed.
 								// Must start from the latest known checkpoint
 								KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
 								newOffset.setSequenceNumber(lastCheckpointSequence);
 								newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
 								GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
-								this.shardIterator = KinesisMessageDrivenChannelAdapter.this
-										.amazonKinesis
-										.getShardIterator(shardIteratorRequest)
-										.getShardIterator();
+								this.shardIterator =
+										KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+												.getShardIterator(shardIteratorRequest)
+												.join()
+												.shardIterator();
 							}
 						}
 						else {
-							this.shardIterator = result.getNextShardIterator();
+							this.shardIterator = result.nextShardIterator();
 						}
 
 						if (this.shardIterator == null) {
@@ -1139,9 +1143,9 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							if (!CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
 									|| this.checkpointer.getLastCheckpointValue() == null) {
 								for (Shard shard : readShardList(this.shardOffset.getStream())) {
-									if (shard.getShardId().equals(this.shardOffset.getShard())) {
+									if (shard.shardId().equals(this.shardOffset.getShard())) {
 										String endingSequenceNumber =
-												shard.getSequenceNumberRange().getEndingSequenceNumber();
+												shard.sequenceNumberRange().endingSequenceNumber();
 										if (endingSequenceNumber != null) {
 											checkpointSwallowingProvisioningExceptions(endingSequenceNumber);
 										}
@@ -1157,7 +1161,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							stop();
 						}
 
-						if (ConsumerState.STOP != this.state && result.getRecords().isEmpty()) {
+						if (ConsumerState.STOP != this.state && result.records().isEmpty()) {
 							logger.debug(() ->
 									"No records for ["
 											+ this
@@ -1188,14 +1192,14 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			}
 		}
 
-		private GetRecordsResult getRecords(GetRecordsRequest getRecordsRequest) {
+		private GetRecordsResponse getRecords(GetRecordsRequest getRecordsRequest) {
 			try {
-				return KinesisMessageDrivenChannelAdapter.this.amazonKinesis.getRecords(getRecordsRequest);
+				return KinesisMessageDrivenChannelAdapter.this.amazonKinesis.getRecords(getRecordsRequest).join();
 			}
 			catch (ExpiredIteratorException e) {
 				// Iterator expired, but this does not mean that shard no longer contains
 				// records.
-				// Lets acquire iterator again (using checkpointer for iterator start
+				// Let's acquire iterator again (using checkpointer for iterator start
 				// sequence number).
 				logger.info(() ->
 						"Shard iterator for ["
@@ -1209,7 +1213,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						"GetRecords request throttled for ["
 								+ ShardConsumer.this
 								+ "] with the reason: "
-								+ ex.getErrorMessage());
+								+ ex.getMessage());
 				// We are throttled, so let's sleep
 				prepareSleepState();
 			}
@@ -1226,7 +1230,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		private void processRecords(List<Record> records) {
 			logger.trace(() -> "Processing records: " + records + " for [" + ShardConsumer.this + "]");
 
-			this.checkpointer.setHighestSequence(records.get(records.size() - 1).getSequenceNumber());
+			this.checkpointer.setHighestSequence(records.get(records.size() - 1).sequenceNumber());
 
 			if (ListenerMode.record.equals(KinesisMessageDrivenChannelAdapter.this.listenerMode)) {
 				for (Record record : records) {
@@ -1266,11 +1270,11 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						records.stream()
 								.map(
 										r -> {
-											partitionKeys.add(r.getPartitionKey());
-											sequenceNumbers.add(r.getSequenceNumber());
+											partitionKeys.add(r.partitionKey());
+											sequenceNumbers.add(r.sequenceNumber());
 
 											return KinesisMessageDrivenChannelAdapter.this.converter.convert(
-													r.getData().array());
+													r.data().asByteArray());
 										})
 								.collect(Collectors.toList());
 
@@ -1285,7 +1289,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		}
 
 		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(Record record) {
-			Object payload = record.getData().array();
+			Object payload = record.data().asByteArray();
 			Message<?> messageToUse = null;
 
 			if (KinesisMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
@@ -1308,8 +1312,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			AbstractIntegrationMessageBuilder<Object> messageBuilder =
 					getMessageBuilderFactory()
 							.withPayload(payload)
-							.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.getPartitionKey())
-							.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.getSequenceNumber());
+							.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
+							.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber());
 
 			if (KinesisMessageDrivenChannelAdapter.this.bindSourceRecord) {
 				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
@@ -1357,7 +1361,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		private void checkpointIfRecordMode(Record record) {
 			if (CheckpointMode.record.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)) {
-				this.checkpointer.checkpoint(record.getSequenceNumber());
+				this.checkpointer.checkpoint(record.sequenceNumber());
 			}
 		}
 
@@ -1368,7 +1372,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					this.checkpointer.checkpoint();
 				}
 				else {
-					this.checkpointer.checkpoint(record.getSequenceNumber());
+					this.checkpointer.checkpoint(record.sequenceNumber());
 				}
 				this.nextCheckpointTimeInMillis =
 						System.currentTimeMillis()

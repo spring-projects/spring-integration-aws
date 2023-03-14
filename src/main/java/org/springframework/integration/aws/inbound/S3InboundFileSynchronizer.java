@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package org.springframework.integration.aws.inbound;
 import java.io.File;
 import java.io.IOException;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.common.LiteralExpression;
@@ -38,13 +38,13 @@ import org.springframework.lang.Nullable;
  *
  * @author Artem Bilan
  */
-public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S3ObjectSummary> {
+public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S3Object> {
 
 	public S3InboundFileSynchronizer() {
 		this(new S3SessionFactory());
 	}
 
-	public S3InboundFileSynchronizer(AmazonS3 amazonS3) {
+	public S3InboundFileSynchronizer(S3Client amazonS3) {
 		this(new S3SessionFactory(amazonS3));
 	}
 
@@ -53,31 +53,31 @@ public class S3InboundFileSynchronizer extends AbstractInboundFileSynchronizer<S
 	 * {@link Session} instances.
 	 * @param sessionFactory The session factory.
 	 */
-	public S3InboundFileSynchronizer(SessionFactory<S3ObjectSummary> sessionFactory) {
+	public S3InboundFileSynchronizer(SessionFactory<S3Object> sessionFactory) {
 		super(sessionFactory);
 		doSetRemoteDirectoryExpression(new LiteralExpression(null));
 		doSetFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "s3MessageSource"));
 	}
 
 	@Override
-	protected boolean isFile(S3ObjectSummary file) {
+	protected boolean isFile(S3Object file) {
 		return true;
 	}
 
 	@Override
-	protected String getFilename(S3ObjectSummary file) {
-		return (file != null ? file.getKey() : null);
+	protected String getFilename(S3Object file) {
+		return (file != null ? file.key() : null);
 	}
 
 	@Override
-	protected long getModified(S3ObjectSummary file) {
-		return file.getLastModified().getTime();
+	protected long getModified(S3Object file) {
+		return file.lastModified().getEpochSecond();
 	}
 
 	@Override
 	protected boolean copyFileToLocalDirectory(String remoteDirectoryPath,
-			@Nullable EvaluationContext localFileEvaluationContext, S3ObjectSummary remoteFile,
-			File localDirectory, Session<S3ObjectSummary> session) throws IOException {
+			@Nullable EvaluationContext localFileEvaluationContext, S3Object remoteFile,
+			File localDirectory, Session<S3Object> session) throws IOException {
 
 		return super.copyFileToLocalDirectory(((S3Session) session).normalizeBucketName(remoteDirectoryPath),
 				localFileEvaluationContext, remoteFile, localDirectory, session);

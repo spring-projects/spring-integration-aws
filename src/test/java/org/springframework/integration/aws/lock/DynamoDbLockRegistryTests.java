@@ -27,18 +27,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
-import com.amazonaws.waiters.FixedDelayStrategy;
-import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
-import com.amazonaws.waiters.PollingStrategy;
-import com.amazonaws.waiters.Waiter;
-import com.amazonaws.waiters.WaiterParameters;
 import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -62,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 @DirtiesContext
 public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
-	private static AmazonDynamoDBAsync DYNAMO_DB;
+	private static DynamoDbAsyncClient DYNAMO_DB;
 
 	private final AsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
 
@@ -76,13 +71,16 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	static void setup() {
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		try {
-			DYNAMO_DB.deleteTableAsync(DynamoDbLockRepository.DEFAULT_TABLE_NAME);
-
-			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
-
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(DynamoDbLockRepository.DEFAULT_TABLE_NAME))
-					.withPollingStrategy(
-							new PollingStrategy(new MaxAttemptsRetryStrategy(25), new FixedDelayStrategy(1))));
+			DYNAMO_DB.deleteTable(request -> request.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME))
+					.thenCompose(result ->
+							DYNAMO_DB.waiter()
+									.waitUntilTableNotExists(request -> request
+													.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME),
+											waiter -> waiter
+													.maxAttempts(25)
+													.backoffStrategy(
+															FixedDelayBackoffStrategy.create(Duration.ofSeconds(1)))))
+					.get();
 		}
 		catch (Exception e) {
 			// Ignore
@@ -90,7 +88,11 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@BeforeEach
-	void clear() {
+	void clear() throws InterruptedException {
+		CountDownLatch createTableLatch =
+				TestUtils.getPropertyValue(this.dynamoDbLockRepository, "createTableLatch", CountDownLatch.class);
+
+		createTableLatch.await();
 		this.dynamoDbLockRepository.close();
 	}
 
@@ -349,10 +351,13 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 			this.dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(60));
 			assertThatNoException().isThrownBy(() -> this.dynamoDbLockRegistry.renewLock("foo"));
 			String ttl =
-					DYNAMO_DB.getItem(DynamoDbLockRepository.DEFAULT_TABLE_NAME,
-									Map.of(DynamoDbLockRepository.KEY_ATTR, new AttributeValue("foo")))
-							.getItem()
-							.get(DynamoDbLockRepository.TTL_ATTR).getN();
+					DYNAMO_DB.getItem(request -> request
+									.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME)
+									.key(Map.of(DynamoDbLockRepository.KEY_ATTR, AttributeValue.fromS("foo"))))
+							.join()
+							.item()
+							.get(DynamoDbLockRepository.TTL_ATTR)
+							.n();
 			assertThat(Long.parseLong(ttl))
 					.isCloseTo(LocalDateTime.now().plusSeconds(60).toEpochSecond(ZoneOffset.UTC),
 							Percentage.withPercentage(10));

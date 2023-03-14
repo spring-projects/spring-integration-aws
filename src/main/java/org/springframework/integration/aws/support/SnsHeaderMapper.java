@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019 the original author or authors.
+ * Copyright 2018-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ package org.springframework.integration.aws.support;
 
 import java.nio.ByteBuffer;
 
-import com.amazonaws.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 
 /**
  * The {@link AbstractMessageAttributesHeaderMapper} implementation for the mapping from
@@ -28,19 +29,24 @@ import com.amazonaws.services.sns.model.MessageAttributeValue;
  * payload. Only important HTTP headers are mapped to the message headers.
  *
  * @author Artem Bilan
+ *
  * @since 2.0
  */
 public class SnsHeaderMapper extends AbstractMessageAttributesHeaderMapper<MessageAttributeValue> {
 
 	@Override
 	protected MessageAttributeValue buildMessageAttribute(String dataType, Object value) {
-		MessageAttributeValue messageAttributeValue = new MessageAttributeValue().withDataType(dataType);
-		if (value instanceof ByteBuffer) {
-			return messageAttributeValue.withBinaryValue((ByteBuffer) value);
+		MessageAttributeValue.Builder messageAttributeValue =
+				MessageAttributeValue.builder()
+						.dataType(dataType);
+		if (value instanceof ByteBuffer byteBuffer) {
+			messageAttributeValue.binaryValue(SdkBytes.fromByteBuffer(byteBuffer));
 		}
 		else {
-			return messageAttributeValue.withStringValue(value.toString());
+			messageAttributeValue.stringValue(value.toString());
 		}
+
+		return messageAttributeValue.build();
 	}
 
 }

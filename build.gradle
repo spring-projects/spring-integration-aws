@@ -32,13 +32,14 @@ repositories {
 ext {
 	assertjVersion = '3.23.1'
 	awaitilityVersion = '4.2.0'
+	awsSdkVersion = '2.20.22'
 	jacksonVersion = '2.14.1'
 	junitVersion = '5.9.1'
 	servletApiVersion = '6.0.0'
 	log4jVersion = '2.19.0'
-	springCloudAwsVersion = '2.4.2'
-	springIntegrationVersion = '6.0.3'
-	kinesisClientVersion = '1.14.9'
+	springCloudAwsVersion = '3.0.0-RC1'
+	springIntegrationVersion = '6.1.0-SNAPSHOT'
+	kinesisClientVersion = '2.4.5'
 	kinesisProducerVersion = '0.14.13'
 	testcontainersVersion = '1.17.6'
 
@@ -51,7 +52,7 @@ ext {
 	linkScmConnection = 'https://github.com/spring-projects/spring-integration-aws.git'
 	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
 
-	modifiedFiles = files(grgit.status().unstaged.modified).filter{ f -> f.name.endsWith('.java') }
+	modifiedFiles = files(grgit.status().unstaged.modified).filter { f -> f.name.endsWith('.java') }
 }
 
 ext.javadocLinks = [
@@ -88,6 +89,7 @@ dependencyManagement {
 	}
 	imports {
 		mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:$springCloudAwsVersion"
+		mavenBom "software.amazon.awssdk:bom:$awsSdkVersion"
 		mavenBom "org.springframework.integration:spring-integration-bom:$springIntegrationVersion"
 		mavenBom "com.fasterxml.jackson:jackson-bom:$jacksonVersion"
 		mavenBom "org.junit:junit-bom:$junitVersion"
@@ -97,12 +99,12 @@ dependencyManagement {
 }
 
 jacoco {
-	toolVersion = '0.8.7'
+	toolVersion = '0.8.8'
 }
 
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
-	toolVersion = '10.7.0'
+	toolVersion = '10.8.0'
 }
 
 dependencies {
@@ -110,25 +112,28 @@ dependencies {
 	api 'io.awspring.cloud:spring-cloud-aws-core'
 	api 'com.fasterxml.jackson.core:jackson-databind'
 
-	optionalApi 'io.awspring.cloud:spring-cloud-aws-messaging'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-sns'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-sqs'
+	optionalApi 'io.awspring.cloud:spring-cloud-aws-s3'
 	optionalApi 'org.springframework.integration:spring-integration-file'
 	optionalApi 'org.springframework.integration:spring-integration-http'
 
-	optionalApi "com.amazonaws:amazon-kinesis-client:$kinesisClientVersion"
+	optionalApi "software.amazon.kinesis:amazon-kinesis-client:$kinesisClientVersion"
 	optionalApi "com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion"
 
-	optionalApi 'com.amazonaws:aws-java-sdk-kinesis'
-	optionalApi 'com.amazonaws:aws-java-sdk-dynamodb'
+	optionalApi 'software.amazon.awssdk:kinesis'
+	optionalApi 'software.amazon.awssdk:dynamodb'
+	optionalApi 'software.amazon.awssdk:s3-transfer-manager'
 
 	optionalApi "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
 
-	testImplementation ('org.springframework.integration:spring-integration-test') {
+	testImplementation('org.springframework.integration:spring-integration-test') {
 		exclude group: 'junit'
 	}
 
 	testImplementation "org.assertj:assertj-core:$assertjVersion"
 
-	testImplementation ("org.awaitility:awaitility:$awaitilityVersion") {
+	testImplementation("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
 	testImplementation 'org.junit.jupiter:junit-jupiter-api'
@@ -177,16 +182,16 @@ test {
 	jacoco {
 		destinationFile = file("$buildDir/jacoco.exec")
 	}
-    useJUnitPlatform()
-    // suppress all console output during testing unless running `gradle -i`
-    logging.captureStandardOutput(LogLevel.INFO)
+	useJUnitPlatform()
+	// suppress all console output during testing unless running `gradle -i`
+	logging.captureStandardOutput(LogLevel.INFO)
 }
 
 jacocoTestReport {
 	reports {
-		xml.enabled false
-		csv.enabled false
-		html.destination file("$buildDir/reports/jacoco/html")
+		csv.required = false
+		html.required = false
+		xml.outputLocation = file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
 	}
 }
 
@@ -237,32 +242,6 @@ sonarqube {
 	}
 }
 
-task schemaZip(type: Zip) {
-	group = 'Distribution'
-	archiveClassifier = 'schema'
-	description = "Builds -${archiveClassifier} archive containing all " +
-			"XSDs for deployment at static.springframework.org/schema."
-
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-	Properties schemas = new Properties();
-	def shortName = idPrefix.replaceFirst("${idPrefix}-", '')
-
-	project.sourceSets.main.resources.find {
-		it.path.endsWith("META-INF${File.separator}spring.schemas")
-	}?.withInputStream { schemas.load(it) }
-
-	for (def key : schemas.keySet()) {
-		File xsdFile = project.sourceSets.main.resources.find {
-			it.path.replaceAll('\\\\', '/').endsWith(schemas.get(key))
-		}
-		assert xsdFile != null
-		into("integration/${shortName}") {
-			from xsdFile.path
-		}
-	}
-}
-
 task docsZip(type: Zip) {
 	group = 'Distribution'
 	archiveClassifier = 'docs'
@@ -278,7 +257,7 @@ task docsZip(type: Zip) {
 	}
 }
 
-task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
+task distZip(type: Zip, dependsOn: docsZip) {
 	group = 'Distribution'
 	archiveClassifier = 'dist'
 	description = "Builds -${archiveClassifier} archive, containing all jars and docs, " +
@@ -297,10 +276,6 @@ task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
 		into "${baseDir}"
 	}
 
-	from(zipTree(schemaZip.archiveFile)) {
-		into "${baseDir}/schema"
-	}
-
 	into("${baseDir}/libs") {
 		from project.jar
 		from project.sourcesJar
@@ -310,7 +285,7 @@ task distZip(type: Zip, dependsOn: [docsZip, schemaZip]) {
 
 task dist(dependsOn: assemble) {
 	group = 'Distribution'
-	description = 'Builds -dist, -docs and -schema distribution archives.'
+	description = 'Builds -dist and -docs distribution archives.'
 }
 
 apply from: "${rootProject.projectDir}/publish-maven.gradle"

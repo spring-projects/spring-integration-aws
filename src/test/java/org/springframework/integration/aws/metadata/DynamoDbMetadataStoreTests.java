@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,19 @@
 
 package org.springframework.integration.aws.metadata;
 
-import java.util.Collections;
+import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBAsync;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
-import com.amazonaws.waiters.FixedDelayStrategy;
-import com.amazonaws.waiters.MaxAttemptsRetryStrategy;
-import com.amazonaws.waiters.PollingStrategy;
-import com.amazonaws.waiters.Waiter;
-import com.amazonaws.waiters.WaiterParameters;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import org.springframework.integration.aws.LocalstackContainerTest;
+import org.springframework.integration.aws.lock.DynamoDbLockRepository;
 import org.springframework.integration.test.util.TestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +42,7 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 
 	private static final String TEST_TABLE = "testMetadataStore";
 
-	private static AmazonDynamoDBAsync DYNAMO_DB;
+	private static DynamoDbAsyncClient DYNAMO_DB;
 
 	private static DynamoDbMetadataStore store;
 
@@ -57,17 +54,19 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 	static void setup() {
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		try {
-			DYNAMO_DB.deleteTableAsync(TEST_TABLE);
-
-			Waiter<DescribeTableRequest> waiter = DYNAMO_DB.waiters().tableNotExists();
-
-			waiter.run(new WaiterParameters<>(new DescribeTableRequest(TEST_TABLE))
-					.withPollingStrategy(
-							new PollingStrategy(new MaxAttemptsRetryStrategy(25),
-									new FixedDelayStrategy(1))));
+			DYNAMO_DB.deleteTable(request -> request.tableName(TEST_TABLE))
+					.thenCompose(result ->
+							DYNAMO_DB.waiter()
+									.waitUntilTableNotExists(request -> request
+													.tableName(DynamoDbLockRepository.DEFAULT_TABLE_NAME),
+											waiter -> waiter
+													.maxAttempts(25)
+													.backoffStrategy(
+															FixedDelayBackoffStrategy.create(Duration.ofSeconds(1)))))
+					.join();
 		}
 		catch (Exception e) {
-			// Ignore
+			// Ignore if table does not exist
 		}
 
 		store = new DynamoDbMetadataStore(DYNAMO_DB, TEST_TABLE);
@@ -81,7 +80,10 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 
 		createTableLatch.await();
 
-		DYNAMO_DB.deleteItem(TEST_TABLE, Collections.singletonMap("KEY", new AttributeValue().withS(this.file1)));
+		DYNAMO_DB.deleteItem(request -> request
+						.tableName(TEST_TABLE)
+						.key(Map.of(DynamoDbMetadataStore.KEY, AttributeValue.fromS((this.file1)))))
+				.join();
 	}
 
 	@Test

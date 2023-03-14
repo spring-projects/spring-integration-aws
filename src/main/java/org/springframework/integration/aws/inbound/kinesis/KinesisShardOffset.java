@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Objects;
 
-import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
+import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
 import org.springframework.util.Assert;
 
@@ -36,7 +36,7 @@ public class KinesisShardOffset {
 
 	private String sequenceNumber;
 
-	private Date timestamp;
+	private Instant timestamp;
 
 	private String stream;
 
@@ -70,7 +70,7 @@ public class KinesisShardOffset {
 		this.sequenceNumber = sequenceNumber;
 	}
 
-	public void setTimestamp(Date timestamp) {
+	public void setTimestamp(Instant timestamp) {
 		this.timestamp = timestamp;
 	}
 
@@ -90,7 +90,7 @@ public class KinesisShardOffset {
 		return this.sequenceNumber;
 	}
 
-	public Date getTimestamp() {
+	public Instant getTimestamp() {
 		return this.timestamp;
 	}
 
@@ -114,9 +114,13 @@ public class KinesisShardOffset {
 	public GetShardIteratorRequest toShardIteratorRequest() {
 		Assert.state(this.stream != null && this.shard != null,
 				"'stream' and 'shard' must not be null for conversion to the GetShardIteratorRequest.");
-		return new GetShardIteratorRequest().withStreamName(this.stream).withShardId(this.shard)
-				.withShardIteratorType(this.iteratorType).withStartingSequenceNumber(this.sequenceNumber)
-				.withTimestamp(this.timestamp);
+		return GetShardIteratorRequest.builder()
+				.streamName(this.stream)
+				.shardId(this.shard)
+				.shardIteratorType(this.iteratorType)
+				.startingSequenceNumber(this.sequenceNumber)
+				.timestamp(this.timestamp)
+				.build();
 	}
 
 	@Override
@@ -189,11 +193,11 @@ public class KinesisShardOffset {
 		return kinesisShardOffset;
 	}
 
-	public static KinesisShardOffset atTimestamp(Date timestamp) {
+	public static KinesisShardOffset atTimestamp(Instant timestamp) {
 		return atTimestamp(null, null, timestamp);
 	}
 
-	public static KinesisShardOffset atTimestamp(String stream, String shard, Date timestamp) {
+	public static KinesisShardOffset atTimestamp(String stream, String shard, Instant timestamp) {
 		KinesisShardOffset kinesisShardOffset = new KinesisShardOffset(ShardIteratorType.AT_TIMESTAMP);
 		kinesisShardOffset.stream = stream;
 		kinesisShardOffset.shard = shard;

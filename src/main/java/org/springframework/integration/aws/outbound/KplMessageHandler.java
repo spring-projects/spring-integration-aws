@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 the original author or authors.
+ * Copyright 2019-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,30 +18,31 @@ package org.springframework.integration.aws.outbound;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.amazonaws.AmazonWebServiceRequest;
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
-import com.amazonaws.services.kinesis.model.PutRecordRequest;
-import com.amazonaws.services.kinesis.model.PutRecordResult;
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsResult;
-import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.UserRecord;
+import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.amazonaws.services.schemaregistry.common.Schema;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.SettableFuture;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import software.amazon.awssdk.awscore.AwsRequest;
+import software.amazon.awssdk.awscore.AwsResponse;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordResponse;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
 import org.springframework.context.Lifecycle;
 import org.springframework.core.convert.converter.Converter;
@@ -49,12 +50,10 @@ import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.aws.support.AwsRequestFailureException;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.mapping.HeaderMapper;
 import org.springframework.integration.mapping.OutboundMessageMapper;
-import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
 import org.springframework.integration.support.MutableMessage;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
@@ -72,8 +71,8 @@ import org.springframework.util.StringUtils;
  *
  * @since 2.2
  *
- * @see AmazonKinesisAsync#putRecord(PutRecordRequest)
- * @see AmazonKinesisAsync#putRecords(PutRecordsRequest)
+ * @see KinesisAsyncClient#putRecord(PutRecordRequest)
+ * @see KinesisAsyncClient#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
  */
 public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implements Lifecycle {
@@ -262,27 +261,40 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	@Override
-	protected Future<?> handleMessageToAws(Message<?> message) {
-		try {
-			if (message.getPayload() instanceof PutRecordsRequest) {
-				return handlePutRecordsRequest(message, (PutRecordsRequest) message.getPayload());
-			}
-			else if (message.getPayload() instanceof UserRecord) {
-				return handleUserRecord(message, buildPutRecordRequest(message), (UserRecord) message.getPayload());
-			}
-			else {
-				final PutRecordRequest putRecordRequest = (message.getPayload() instanceof PutRecordRequest)
-						? (PutRecordRequest) message.getPayload() : buildPutRecordRequest(message);
+	protected AwsRequest messageToAwsRequest(Message<?> message) {
+		Object payload = message.getPayload();
+		if (payload instanceof PutRecordsRequest) {
+			return (PutRecordsRequest) payload;
+		}
+		else if (payload instanceof PutRecordRequest) {
+			return (PutRecordRequest) payload;
+		}
+		else if (payload instanceof UserRecord) {
+			return buildPutRecordRequest(message);
+		}
 
-				// convert the PutRecordRequest to a UserRecord
-				UserRecord userRecord = new UserRecord();
-				userRecord.setExplicitHashKey(putRecordRequest.getExplicitHashKey());
-				userRecord.setData(putRecordRequest.getData());
-				userRecord.setPartitionKey(putRecordRequest.getPartitionKey());
-				userRecord.setStreamName(putRecordRequest.getStreamName());
-				setGlueSchemaIntoUserRecordIfAny(userRecord, message);
-				return handleUserRecord(message, putRecordRequest, userRecord);
+		return buildPutRecordRequest(message);
+	}
+
+	@Override
+	protected CompletableFuture<? extends AwsResponse> handleMessageToAws(Message<?> message, AwsRequest request) {
+		try {
+			if (request instanceof PutRecordsRequest putRecordsRequest) {
+				return handlePutRecordsRequest(message, putRecordsRequest);
 			}
+			else if (message.getPayload() instanceof UserRecord userRecord) {
+				return handleUserRecord(userRecord);
+			}
+
+			PutRecordRequest putRecordRequest = (PutRecordRequest) request;
+			// convert the PutRecordRequest to a UserRecord
+			UserRecord userRecord = new UserRecord();
+			userRecord.setExplicitHashKey(putRecordRequest.explicitHashKey());
+			userRecord.setData(putRecordRequest.data().asByteBuffer());
+			userRecord.setPartitionKey(putRecordRequest.partitionKey());
+			userRecord.setStreamName(putRecordRequest.streamName());
+			setGlueSchemaIntoUserRecordIfAny(userRecord, message);
+			return handleUserRecord(userRecord);
 		}
 		finally {
 			if (this.flushDuration.toMillis() <= 0) {
@@ -291,51 +303,61 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		}
 	}
 
-	private Future<PutRecordsResult> handlePutRecordsRequest(Message<?> message, PutRecordsRequest putRecordsRequest) {
-		PutRecordsResult putRecordsResult = new PutRecordsResult();
-		SettableFuture<PutRecordsResult> putRecordsResultFuture = SettableFuture.create();
+	@Override
+	protected Map<String, ?> additionalOnSuccessHeaders(AwsRequest request, AwsResponse response) {
+		if (response instanceof PutRecordResponse putRecordResponse) {
+			return Map.of(AwsHeaders.SHARD, putRecordResponse.shardId(),
+					AwsHeaders.SEQUENCE_NUMBER, putRecordResponse.sequenceNumber());
+		}
+		return null;
+	}
+
+	private CompletableFuture<PutRecordsResponse> handlePutRecordsRequest(Message<?> message,
+			PutRecordsRequest putRecordsRequest) {
+
 		AtomicInteger failedRecordsCount = new AtomicInteger();
-		Flux.fromIterable(putRecordsRequest.getRecords())
+
+		return Flux.fromIterable(putRecordsRequest.records())
 				.map((putRecordsRequestEntry) -> {
 					UserRecord userRecord = new UserRecord();
-					userRecord.setExplicitHashKey(putRecordsRequestEntry.getExplicitHashKey());
-					userRecord.setData(putRecordsRequestEntry.getData());
-					userRecord.setPartitionKey(putRecordsRequestEntry.getPartitionKey());
-					userRecord.setStreamName(putRecordsRequest.getStreamName());
+					userRecord.setExplicitHashKey(putRecordsRequestEntry.explicitHashKey());
+					userRecord.setData(putRecordsRequestEntry.data().asByteBuffer());
+					userRecord.setPartitionKey(putRecordsRequestEntry.partitionKey());
+					userRecord.setStreamName(putRecordsRequest.streamName());
 					setGlueSchemaIntoUserRecordIfAny(userRecord, message);
 					return userRecord;
 				})
 				.concatMap((userRecord) ->
-						Mono.fromFuture(listenableFutureToCompletableFuture(
-								this.kinesisProducer.addUserRecord(userRecord))))
-				.map((userRecordResult) -> {
-					PutRecordsResultEntry putRecordsResultEntry =
-							new PutRecordsResultEntry()
-									.withSequenceNumber(userRecordResult.getSequenceNumber())
-									.withShardId(userRecordResult.getShardId());
-
-					if (!userRecordResult.isSuccessful()) {
-						failedRecordsCount.incrementAndGet();
-						userRecordResult.getAttempts()
-								.stream()
-								.reduce((left, right) -> right)
-								.ifPresent((attempt) ->
-										putRecordsResultEntry
-												.withErrorMessage(attempt.getErrorMessage())
-												.withErrorCode(attempt.getErrorCode()));
-					}
-
-					return putRecordsResultEntry;
-				})
+						Mono.fromFuture(handleUserRecord(userRecord))
+								.map(recordResult ->
+										PutRecordsResultEntry.builder()
+												.sequenceNumber(recordResult.sequenceNumber())
+												.shardId(recordResult.shardId())
+												.build())
+								.onErrorResume(UserRecordFailedException.class,
+										(ex) -> Mono.just(ex.getResult())
+												.map((errorRecord) -> {
+													PutRecordsResultEntry.Builder putRecordsResultEntry =
+															PutRecordsResultEntry.builder()
+																	.sequenceNumber(errorRecord.getSequenceNumber())
+																	.shardId(errorRecord.getShardId());
+													failedRecordsCount.incrementAndGet();
+													errorRecord.getAttempts()
+															.stream()
+															.reduce((left, right) -> right)
+															.ifPresent((attempt) ->
+																	putRecordsResultEntry
+																			.errorMessage(attempt.getErrorMessage())
+																			.errorCode(attempt.getErrorCode()));
+													return putRecordsResultEntry.build();
+												})))
 				.collectList()
 				.map((putRecordsResultList) ->
-						putRecordsResult.withRecords(putRecordsResultList)
-								.withFailedRecordCount(failedRecordsCount.get()))
-				.subscribe(putRecordsResultFuture::set, putRecordsResultFuture::setException);
-
-		applyCallbackForAsyncHandler(message, putRecordsRequest, putRecordsResultFuture);
-
-		return putRecordsResultFuture;
+						PutRecordsResponse.builder()
+								.records(putRecordsResultList)
+								.failedRecordCount(failedRecordsCount.get())
+								.build())
+				.toFuture();
 	}
 
 	private void setGlueSchemaIntoUserRecordIfAny(UserRecord userRecord, Message<?> message) {
@@ -345,33 +367,14 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		}
 	}
 
-	private Future<?> handleUserRecord(Message<?> message, PutRecordRequest putRecordRequest, UserRecord userRecord) {
+	private CompletableFuture<PutRecordResponse> handleUserRecord(UserRecord userRecord) {
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
-		applyCallbackForAsyncHandler(message, putRecordRequest, recordResult);
-		return recordResult;
-	}
-
-	private <R> void applyCallbackForAsyncHandler(Message<?> message, AmazonWebServiceRequest serviceRequest,
-			ListenableFuture<R> result) {
-
-		AsyncHandler<AmazonWebServiceRequest, R> asyncHandler = obtainAsyncHandler(message, serviceRequest);
-		FutureCallback<R> callback =
-				new FutureCallback<R>() {
-
-					@Override
-					public void onFailure(Throwable ex) {
-						asyncHandler.onError(ex instanceof Exception ? (Exception) ex
-								: new AwsRequestFailureException(message, serviceRequest, ex));
-					}
-
-					@Override
-					public void onSuccess(R result) {
-						asyncHandler.onSuccess(serviceRequest, result);
-					}
-
-				};
-
-		Futures.addCallback(result, callback, MoreExecutors.directExecutor());
+		return listenableFutureToCompletableFuture(recordResult)
+				.thenApply(result ->
+						PutRecordResponse.builder()
+								.shardId(result.getShardId())
+								.sequenceNumber(result.getSequenceNumber())
+								.build());
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
@@ -383,8 +386,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		String partitionKey;
 		String explicitHashKey;
 
-		if (payload instanceof UserRecord) {
-			UserRecord userRecord = (UserRecord) payload;
+		if (payload instanceof UserRecord userRecord) {
 			data = userRecord.getData();
 			stream = userRecord.getStreamName();
 			partitionKey = userRecord.getPartitionKey();
@@ -451,26 +453,17 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 			}
 		}
 
-		return new PutRecordRequest()
-				.withStreamName(stream)
-				.withPartitionKey(partitionKey)
-				.withExplicitHashKey(explicitHashKey)
-				.withSequenceNumberForOrdering(sequenceNumber)
-				.withData(data);
-	}
-
-	@Override
-	protected void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
-			AmazonWebServiceRequest request, Object result) {
-
-		if (result instanceof PutRecordResult) {
-			messageBuilder.setHeader(AwsHeaders.SHARD, ((PutRecordResult) result).getShardId())
-					.setHeader(AwsHeaders.SEQUENCE_NUMBER, ((PutRecordResult) result).getSequenceNumber());
-		}
+		return PutRecordRequest.builder()
+				.streamName(stream)
+				.partitionKey(partitionKey)
+				.explicitHashKey(explicitHashKey)
+				.sequenceNumberForOrdering(sequenceNumber)
+				.data(SdkBytes.fromByteBuffer(data))
+				.build();
 	}
 
 	private static <T> CompletableFuture<T> listenableFutureToCompletableFuture(ListenableFuture<T> listenableFuture) {
-		CompletableFuture<T> completable = new CompletableFuture<T>() {
+		CompletableFuture<T> completable = new CompletableFuture<>() {
 
 			@Override
 			public boolean cancel(boolean mayInterruptIfRunning) {
@@ -483,7 +476,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		};
 
 		// add callback
-		Futures.addCallback(listenableFuture, new FutureCallback<T>() {
+		Futures.addCallback(listenableFuture, new FutureCallback<>() {
 
 			@Override
 			public void onSuccess(T result) {

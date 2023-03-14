@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,11 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.amazonaws.services.kinesis.AmazonKinesisAsync;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +68,7 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStream";
 
-	private static AmazonKinesisAsync AMAZON_KINESIS_ASYNC;
+	private static KinesisAsyncClient AMAZON_KINESIS_ASYNC;
 
 	@Autowired
 	private MessageChannel kinesisSendChannel;
@@ -81,11 +82,15 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 	@BeforeAll
 	static void setup() throws Exception {
 		AMAZON_KINESIS_ASYNC = LocalstackContainerTest.kinesisClient();
-		AMAZON_KINESIS_ASYNC.createStream(TEST_STREAM, 1);
+		AMAZON_KINESIS_ASYNC.createStream(request -> request.streamName(TEST_STREAM).shardCount(1)).join();
 
 		int n = 0;
-		while (n++ < 100 && !"ACTIVE".equals(
-				AMAZON_KINESIS_ASYNC.describeStream(TEST_STREAM).getStreamDescription().getStreamStatus())) {
+		while (n++ < 100 &&
+				!StreamStatus.ACTIVE.equals(
+						AMAZON_KINESIS_ASYNC.describeStream(request -> request.streamName(TEST_STREAM))
+								.join()
+								.streamDescription()
+								.streamStatus())) {
 
 			Thread.sleep(200);
 		}
@@ -93,7 +98,7 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 
 	@AfterAll
 	static void tearDown() {
-		AMAZON_KINESIS_ASYNC.deleteStream(TEST_STREAM);
+		AMAZON_KINESIS_ASYNC.deleteStream(request -> request.streamName(TEST_STREAM));
 	}
 
 	@Test
@@ -162,8 +167,8 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 		}
 
 		private KinesisMessageDrivenChannelAdapter kinesisMessageDrivenChannelAdapter() {
-			KinesisMessageDrivenChannelAdapter adapter = new KinesisMessageDrivenChannelAdapter(
-					AMAZON_KINESIS_ASYNC, TEST_STREAM);
+			KinesisMessageDrivenChannelAdapter adapter =
+					new KinesisMessageDrivenChannelAdapter(AMAZON_KINESIS_ASYNC, TEST_STREAM);
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setErrorChannel(errorChannel());
 			adapter.setErrorMessageStrategy(new KinesisMessageHeaderErrorMessageStrategy());

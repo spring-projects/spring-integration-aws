@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,123 +17,67 @@
 package org.springframework.integration.aws.inbound;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.Collection;
 
-import com.amazonaws.services.sqs.AmazonSQSAsync;
-import io.awspring.cloud.core.env.ResourceIdResolver;
-import io.awspring.cloud.messaging.config.SimpleMessageListenerContainerFactory;
-import io.awspring.cloud.messaging.listener.QueueMessageHandler;
-import io.awspring.cloud.messaging.listener.SimpleMessageListenerContainer;
-import io.awspring.cloud.messaging.listener.SqsMessageDeletionPolicy;
+import io.awspring.cloud.sqs.config.SqsMessageListenerContainerFactory;
+import io.awspring.cloud.sqs.listener.MessageListener;
+import io.awspring.cloud.sqs.listener.SqsContainerOptions;
+import io.awspring.cloud.sqs.listener.SqsMessageListenerContainer;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
-import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.core.task.AsyncTaskExecutor;
-import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedAttribute;
-import org.springframework.jmx.export.annotation.ManagedOperation;
 import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHeaders;
-import org.springframework.messaging.core.DestinationResolver;
-import org.springframework.messaging.handler.HandlerMethod;
+import org.springframework.messaging.support.GenericMessage;
 import org.springframework.util.Assert;
 
 /**
  * The {@link MessageProducerSupport} implementation for the Amazon SQS
  * {@code receiveMessage}. Works in 'listener' manner and delegates hard to the
- * {@link SimpleMessageListenerContainer}.
+ * {@link SqsMessageListenerContainer}.
  *
  * @author Artem Bilan
  * @author Patrick Fitzsimons
  *
- * @see SimpleMessageListenerContainerFactory
- * @see SimpleMessageListenerContainer
- * @see QueueMessageHandler
+ * @see SqsMessageListenerContainerFactory
+ * @see SqsMessageListenerContainerFactory
+ * @see MessageListener
  */
 @ManagedResource
 @IntegrationManagedResource
-public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport implements DisposableBean {
+public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport {
 
-	private final SimpleMessageListenerContainerFactory simpleMessageListenerContainerFactory =
-			new SimpleMessageListenerContainerFactory();
+	private final SqsMessageListenerContainerFactory.Builder<Object> sqsMessageListenerContainerFactory =
+			SqsMessageListenerContainerFactory.builder();
 
 	private final String[] queues;
 
-	private SimpleMessageListenerContainer listenerContainer;
+	private SqsContainerOptions sqsContainerOptions;
 
-	private Long queueStopTimeout;
+	private SqsMessageListenerContainer<?> listenerContainer;
 
-	private SqsMessageDeletionPolicy messageDeletionPolicy = SqsMessageDeletionPolicy.NO_REDRIVE;
-
-	public SqsMessageDrivenChannelAdapter(AmazonSQSAsync amazonSqs, String... queues) {
+	public SqsMessageDrivenChannelAdapter(SqsAsyncClient amazonSqs, String... queues) {
 		Assert.noNullElements(queues, "'queues' must not be empty");
-		this.simpleMessageListenerContainerFactory.setAmazonSqs(amazonSqs);
+		this.sqsMessageListenerContainerFactory.sqsAsyncClient(amazonSqs);
 		this.queues = Arrays.copyOf(queues, queues.length);
 	}
 
-	public void setTaskExecutor(AsyncTaskExecutor taskExecutor) {
-		this.simpleMessageListenerContainerFactory.setTaskExecutor(taskExecutor);
-	}
-
-	public void setMaxNumberOfMessages(Integer maxNumberOfMessages) {
-		this.simpleMessageListenerContainerFactory.setMaxNumberOfMessages(maxNumberOfMessages);
-	}
-
-	public void setVisibilityTimeout(Integer visibilityTimeout) {
-		this.simpleMessageListenerContainerFactory.setVisibilityTimeout(visibilityTimeout);
-	}
-
-	public void setWaitTimeOut(Integer waitTimeOut) {
-		this.simpleMessageListenerContainerFactory.setWaitTimeOut(waitTimeOut);
-	}
-
-	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
-		this.simpleMessageListenerContainerFactory.setResourceIdResolver(resourceIdResolver);
-	}
-
-	@Override
-	public void setAutoStartup(boolean autoStartUp) {
-		super.setAutoStartup(autoStartUp);
-		this.simpleMessageListenerContainerFactory.setAutoStartup(autoStartUp);
-	}
-
-	public void setDestinationResolver(DestinationResolver<String> destinationResolver) {
-		this.simpleMessageListenerContainerFactory.setDestinationResolver(destinationResolver);
-	}
-
-	public void setFailOnMissingQueue(boolean failOnMissingQueue) {
-		this.simpleMessageListenerContainerFactory.setFailOnMissingQueue(failOnMissingQueue);
-	}
-
-	public void setQueueStopTimeout(long queueStopTimeout) {
-		this.queueStopTimeout = queueStopTimeout;
-	}
-
-	public void setMessageDeletionPolicy(SqsMessageDeletionPolicy messageDeletionPolicy) {
-		Assert.notNull(messageDeletionPolicy, "'messageDeletionPolicy' must not be null.");
-		this.messageDeletionPolicy = messageDeletionPolicy;
+	public void setSqsContainerOptions(SqsContainerOptions sqsContainerOptions) {
+		this.sqsContainerOptions = sqsContainerOptions;
 	}
 
 	@Override
 	protected void onInit() {
 		super.onInit();
-		this.listenerContainer = this.simpleMessageListenerContainerFactory.createSimpleMessageListenerContainer();
-		if (this.queueStopTimeout != null) {
-			this.listenerContainer.setQueueStopTimeout(this.queueStopTimeout);
+		if (this.sqsContainerOptions != null) {
+			this.sqsMessageListenerContainerFactory.configure(sqsContainerOptionsBuilder ->
+					sqsContainerOptionsBuilder.fromBuilder(this.sqsContainerOptions.toBuilder()));
 		}
-		this.listenerContainer.setMessageHandler(new IntegrationQueueMessageHandler());
-		try {
-			this.listenerContainer.afterPropertiesSet();
-		}
-		catch (Exception e) {
-			throw new BeanCreationException("Cannot instantiate 'SimpleMessageListenerContainer'", e);
-		}
+		this.sqsMessageListenerContainerFactory.messageListener(new IntegrationMessageListener());
+		SqsMessageListenerContainerFactory<?> containerFactory = this.sqsMessageListenerContainerFactory.build();
+		this.listenerContainer = containerFactory.createContainer(this.queues);
 	}
 
 	@Override
@@ -151,53 +95,24 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport imple
 		this.listenerContainer.stop();
 	}
 
-	@ManagedOperation
-	public void stop(String logicalQueueName) {
-		this.listenerContainer.stop(logicalQueueName);
-	}
-
-	@ManagedOperation
-	public void start(String logicalQueueName) {
-		this.listenerContainer.start(logicalQueueName);
-	}
-
-	@ManagedOperation
-	public boolean isRunning(String logicalQueueName) {
-		return this.listenerContainer.isRunning(logicalQueueName);
-	}
-
 	@ManagedAttribute
 	public String[] getQueues() {
 		return Arrays.copyOf(this.queues, this.queues.length);
 	}
 
-	@Override
-	public void destroy() {
-		this.listenerContainer.destroy();
-	}
+	private class IntegrationMessageListener implements MessageListener<Object> {
 
-	private class IntegrationQueueMessageHandler extends QueueMessageHandler {
-
-		@Override
-		public Map<MappingInformation, HandlerMethod> getHandlerMethods() {
-			Set<String> queues = new HashSet<>(Arrays.asList(SqsMessageDrivenChannelAdapter.this.queues));
-			MappingInformation mappingInformation = new MappingInformation(queues,
-					SqsMessageDrivenChannelAdapter.this.messageDeletionPolicy);
-			return Collections.singletonMap(mappingInformation, null);
+		IntegrationMessageListener() {
 		}
 
 		@Override
-		protected void handleMessageInternal(Message<?> message, String lookupDestination) {
-			MessageHeaders headers = message.getHeaders();
+		public void onMessage(Message<Object> message) {
+			sendMessage(message);
+		}
 
-			Message<?> messageToSend = getMessageBuilderFactory().fromMessage(message)
-					.removeHeaders("LogicalResourceId", "MessageId", "ReceiptHandle", "Acknowledgment")
-					.setHeader(AwsHeaders.MESSAGE_ID, headers.get("MessageId"))
-					.setHeader(AwsHeaders.RECEIPT_HANDLE, headers.get("ReceiptHandle"))
-					.setHeader(AwsHeaders.RECEIVED_QUEUE, headers.get("LogicalResourceId"))
-					.setHeader(AwsHeaders.ACKNOWLEDGMENT, headers.get("Acknowledgment")).build();
-
-			sendMessage(messageToSend);
+		@Override
+		public void onMessage(Collection<Message<Object>> messages) {
+			onMessage(new GenericMessage<>(messages));
 		}
 
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.amazonaws.services.sns.AmazonSNS;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.awspring.cloud.messaging.endpoint.NotificationStatus;
-import io.awspring.cloud.messaging.endpoint.NotificationStatusHandlerMethodArgumentResolver;
+import io.awspring.cloud.sns.handlers.NotificationStatus;
+import io.awspring.cloud.sns.handlers.NotificationStatusHandlerMethodArgumentResolver;
+import software.amazon.awssdk.services.sns.SnsClient;
 
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
@@ -58,12 +58,12 @@ import org.springframework.web.multipart.MultipartResolver;
  * <p>
  * The {@link #handleNotificationStatus} flag (defaults to {@code false}) indicates that
  * this endpoint should send the {@code SubscriptionConfirmation/UnsubscribeConfirmation}
- * messages to the the provided {@link #getRequestChannel()}. If that, the
+ * messages to the provided {@link #getRequestChannel()}. If that, the
  * {@link AwsHeaders#NOTIFICATION_STATUS} header is populated with the
  * {@link NotificationStatus} value. In that case it is a responsibility of the
  * application to {@link NotificationStatus#confirmSubscription()} or not.
  * <p>
- * By default this endpoint just does {@link NotificationStatus#confirmSubscription()} for
+ * By default, this endpoint just does {@link NotificationStatus#confirmSubscription()} for
  * the {@code SubscriptionConfirmation} message type. And does nothing for the
  * {@code UnsubscribeConfirmation}.
  * <p>
@@ -77,7 +77,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 
 	private final NotificationStatusResolver notificationStatusResolver;
 
-	private final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter = new MappingJackson2HttpMessageConverter();
+	private final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter =
+			new MappingJackson2HttpMessageConverter();
 
 	private volatile boolean handleNotificationStatus;
 
@@ -85,7 +86,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 
 	private EvaluationContext evaluationContext;
 
-	public SnsInboundChannelAdapter(AmazonSNS amazonSns, String... path) {
+	public SnsInboundChannelAdapter(SnsClient amazonSns, String... path) {
 		super(false);
 		Assert.notNull(amazonSns, "'amazonSns' must not be null.");
 		Assert.notNull(path, "'path' must not be null.");
@@ -207,7 +208,7 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 
 	private static class NotificationStatusResolver extends NotificationStatusHandlerMethodArgumentResolver {
 
-		NotificationStatusResolver(AmazonSNS amazonSns) {
+		NotificationStatusResolver(SnsClient amazonSns) {
 			super(amazonSns);
 		}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,15 @@
 
 package org.springframework.integration.aws.outbound;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.AsyncHandler;
+import software.amazon.awssdk.awscore.AwsRequest;
+import software.amazon.awssdk.awscore.AwsResponse;
 
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
@@ -33,12 +35,9 @@ import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageProducingHandler;
 import org.springframework.integration.mapping.HeaderMapper;
-import org.springframework.integration.support.AbstractIntegrationMessageBuilder;
-import org.springframework.integration.support.DefaultErrorMessageStrategy;
 import org.springframework.integration.support.ErrorMessageStrategy;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.support.ErrorMessage;
 import org.springframework.util.Assert;
 
 /**
@@ -47,44 +46,20 @@ import org.springframework.util.Assert;
  * and message pre- and post-processing,
  *
  * @param <H> the headers container type.
+ *
  * @author Artem Bilan
+ *
  * @since 2.0
  */
 public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProducingHandler {
 
 	protected static final long DEFAULT_SEND_TIMEOUT = 10000;
 
-	private AsyncHandler<? extends AmazonWebServiceRequest, ?> asyncHandler;
-
 	private EvaluationContext evaluationContext;
-
-	private boolean sync;
 
 	private Expression sendTimeoutExpression = new ValueExpression<>(DEFAULT_SEND_TIMEOUT);
 
-	private ErrorMessageStrategy errorMessageStrategy = new DefaultErrorMessageStrategy();
-
-	private MessageChannel failureChannel;
-
-	private String failureChannelName;
-
 	private HeaderMapper<H> headerMapper;
-
-	public void setAsyncHandler(AsyncHandler<? extends AmazonWebServiceRequest, ?> asyncHandler) {
-		this.asyncHandler = asyncHandler;
-	}
-
-	protected AsyncHandler<? extends AmazonWebServiceRequest, ?> getAsyncHandler() {
-		return this.asyncHandler;
-	}
-
-	public void setSync(boolean sync) {
-		this.sync = sync;
-	}
-
-	protected boolean isSync() {
-		return this.sync;
-	}
 
 	public void setSendTimeout(long sendTimeout) {
 		setSendTimeoutExpression(new ValueExpression<>(sendTimeout));
@@ -101,48 +76,6 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 
 	protected Expression getSendTimeoutExpression() {
 		return this.sendTimeoutExpression;
-	}
-
-	/**
-	 * Set the failure channel. After a failure on put, an {@link ErrorMessage} will be
-	 * sent to this channel with a payload of a {@link AwsRequestFailureException} with
-	 * the failed message and cause.
-	 * @param failureChannel the failure channel.
-	 */
-	public void setFailureChannel(MessageChannel failureChannel) {
-		this.failureChannel = failureChannel;
-	}
-
-	/**
-	 * Set the failure channel name. After a failure on put, an {@link ErrorMessage} will
-	 * be sent to this channel name with a payload of a {@link AwsRequestFailureException}
-	 * with the failed message and cause.
-	 * @param failureChannelName the failure channel name.
-	 */
-	public void setFailureChannelName(String failureChannelName) {
-		this.failureChannelName = failureChannelName;
-	}
-
-	protected MessageChannel getFailureChannel() {
-		if (this.failureChannel != null) {
-			return this.failureChannel;
-
-		}
-		else if (this.failureChannelName != null) {
-			this.failureChannel = getChannelResolver().resolveDestination(this.failureChannelName);
-			return this.failureChannel;
-		}
-
-		return null;
-	}
-
-	public void setErrorMessageStrategy(ErrorMessageStrategy errorMessageStrategy) {
-		Assert.notNull(errorMessageStrategy, "'errorMessageStrategy' must not be null");
-		this.errorMessageStrategy = errorMessageStrategy;
-	}
-
-	protected ErrorMessageStrategy getErrorMessageStrategy() {
-		return this.errorMessageStrategy;
 	}
 
 	/**
@@ -172,75 +105,61 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	}
 
 	@Override
-	protected void handleMessageInternal(Message<?> message) {
-		Future<?> resultFuture = handleMessageToAws(message);
+	protected boolean shouldCopyRequestHeaders() {
+		return false;
+	}
 
-		if (this.sync) {
-			Long sendTimeout = this.sendTimeoutExpression.getValue(this.evaluationContext, message, Long.class);
-			if (sendTimeout == null || sendTimeout < 0) {
-				try {
-					resultFuture.get();
-				}
-				catch (InterruptedException | ExecutionException ex) {
-					throw new IllegalStateException(ex);
-				}
+	@Override
+	protected void handleMessageInternal(Message<?> message) {
+		AwsRequest request = messageToAwsRequest(message);
+		CompletableFuture<?> resultFuture =
+				handleMessageToAws(message, request)
+						.handle((response, ex) -> handleResponse(message, request, response, ex));
+
+		if (isAsync()) {
+			sendOutputs(resultFuture, message);
+			return;
+		}
+
+		Long sendTimeout = this.sendTimeoutExpression.getValue(this.evaluationContext, message, Long.class);
+		if (sendTimeout == null || sendTimeout < 0) {
+			try {
+				resultFuture.get();
 			}
-			else {
-				try {
-					resultFuture.get(sendTimeout, TimeUnit.MILLISECONDS);
-				}
-				catch (TimeoutException te) {
-					throw new MessageTimeoutException(message, "Timeout waiting for response from AmazonKinesis", te);
-				}
-				catch (InterruptedException | ExecutionException ex) {
-					throw new IllegalStateException(ex);
-				}
+			catch (InterruptedException | ExecutionException ex) {
+				throw new IllegalStateException(ex);
+			}
+		}
+		else {
+			try {
+				resultFuture.get(sendTimeout, TimeUnit.MILLISECONDS);
+			}
+			catch (TimeoutException te) {
+				throw new MessageTimeoutException(message, "Timeout waiting for response from AmazonKinesis", te);
+			}
+			catch (InterruptedException | ExecutionException ex) {
+				throw new IllegalStateException(ex);
 			}
 		}
 	}
 
-	protected <I extends AmazonWebServiceRequest, O> AsyncHandler<I, O> obtainAsyncHandler(final Message<?> message,
-			final AmazonWebServiceRequest request) {
-
-		return new AsyncHandler<I, O>() {
-
-			@Override
-			public void onError(Exception ex) {
-				if (getAsyncHandler() != null) {
-					getAsyncHandler().onError(ex);
-				}
-
-				if (getFailureChannel() != null) {
-					AbstractAwsMessageHandler.this.messagingTemplate.send(getFailureChannel(), getErrorMessageStrategy()
-							.buildErrorMessage(new AwsRequestFailureException(message, request, ex), null));
-				}
-			}
-
-			@Override
-			@SuppressWarnings("unchecked")
-			public void onSuccess(I request, O result) {
-				if (getAsyncHandler() != null) {
-					((AsyncHandler<I, O>) getAsyncHandler()).onSuccess(request, result);
-				}
-
-				if (getOutputChannel() != null) {
-					AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory()
-							.fromMessage(message);
-
-					additionalOnSuccessHeaders(messageBuilder, request, result);
-
-					messageBuilder.setHeaderIfAbsent(AwsHeaders.SERVICE_RESULT, result);
-
-					AbstractAwsMessageHandler.this.messagingTemplate.send(getOutputChannel(), messageBuilder.build());
-				}
-			}
-
-		};
+	protected Message<?> handleResponse(Message<?> message, AwsRequest request, AwsResponse response, Throwable cause) {
+		if (cause != null) {
+			throw new AwsRequestFailureException(message, request, cause);
+		}
+		return getMessageBuilderFactory()
+				.fromMessage(message)
+				.copyHeadersIfAbsent(additionalOnSuccessHeaders(request, response))
+				.setHeaderIfAbsent(AwsHeaders.SERVICE_RESULT, response)
+				.build();
 	}
 
-	protected abstract Future<?> handleMessageToAws(Message<?> message);
+	protected abstract AwsRequest messageToAwsRequest(Message<?> message);
 
-	protected abstract void additionalOnSuccessHeaders(AbstractIntegrationMessageBuilder<?> messageBuilder,
-			AmazonWebServiceRequest request, Object result);
+	protected abstract CompletableFuture<? extends AwsResponse> handleMessageToAws(Message<?> message,
+			AwsRequest request);
+
+	@Nullable
+	protected abstract Map<String, ?> additionalOnSuccessHeaders(AwsRequest request, AwsResponse response);
 
 }

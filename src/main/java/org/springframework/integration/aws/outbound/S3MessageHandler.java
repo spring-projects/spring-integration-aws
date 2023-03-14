@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 the original author or authors.
+ * Copyright 2016-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,44 +16,40 @@
 
 package org.springframework.integration.aws.outbound;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.CompletionException;
+import java.util.function.BiConsumer;
 
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.event.ProgressEvent;
-import com.amazonaws.event.ProgressEventType;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.internal.Mimetypes;
-import com.amazonaws.services.s3.model.AccessControlList;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.CopyObjectRequest;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.SetObjectAclRequest;
-import com.amazonaws.services.s3.transfer.ObjectMetadataProvider;
-import com.amazonaws.services.s3.transfer.PersistableTransfer;
-import com.amazonaws.services.s3.transfer.Transfer;
-import com.amazonaws.services.s3.transfer.TransferManager;
-import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
-import com.amazonaws.services.s3.transfer.internal.S3ProgressListener;
-import com.amazonaws.services.s3.transfer.internal.S3ProgressListenerChain;
 import com.amazonaws.util.Base64;
 import com.amazonaws.util.Md5Utils;
-import io.awspring.cloud.core.env.ResourceIdResolver;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.internal.util.Mimetype;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.CopyRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.Transfer;
+import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadRequest;
+import software.amazon.awssdk.transfer.s3.progress.TransferListener;
+import software.amazon.awssdk.utils.IoUtils;
 
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
+import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.expression.ExpressionUtils;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractReplyProducingMessageHandler;
+import org.springframework.integration.support.utils.IntegrationUtils;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandlingException;
-import org.springframework.messaging.MessageHeaders;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.util.Assert;
 import org.springframework.util.DigestUtils;
 
@@ -61,7 +57,7 @@ import org.springframework.util.DigestUtils;
  * The {@link AbstractReplyProducingMessageHandler} implementation for the Amazon S3
  * services.
  * <p>
- * The implementation is fully based on the {@link TransferManager} and support its
+ * The implementation is fully based on the {@link S3TransferManager} and support its
  * {@code upload}, {@code download} and {@code copy} operations which can be determined by
  * the provided or evaluated via SpEL expression at runtime
  * {@link S3MessageHandler.Command}.
@@ -71,26 +67,19 @@ import org.springframework.util.DigestUtils;
  * constructor argument.
  * <p>
  * The "one-way" behavior is also blocking, which is achieved with the
- * {@link Transfer#waitForException()} invocation. Consider to use an async upstream hand
+ * {@link Transfer#completionFuture()} invocation. Consider to use an async upstream hand
  * off if this blocking behavior isn't appropriate.
  * <p>
  * The "request-reply" behavior is async and the {@link Transfer} result from the
- * {@link TransferManager} operation is sent to the {@link #getOutputChannel()}, assuming
+ * {@link S3TransferManager} operation is sent to the {@link #getOutputChannel()}, assuming
  * the transfer progress observation in the downstream flow.
  * <p>
- * The {@link S3ProgressListener} can be supplied to track the transfer progress. Also the
- * listener can be populated into the returned {@link Transfer} afterwards in the
- * downstream flow. If the context of the {@code requestMessage} is important in the
- * {@code progressChanged} event, it is recommended to use a
- * {@link MessageS3ProgressListener} implementation instead. *
+ * The {@link TransferListener} can be supplied via {@link AwsHeaders#TRANSFER_LISTENER}
+ * request message header to track the transfer progress. Also,
+ * see a {@link Transfer} API returned as a reply message from this handler.
  * <p>
- * For the upload operation the {@link UploadMetadataProvider} callback can be supplied to
- * populate required {@link ObjectMetadata} options, as for a single entry, as well as for
- * each file in directory to upload.
- * <p>
- * For the upload operation the {@link #objectAclExpression} can be provided to
- * {@link AmazonS3#setObjectAcl} after the successful transfer. The supported SpEL result
- * types are: {@link AccessControlList} or {@link CannedAccessControlList}.
+ * For the upload operation the {@link BiConsumer} callback can be supplied to
+ * populate options on a {@link PutObjectRequest.Builder} against request message.
  * <p>
  * For download operation the {@code payload} must be a {@link File} instance,
  * representing a single file for downloaded content or directory to download all files
@@ -102,15 +91,16 @@ import org.springframework.util.DigestUtils;
  * <p>
  * For copy operation all {@link #keyExpression}, {@link #destinationBucketExpression} and
  * {@link #destinationKeyExpression} are required and must not evaluate to {@code null}.
+ * <p>
  *
  * @author Artem Bilan
  * @author John Logan
  *
- * @see TransferManager
+ * @see S3TransferManager
  */
 public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 
-	private final TransferManager transferManager;
+	private final S3TransferManager transferManager;
 
 	private final boolean produceReply;
 
@@ -120,52 +110,47 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 
 	private Expression keyExpression;
 
-	private Expression objectAclExpression;
-
 	private Expression destinationBucketExpression;
 
 	private Expression destinationKeyExpression;
 
 	private Expression commandExpression = new ValueExpression<>(Command.UPLOAD);
 
-	private S3ProgressListener s3ProgressListener;
+	private BiConsumer<PutObjectRequest.Builder, Message<?>> uploadMetadataProvider = (builder, message) -> {
+	};
 
-	private UploadMetadataProvider uploadMetadataProvider;
-
-	private ResourceIdResolver resourceIdResolver;
-
-	public S3MessageHandler(AmazonS3 amazonS3, String bucket) {
+	public S3MessageHandler(S3AsyncClient amazonS3, String bucket) {
 		this(amazonS3, bucket, false);
 	}
 
-	public S3MessageHandler(AmazonS3 amazonS3, Expression bucketExpression) {
+	public S3MessageHandler(S3AsyncClient amazonS3, Expression bucketExpression) {
 		this(amazonS3, bucketExpression, false);
 	}
 
-	public S3MessageHandler(AmazonS3 amazonS3, String bucket, boolean produceReply) {
+	public S3MessageHandler(S3AsyncClient amazonS3, String bucket, boolean produceReply) {
 		this(amazonS3, new LiteralExpression(bucket), produceReply);
 		Assert.notNull(bucket, "'bucket' must not be null");
 	}
 
-	public S3MessageHandler(AmazonS3 amazonS3, Expression bucketExpression, boolean produceReply) {
-		this(TransferManagerBuilder.standard().withS3Client(amazonS3).build(), bucketExpression, produceReply);
+	public S3MessageHandler(S3AsyncClient amazonS3, Expression bucketExpression, boolean produceReply) {
+		this(S3TransferManager.builder().s3Client(amazonS3).build(), bucketExpression, produceReply);
 		Assert.notNull(amazonS3, "'amazonS3' must not be null");
 	}
 
-	public S3MessageHandler(TransferManager transferManager, String bucket) {
+	public S3MessageHandler(S3TransferManager transferManager, String bucket) {
 		this(transferManager, bucket, false);
 	}
 
-	public S3MessageHandler(TransferManager transferManager, Expression bucketExpression) {
+	public S3MessageHandler(S3TransferManager transferManager, Expression bucketExpression) {
 		this(transferManager, bucketExpression, false);
 	}
 
-	public S3MessageHandler(TransferManager transferManager, String bucket, boolean produceReply) {
+	public S3MessageHandler(S3TransferManager transferManager, String bucket, boolean produceReply) {
 		this(transferManager, new LiteralExpression(bucket), produceReply);
 		Assert.notNull(bucket, "'bucket' must not be null");
 	}
 
-	public S3MessageHandler(TransferManager transferManager, Expression bucketExpression, boolean produceReply) {
+	public S3MessageHandler(S3TransferManager transferManager, Expression bucketExpression, boolean produceReply) {
 		Assert.notNull(transferManager, "'transferManager' must not be null");
 		Assert.notNull(bucketExpression, "'bucketExpression' must not be null");
 		this.transferManager = transferManager;
@@ -183,17 +168,8 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	}
 
 	/**
-	 * The SpEL expression to evaluate S3 object ACL at runtime against
-	 * {@code requestMessage} for the {@code upload} operation.
-	 * @param objectAclExpression the SpEL expression for S3 object ACL.
-	 */
-	public void setObjectAclExpression(Expression objectAclExpression) {
-		this.objectAclExpression = objectAclExpression;
-	}
-
-	/**
 	 * Specify a {@link S3MessageHandler.Command} to perform against
-	 * {@link TransferManager}.
+	 * {@link S3TransferManager}.
 	 * @param command The {@link S3MessageHandler.Command} to use.
 	 * @see S3MessageHandler.Command
 	 */
@@ -203,10 +179,10 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	}
 
 	/**
-	 * The SpEL expression to evaluate the command to perform on {@link TransferManager}:
+	 * The SpEL expression to evaluate the command to perform on {@link S3TransferManager}:
 	 * {@code upload}, {@code download} or {@code copy}.
 	 * @param commandExpression the SpEL expression to evaluate the
-	 * {@link TransferManager} operation.
+	 * {@link S3TransferManager} operation.
 	 * @see Command
 	 */
 	public void setCommandExpression(Expression commandExpression) {
@@ -217,7 +193,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	/**
 	 * The SpEL expression to evaluate the target S3 bucket for copy operation.
 	 * @param destinationBucketExpression the SpEL expression for destination bucket.
-	 * @see TransferManager#copy(String, String, String, String)
+	 * @see S3TransferManager#copy(CopyRequest)
 	 */
 	public void setDestinationBucketExpression(Expression destinationBucketExpression) {
 		this.destinationBucketExpression = destinationBucketExpression;
@@ -226,38 +202,21 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	/**
 	 * The SpEL expression to evaluate the target S3 key for copy operation.
 	 * @param destinationKeyExpression the SpEL expression for destination key.
-	 * @see TransferManager#copy(String, String, String, String)
+	 * @see S3TransferManager#copy(CopyRequest)
 	 */
 	public void setDestinationKeyExpression(Expression destinationKeyExpression) {
 		this.destinationKeyExpression = destinationKeyExpression;
 	}
 
 	/**
-	 * Specify a {@link S3ProgressListener} for upload and download operations.
-	 * @param s3ProgressListener the {@link S3ProgressListener} to use.
-	 * @see MessageS3ProgressListener
-	 */
-	public void setProgressListener(S3ProgressListener s3ProgressListener) {
-		this.s3ProgressListener = s3ProgressListener;
-	}
-
-	/**
-	 * Specify an {@link ObjectMetadata} callback to populate the metadata for upload
+	 * Specify an {@link BiConsumer} callback to populate the metadata for upload
 	 * operation, e.g. {@code Content-MD5}, {@code Content-Type} or any other required
 	 * options.
-	 * @param uploadMetadataProvider the {@link UploadMetadataProvider} to use for upload.
+	 * @param uploadMetadataProvider the {@link BiConsumer} to use for upload request option settings.
 	 */
-	public void setUploadMetadataProvider(UploadMetadataProvider uploadMetadataProvider) {
+	public void setUploadMetadataProvider(BiConsumer<PutObjectRequest.Builder, Message<?>> uploadMetadataProvider) {
+		Assert.notNull(uploadMetadataProvider, "'uploadMetadataProvider' must not be null");
 		this.uploadMetadataProvider = uploadMetadataProvider;
-	}
-
-	/**
-	 * Specify a {@link ResourceIdResolver} to resolve logical bucket names to physical
-	 * resource ids.
-	 * @param resourceIdResolver the {@link ResourceIdResolver} to use.
-	 */
-	public void setResourceIdResolver(ResourceIdResolver resourceIdResolver) {
-		this.resourceIdResolver = resourceIdResolver;
 	}
 
 	@Override
@@ -272,41 +231,33 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		Command command = this.commandExpression.getValue(this.evaluationContext, requestMessage, Command.class);
 		Assert.state(command != null, () -> "'commandExpression' [" + this.commandExpression.getExpressionString()
 				+ "] cannot evaluate to null.");
+		TransferListener transferListener =
+				requestMessage.getHeaders()
+						.get(AwsHeaders.TRANSFER_LISTENER, TransferListener.class);
 
-		Transfer transfer = null;
-
-		switch (command) {
-		case UPLOAD:
-			transfer = upload(requestMessage);
-			break;
-
-		case DOWNLOAD:
-			transfer = download(requestMessage);
-			break;
-
-		case COPY:
-			transfer = copy(requestMessage);
-			break;
-		}
+		Transfer transfer =
+				switch (command) {
+					case UPLOAD -> upload(requestMessage, transferListener);
+					case DOWNLOAD -> download(requestMessage, transferListener);
+					case COPY -> copy(requestMessage, transferListener);
+				};
 
 		if (this.produceReply) {
 			return transfer;
 		}
 		else {
 			try {
-				AmazonClientException amazonClientException = transfer.waitForException();
-				if (amazonClientException != null) {
-					throw amazonClientException;
-				}
+				transfer.completionFuture().join();
 			}
-			catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
+			catch (CompletionException ex) {
+				throw IntegrationUtils.wrapInHandlingExceptionIfNecessary(requestMessage,
+						() -> "Failed to transfer file", ex.getCause());
 			}
 			return null;
 		}
 	}
 
-	private Transfer upload(Message<?> requestMessage) {
+	private Transfer upload(Message<?> requestMessage, @Nullable TransferListener transferListener) {
 		Object payload = requestMessage.getPayload();
 		String bucketName = obtainBucket(requestMessage);
 
@@ -315,64 +266,65 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 			key = this.keyExpression.getValue(this.evaluationContext, requestMessage, String.class);
 		}
 
-		if (payload instanceof File && ((File) payload).isDirectory()) {
-			File fileToUpload = (File) payload;
-			if (key == null) {
-				key = fileToUpload.getName();
+		if (payload instanceof File fileToUpload && fileToUpload.isDirectory()) {
+			UploadDirectoryRequest.Builder uploadDirectoryRequest =
+					UploadDirectoryRequest.builder()
+							.bucket(bucketName)
+							.source(fileToUpload.toPath())
+							.s3Prefix(key);
+
+			if (transferListener != null) {
+				uploadDirectoryRequest.uploadFileRequestTransformer((fileUpload) ->
+						fileUpload.addTransferListener(transferListener));
 			}
-			return this.transferManager.uploadDirectory(bucketName, key, fileToUpload, true,
-					new MessageHeadersObjectMetadataProvider(requestMessage.getHeaders()));
+
+			return this.transferManager.uploadDirectory(uploadDirectoryRequest.build());
 		}
 		else {
-			ObjectMetadata metadata = new ObjectMetadata();
-			if (this.uploadMetadataProvider != null) {
-				this.uploadMetadataProvider.populateMetadata(metadata, requestMessage);
-			}
+			PutObjectRequest.Builder putObjectRequestBuilder =
+					PutObjectRequest.builder()
+							.applyMutation((builder) -> this.uploadMetadataProvider.accept(builder, requestMessage))
+							.bucket(bucketName)
+							.key(key);
 
-			PutObjectRequest putObjectRequest;
+			PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
+			AsyncRequestBody requestBody;
 			try {
-				if (payload instanceof InputStream) {
-					InputStream inputStream = (InputStream) payload;
-					if (metadata.getContentMD5() == null) {
-						Assert.state(inputStream.markSupported(),
-								"For an upload InputStream with no MD5 digest metadata, "
-										+ "the markSupported() method must evaluate to true.");
-						byte[] md5Digest = DigestUtils.md5Digest(inputStream);
-						metadata.setContentMD5(Base64.encodeAsString(md5Digest));
+				if (payload instanceof InputStream inputStream) {
+					byte[] body = IoUtils.toByteArray(inputStream);
+					if (putObjectRequest.contentMD5() == null) {
+						byte[] md5Digest = DigestUtils.md5Digest(body);
+						putObjectRequestBuilder.contentMD5(Base64.encodeAsString(md5Digest));
 						inputStream.reset();
 					}
-					putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
+					requestBody = AsyncRequestBody.fromBytes(body);
 				}
-				else if (payload instanceof File) {
-					File fileToUpload = (File) payload;
+				else if (payload instanceof File fileToUpload) {
 					if (key == null) {
-						key = fileToUpload.getName();
+						putObjectRequestBuilder.key(fileToUpload.getName());
 					}
-					if (metadata.getContentMD5() == null) {
+					if (putObjectRequest.contentMD5() == null) {
 						String contentMd5 = Md5Utils.md5AsBase64(fileToUpload);
-						metadata.setContentMD5(contentMd5);
+						putObjectRequestBuilder.contentMD5(contentMd5);
 					}
-					if (metadata.getContentLength() == 0) {
-						metadata.setContentLength(fileToUpload.length());
+					if (putObjectRequest.contentLength() == null) {
+						putObjectRequestBuilder.contentLength(fileToUpload.length());
 					}
-					if (metadata.getContentType() == null) {
-						metadata.setContentType(Mimetypes.getInstance().getMimetype(fileToUpload));
+					if (putObjectRequest.contentType() == null) {
+						putObjectRequestBuilder.contentType(Mimetype.getInstance().getMimetype(fileToUpload));
 					}
-					putObjectRequest = new PutObjectRequest(bucketName, key, fileToUpload).withMetadata(metadata);
+					requestBody = AsyncRequestBody.fromFile(fileToUpload);
 				}
-				else if (payload instanceof byte[]) {
-					byte[] payloadBytes = (byte[]) payload;
-					InputStream inputStream = new ByteArrayInputStream(payloadBytes);
-					if (metadata.getContentMD5() == null) {
-						String contentMd5 = Md5Utils.md5AsBase64(inputStream);
-						metadata.setContentMD5(contentMd5);
-						inputStream.reset();
+				else if (payload instanceof byte[] payloadBytes) {
+					if (putObjectRequest.contentMD5() == null) {
+						String contentMd5 = Md5Utils.md5AsBase64(payloadBytes);
+						putObjectRequestBuilder.contentMD5(contentMd5);
 					}
-					if (metadata.getContentLength() == 0) {
-						metadata.setContentLength(payloadBytes.length);
+					if (putObjectRequest.contentLength() == null) {
+						putObjectRequestBuilder.contentLength((long) payloadBytes.length);
 					}
-					putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
+					requestBody = AsyncRequestBody.fromBytes(payloadBytes);
 				}
 				else {
 					throw new IllegalArgumentException("Unsupported payload type: [" + payload.getClass()
@@ -394,76 +346,20 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 				}
 			}
 
-			S3ProgressListener configuredProgressListener = this.s3ProgressListener;
-			if (this.s3ProgressListener instanceof MessageS3ProgressListener) {
-				configuredProgressListener = new S3ProgressListener() {
+			UploadRequest.Builder uploadRequest =
+					UploadRequest.builder()
+							.putObjectRequest(putObjectRequestBuilder.build())
+							.requestBody(requestBody);
 
-					@Override
-					public void onPersistableTransfer(PersistableTransfer persistableTransfer) {
-						S3MessageHandler.this.s3ProgressListener.onPersistableTransfer(persistableTransfer);
-					}
-
-					@Override
-					public void progressChanged(ProgressEvent progressEvent) {
-						((MessageS3ProgressListener) S3MessageHandler.this.s3ProgressListener)
-								.progressChanged(progressEvent, requestMessage);
-					}
-
-				};
+			if (transferListener != null) {
+				uploadRequest.addTransferListener(transferListener);
 			}
 
-			S3ProgressListener progressListener = configuredProgressListener;
-
-			if (this.objectAclExpression != null) {
-				Object acl = this.objectAclExpression.getValue(this.evaluationContext, requestMessage);
-				Assert.state(acl == null || acl instanceof AccessControlList || acl instanceof CannedAccessControlList,
-						() -> "The 'objectAclExpression' [" + this.objectAclExpression.getExpressionString()
-								+ "] must evaluate to com.amazonaws.services.s3.model.AccessControlList "
-								+ "or must evaluate to com.amazonaws.services.s3.model.CannedAccessControlList. "
-								+ "Gotten: [" + acl + "]");
-
-				SetObjectAclRequest aclRequest;
-
-				if (acl instanceof AccessControlList) {
-					aclRequest = new SetObjectAclRequest(bucketName, key, (AccessControlList) acl);
-				}
-				else {
-					aclRequest = new SetObjectAclRequest(bucketName, key, (CannedAccessControlList) acl);
-				}
-
-				final SetObjectAclRequest theAclRequest = aclRequest;
-				progressListener = new S3ProgressListener() {
-
-					@Override
-					public void onPersistableTransfer(PersistableTransfer persistableTransfer) {
-
-					}
-
-					@Override
-					public void progressChanged(ProgressEvent progressEvent) {
-						if (ProgressEventType.TRANSFER_COMPLETED_EVENT.equals(progressEvent.getEventType())) {
-							S3MessageHandler.this.transferManager.getAmazonS3Client().setObjectAcl(theAclRequest);
-						}
-					}
-
-				};
-
-				if (configuredProgressListener != null) {
-					progressListener = new S3ProgressListenerChain(configuredProgressListener, progressListener);
-				}
-
-			}
-
-			if (progressListener != null) {
-				return this.transferManager.upload(putObjectRequest, progressListener);
-			}
-			else {
-				return this.transferManager.upload(putObjectRequest);
-			}
+			return this.transferManager.upload(uploadRequest.build());
 		}
 	}
 
-	private Transfer download(Message<?> requestMessage) {
+	private Transfer download(Message<?> requestMessage, TransferListener transferListener) {
 		Object payload = requestMessage.getPayload();
 		Assert.state(payload instanceof File, () -> "For the 'DOWNLOAD' operation the 'payload' must be of "
 				+ "'java.io.File' type, but gotten: [" + payload.getClass() + ']');
@@ -472,33 +368,40 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 
 		String bucket = obtainBucket(requestMessage);
 
-		String key = null;
-		if (this.keyExpression != null) {
-			key = this.keyExpression.getValue(this.evaluationContext, requestMessage, String.class);
-		}
-		else {
-			key = targetFile.getName();
-		}
+		String key =
+				this.keyExpression != null
+						? this.keyExpression.getValue(this.evaluationContext, requestMessage, String.class)
+						: targetFile.getName();
 
 		Assert.state(key != null,
 				() -> "The 'keyExpression' must not be null for non-File payloads and can't evaluate to null. "
 						+ "Root object is: " + requestMessage);
 
 		if (targetFile.isDirectory()) {
-			return this.transferManager.downloadDirectory(bucket, key, targetFile);
+			DownloadDirectoryRequest.Builder downloadDirectoryRequest =
+					DownloadDirectoryRequest.builder()
+							.bucket(bucket)
+							.destination(targetFile.toPath())
+							.listObjectsV2RequestTransformer(filter -> filter.prefix(key));
+			if (transferListener != null) {
+				downloadDirectoryRequest.downloadFileRequestTransformer((fileDownload) ->
+						fileDownload.addTransferListener(transferListener));
+			}
+			return this.transferManager.downloadDirectory(downloadDirectoryRequest.build());
 		}
 		else {
-			if (this.s3ProgressListener != null) {
-				return this.transferManager.download(new GetObjectRequest(bucket, key), targetFile,
-						this.s3ProgressListener);
+			DownloadFileRequest.Builder downloadFileRequest =
+					DownloadFileRequest.builder()
+							.destination(targetFile)
+							.getObjectRequest(request -> request.bucket(bucket).key(key));
+			if (transferListener != null) {
+				downloadFileRequest.addTransferListener(transferListener);
 			}
-			else {
-				return this.transferManager.download(bucket, key, targetFile);
-			}
+			return this.transferManager.downloadFile(downloadFileRequest.build());
 		}
 	}
 
-	private Transfer copy(Message<?> requestMessage) {
+	private Transfer copy(Message<?> requestMessage, TransferListener transferListener) {
 		String sourceBucketName = obtainBucket(requestMessage);
 
 		String sourceKey = null;
@@ -515,10 +418,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					String.class);
 		}
 
-		if (this.resourceIdResolver != null) {
-			destinationBucketName = this.resourceIdResolver.resolveToPhysicalResourceId(destinationBucketName);
-		}
-
 		Assert.state(destinationBucketName != null,
 				() -> "The 'destinationBucketExpression' must not be null for 'copy' operation "
 						+ "and can't evaluate to null. Root object is: " + requestMessage);
@@ -533,9 +432,18 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 				() -> "The 'destinationKeyExpression' must not be null for 'copy' operation "
 						+ "and can't evaluate to null. Root object is: " + requestMessage);
 
-		CopyObjectRequest copyObjectRequest = new CopyObjectRequest(sourceBucketName, sourceKey, destinationBucketName,
-				destinationKey);
-		return this.transferManager.copy(copyObjectRequest);
+		CopyObjectRequest.Builder copyObjectRequest =
+				CopyObjectRequest.builder()
+						.sourceBucket(sourceBucketName)
+						.sourceKey(sourceKey)
+						.destinationBucket(destinationBucketName)
+						.destinationKey(destinationKey);
+
+		CopyRequest.Builder copyRequest = CopyRequest.builder().copyObjectRequest(copyObjectRequest.build());
+		if (transferListener != null) {
+			copyRequest.addTransferListener(transferListener);
+		}
+		return this.transferManager.copy(copyRequest.build());
 	}
 
 	private String obtainBucket(Message<?> requestMessage) {
@@ -549,10 +457,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		Assert.state(bucketName != null, () -> "The 'bucketExpression' [" + this.bucketExpression.getExpressionString()
 				+ "] must not evaluate to null. Root object is: " + requestMessage);
 
-		if (this.resourceIdResolver != null) {
-			bucketName = this.resourceIdResolver.resolveToPhysicalResourceId(bucketName);
-		}
-
 		return bucketName;
 	}
 
@@ -564,73 +468,19 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 	public enum Command {
 
 		/**
-		 * The command to perform {@link TransferManager#upload} operation.
+		 * The command to perform {@link S3TransferManager#upload} operation.
 		 */
 		UPLOAD,
 
 		/**
-		 * The command to perform {@link TransferManager#download} operation.
+		 * The command to perform {@link S3TransferManager#download} operation.
 		 */
 		DOWNLOAD,
 
 		/**
-		 * The command to perform {@link TransferManager#copy} operation.
+		 * The command to perform {@link S3TransferManager#copy} operation.
 		 */
 		COPY
-
-	}
-
-	/**
-	 * An {@link S3ProgressListener} extension to provide a {@code requestMessage} context
-	 * for the {@code progressChanged} event.
-	 *
-	 * @since 2.1
-	 */
-	public interface MessageS3ProgressListener extends S3ProgressListener {
-
-		@Override
-		default void progressChanged(ProgressEvent progressEvent) {
-			throw new UnsupportedOperationException("Use progressChanged(ProgressEvent, Message<?>) instead.");
-		}
-
-		void progressChanged(ProgressEvent progressEvent, Message<?> message);
-
-	}
-
-	/**
-	 * The callback to populate an {@link ObjectMetadata} for upload operation. The
-	 * message can be used as a metadata source.
-	 */
-	public interface UploadMetadataProvider {
-
-		void populateMetadata(ObjectMetadata metadata, Message<?> message);
-
-	}
-
-	private class MessageHeadersObjectMetadataProvider implements ObjectMetadataProvider {
-
-		private final MessageHeaders messageHeaders;
-
-		MessageHeadersObjectMetadataProvider(MessageHeaders messageHeaders) {
-			this.messageHeaders = messageHeaders;
-		}
-
-		@Override
-		public void provideObjectMetadata(File file, ObjectMetadata metadata) {
-			if (S3MessageHandler.this.uploadMetadataProvider != null) {
-				S3MessageHandler.this.uploadMetadataProvider.populateMetadata(metadata,
-						MessageBuilder.createMessage(file, this.messageHeaders));
-			}
-			if (metadata.getContentMD5() == null) {
-				try {
-					String contentMd5 = Md5Utils.md5AsBase64(file);
-					metadata.setContentMD5(contentMd5);
-				}
-				catch (Exception e) {
-					throw new AmazonClientException(e);
-				}
-			}
-		}
 
 	}
 
