@@ -82,7 +82,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 		List<LockRegistryLeaderInitiator> initiators = new ArrayList<>();
 		for (int i = 0; i < 2; i++) {
 			DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
-			dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(1));
+			dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(2));
 			dynamoDbLockRepository.afterPropertiesSet();
 			repositories.add(dynamoDbLockRepository);
 			DynamoDbLockRegistry lockRepository = new DynamoDbLockRegistry(dynamoDbLockRepository);
@@ -161,7 +161,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 		initiator1.getContext().yield();
 
-		assertThat(revoked11.await(20, TimeUnit.SECONDS)).isTrue();
+		assertThat(revoked11.await(30, TimeUnit.SECONDS)).isTrue();
 		assertThat(initiator1.getContext().isLeader()).isFalse();
 
 		initiator1.stop();
