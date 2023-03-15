@@ -22,6 +22,7 @@ import java.util.Collection;
 import io.awspring.cloud.sqs.config.SqsMessageListenerContainerFactory;
 import io.awspring.cloud.sqs.listener.MessageListener;
 import io.awspring.cloud.sqs.listener.SqsContainerOptions;
+import io.awspring.cloud.sqs.listener.SqsHeaders;
 import io.awspring.cloud.sqs.listener.SqsMessageListenerContainer;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
@@ -44,6 +45,7 @@ import org.springframework.util.Assert;
  * @see SqsMessageListenerContainerFactory
  * @see SqsMessageListenerContainerFactory
  * @see MessageListener
+ * @see SqsHeaders
  */
 @ManagedResource
 @IntegrationManagedResource
@@ -76,8 +78,7 @@ public class SqsMessageDrivenChannelAdapter extends MessageProducerSupport {
 					sqsContainerOptionsBuilder.fromBuilder(this.sqsContainerOptions.toBuilder()));
 		}
 		this.sqsMessageListenerContainerFactory.messageListener(new IntegrationMessageListener());
-		SqsMessageListenerContainerFactory<?> containerFactory = this.sqsMessageListenerContainerFactory.build();
-		this.listenerContainer = containerFactory.createContainer(this.queues);
+		this.listenerContainer = this.sqsMessageListenerContainerFactory.build().createContainer(this.queues);
 	}
 
 	@Override

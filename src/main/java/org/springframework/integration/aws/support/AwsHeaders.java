@@ -31,11 +31,6 @@ public abstract class AwsHeaders {
 	public static final String QUEUE = PREFIX + "queue";
 
 	/**
-	 * The {@value RECEIVED_QUEUE} header for receiving data from SQS.
-	 */
-	public static final String RECEIVED_QUEUE = PREFIX + "receivedQueue";
-
-	/**
 	 * The {@value TOPIC} header for sending/receiving data over SNS.
 	 */
 	public static final String TOPIC = PREFIX + "topic";
@@ -44,16 +39,6 @@ public abstract class AwsHeaders {
 	 * The {@value MESSAGE_ID} header for SQS/SNS message ids.
 	 */
 	public static final String MESSAGE_ID = PREFIX + "messageId";
-
-	/**
-	 * The {@value RECEIPT_HANDLE} header for received SQS message.
-	 */
-	public static final String RECEIPT_HANDLE = PREFIX + "receiptHandle";
-
-	/**
-	 * The {@value ACKNOWLEDGMENT} header for received SQS message.
-	 */
-	public static final String ACKNOWLEDGMENT = PREFIX + "acknowledgment";
 
 	/**
 	 * The {@value NOTIFICATION_STATUS} header for SNS notification status.
