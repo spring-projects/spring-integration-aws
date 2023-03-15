@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -46,7 +45,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @since 2.0
  */
-@Disabled
 class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTest {
 
 	private static DynamoDbAsyncClient DYNAMO_DB;
@@ -91,7 +89,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 
 			LockRegistryLeaderInitiator initiator = new LockRegistryLeaderInitiator(lockRepository,
 					new DefaultCandidate("foo#" + i, "bar"));
-			initiator.setBusyWaitMillis(1000);
+			initiator.setBusyWaitMillis(100);
 			initiator.setHeartBeatMillis(1000);
 			initiator.setExecutorService(
 					Executors.newSingleThreadExecutor(new CustomizableThreadFactory("lock-leadership-" + i + "-")));
@@ -144,7 +142,11 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 		assertThat(initiator2.getContext().isLeader()).isTrue();
 		assertThat(initiator1.getContext().isLeader()).isFalse();
 
-		initiator1.setBusyWaitMillis(1000);
+		initiator1.setBusyWaitMillis(100);
+		// Interrupt the current selector and let it start with a new busy-wait period
+		initiator1.stop();
+		initiator1.start();
+
 		initiator2.setBusyWaitMillis(10000);
 
 		initiator2.getContext().yield();

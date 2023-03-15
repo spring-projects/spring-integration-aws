@@ -381,7 +381,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 		@Bean
 		public DynamoDbLockRegistry dynamoDbLockRegistry() {
 			DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(dynamoDbLockRepository());
-			dynamoDbLockRegistry.setIdleBetweenTries(Duration.ofMillis(10));
+			dynamoDbLockRegistry.setIdleBetweenTries(Duration.ofMillis(100));
 			return dynamoDbLockRegistry;
 		}
 

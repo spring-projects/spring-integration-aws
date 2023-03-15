@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
@@ -54,7 +53,6 @@ import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.Assert;
 
 /**
@@ -111,8 +109,6 @@ public class DynamoDbLockRepository implements InitializingBean, DisposableBean,
 	public static final Duration DEFAULT_LEASE_DURATION = Duration.ofSeconds(60);
 
 	private static final Log LOGGER = LogFactory.getLog(DynamoDbLockRegistry.class);
-
-	private final ThreadFactory customizableThreadFactory = new CustomizableThreadFactory("dynamodb-lock-registry-");
 
 	private final CountDownLatch createTableLatch = new CountDownLatch(1);
 

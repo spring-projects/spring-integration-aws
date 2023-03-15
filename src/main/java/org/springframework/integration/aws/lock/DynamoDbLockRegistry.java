@@ -46,7 +46,7 @@ import org.springframework.util.Assert;
  */
 public class DynamoDbLockRegistry implements ExpirableLockRegistry, RenewableLockRegistry {
 
-	private static final int DEFAULT_IDLE = 1000;
+	private static final int DEFAULT_IDLE = 100;
 
 	private final Map<String, DynamoDbLock> locks = new ConcurrentHashMap<>();
 
