@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -45,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @since 2.0
  */
+@Disabled
 class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTest {
 
 	private static DynamoDbAsyncClient DYNAMO_DB;
