@@ -29,6 +29,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
 /**
  * The base contract for JUnit tests based on the container for Localstack.
@@ -51,7 +52,8 @@ public interface LocalstackContainerTest {
 							LocalStackContainer.Service.DYNAMODB,
 							LocalStackContainer.Service.KINESIS,
 							LocalStackContainer.Service.CLOUDWATCH,
-							LocalStackContainer.Service.S3);
+							LocalStackContainer.Service.S3,
+							LocalStackContainer.Service.SQS);
 
 	@BeforeAll
 	static void startContainer() {
@@ -74,6 +76,10 @@ public interface LocalstackContainerTest {
 		return applyAwsClientOptions(S3AsyncClient.builder(), LocalStackContainer.Service.CLOUDWATCH);
 	}
 
+	static SqsAsyncClient sqsClient() {
+		return applyAwsClientOptions(SqsAsyncClient.builder(), LocalStackContainer.Service.SQS);
+	}
+
 	static AwsCredentialsProvider credentialsProvider() {
 		return StaticCredentialsProvider.create(
 				AwsBasicCredentials.create(LOCAL_STACK_CONTAINER.getAccessKey(), LOCAL_STACK_CONTAINER.getSecretKey()));
@@ -88,5 +94,4 @@ public interface LocalstackContainerTest {
 				.endpointOverride(LOCAL_STACK_CONTAINER.getEndpointOverride(serviceToBuild))
 				.build();
 	}
-
 }

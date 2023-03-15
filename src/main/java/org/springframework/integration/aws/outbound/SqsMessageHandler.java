@@ -236,8 +236,13 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	@Override
 	protected Map<String, ?> additionalOnSuccessHeaders(AwsRequest request, AwsResponse response) {
 		if (response instanceof SendMessageResponse sendMessageResponse) {
-			return Map.of(AwsHeaders.MESSAGE_ID, sendMessageResponse.messageId(),
-					AwsHeaders.SEQUENCE_NUMBER, sendMessageResponse.sequenceNumber());
+			Map<String, Object> headers = new HashMap<>();
+			headers.put(AwsHeaders.MESSAGE_ID, sendMessageResponse.messageId());
+			String sequenceNumber = sendMessageResponse.sequenceNumber();
+			if (StringUtils.hasText(sequenceNumber)) {
+				headers.put(AwsHeaders.SEQUENCE_NUMBER, sequenceNumber);
+			}
+			return headers;
 		}
 		return null;
 	}
