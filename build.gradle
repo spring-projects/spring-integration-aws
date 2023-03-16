@@ -115,15 +115,16 @@ dependencies {
 	optionalApi 'io.awspring.cloud:spring-cloud-aws-sns'
 	optionalApi 'io.awspring.cloud:spring-cloud-aws-sqs'
 	optionalApi 'io.awspring.cloud:spring-cloud-aws-s3'
+
 	optionalApi 'org.springframework.integration:spring-integration-file'
 	optionalApi 'org.springframework.integration:spring-integration-http'
-
-	optionalApi "software.amazon.kinesis:amazon-kinesis-client:$kinesisClientVersion"
-	optionalApi "com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion"
 
 	optionalApi 'software.amazon.awssdk:kinesis'
 	optionalApi 'software.amazon.awssdk:dynamodb'
 	optionalApi 'software.amazon.awssdk:s3-transfer-manager'
+
+	optionalApi "software.amazon.kinesis:amazon-kinesis-client:$kinesisClientVersion"
+	optionalApi "com.amazonaws:amazon-kinesis-producer:$kinesisProducerVersion"
 
 	optionalApi "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
 

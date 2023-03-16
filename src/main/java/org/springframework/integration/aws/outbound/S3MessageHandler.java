@@ -24,6 +24,7 @@ import java.util.function.BiConsumer;
 
 import com.amazonaws.util.Base64;
 import com.amazonaws.util.Md5Utils;
+import org.apache.commons.io.FileUtils;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.internal.util.Mimetype;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -314,7 +315,8 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					if (putObjectRequest.contentType() == null) {
 						putObjectRequestBuilder.contentType(Mimetype.getInstance().getMimetype(fileToUpload));
 					}
-					requestBody = AsyncRequestBody.fromFile(fileToUpload);
+					// TODO until https://github.com/aws/aws-sdk-java-v2/issues/3839
+					requestBody = AsyncRequestBody.fromBytes(FileUtils.readFileToByteArray(fileToUpload));
 				}
 				else if (payload instanceof byte[] payloadBytes) {
 					if (putObjectRequest.contentMD5() == null) {
@@ -371,11 +373,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		String key =
 				this.keyExpression != null
 						? this.keyExpression.getValue(this.evaluationContext, requestMessage, String.class)
-						: targetFile.getName();
-
-		Assert.state(key != null,
-				() -> "The 'keyExpression' must not be null for non-File payloads and can't evaluate to null. "
-						+ "Root object is: " + requestMessage);
+						: null;
 
 		if (targetFile.isDirectory()) {
 			DownloadDirectoryRequest.Builder downloadDirectoryRequest =
@@ -393,7 +391,9 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 			DownloadFileRequest.Builder downloadFileRequest =
 					DownloadFileRequest.builder()
 							.destination(targetFile)
-							.getObjectRequest(request -> request.bucket(bucket).key(key));
+							.getObjectRequest(request ->
+									request.bucket(bucket)
+											.key(key != null ? key : targetFile.getName()));
 			if (transferListener != null) {
 				downloadFileRequest.addTransferListener(transferListener);
 			}

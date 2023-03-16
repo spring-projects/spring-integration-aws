@@ -73,7 +73,7 @@ public interface LocalstackContainerTest {
 	}
 
 	static S3AsyncClient s3Client() {
-		return applyAwsClientOptions(S3AsyncClient.builder(), LocalStackContainer.Service.CLOUDWATCH);
+		return applyAwsClientOptions(S3AsyncClient.builder(), LocalStackContainer.Service.S3);
 	}
 
 	static SqsAsyncClient sqsClient() {
