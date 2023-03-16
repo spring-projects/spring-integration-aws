@@ -30,6 +30,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
@@ -39,6 +40,7 @@ import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.exceptions.InvalidStateException;
 import software.amazon.kinesis.exceptions.ShutdownException;
 import software.amazon.kinesis.exceptions.ThrottlingException;
+import software.amazon.kinesis.lifecycle.LifecycleConfig;
 import software.amazon.kinesis.lifecycle.events.InitializationInput;
 import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
 import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
@@ -50,6 +52,7 @@ import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
+import software.amazon.kinesis.retrieval.RetrievalConfig;
 
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
@@ -243,9 +246,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			this.config = new ConfigsBuilder(new StreamsTracker(), this.consumerGroup, this.kinesisClient,
 					this.dynamoDBClient, this.cloudWatchClient, this.workerId, this.recordProcessorFactory);
 		}
-
-		this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
-		this.config.retrievalConfig().glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer);
 	}
 
 	@Override
@@ -258,15 +258,21 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 					+ "because it does not make sense in case of [ListenerMode.batch].");
 		}
 
+		LifecycleConfig lifecycleConfig = this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
+		RetrievalConfig retrievalConfig =
+				this.config.retrievalConfig()
+						.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer)
+						.initialPositionInStreamExtended(this.streamInitialSequence);
+
 		this.scheduler =
 				new Scheduler(
 						this.config.checkpointConfig(),
 						this.config.coordinatorConfig(),
 						this.config.leaseManagementConfig(),
-						this.config.lifecycleConfig(),
+						lifecycleConfig,
 						this.config.metricsConfig(),
 						this.config.processorConfig(),
-						this.config.retrievalConfig());
+						retrievalConfig);
 
 		this.executor.execute(this.scheduler);
 	}
@@ -467,13 +473,12 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		}
 
 		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(KinesisClientRecord record) {
-			Object payload = record.data().array();
+			Object payload = BinaryUtils.copyAllBytesFrom(record.data());
 			Message<?> messageToUse = null;
 
 			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
 				try {
-					messageToUse = KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper
-							.toMessage((byte[]) payload);
+					messageToUse = KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper.toMessage((byte[]) payload);
 					if (messageToUse == null) {
 						throw new IllegalStateException("The 'embeddedHeadersMapper' returned null for payload: "
 								+ Arrays.toString((byte[]) payload));
@@ -489,9 +494,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 				payload = KclMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
 			}
 
-			AbstractIntegrationMessageBuilder<Object> messageBuilder = getMessageBuilderFactory().withPayload(payload)
-					.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
-					.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber());
+			AbstractIntegrationMessageBuilder<Object> messageBuilder =
+					getMessageBuilderFactory()
+							.withPayload(payload)
+							.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
+							.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber());
 
 			if (KclMessageDrivenChannelAdapter.this.bindSourceRecord) {
 				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
