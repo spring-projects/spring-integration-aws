@@ -82,8 +82,7 @@ public class DynamoDbMetadataStore implements ConcurrentMetadataStore, Initializ
 	 */
 	public static final String TTL = "expireAt";
 
-	private static final String KEY_NOT_EXISTS_EXPRESSION =
-			String.format("attribute_not_exists(%s)", KEY);
+	private static final String KEY_NOT_EXISTS_EXPRESSION = String.format("attribute_not_exists(%s)", KEY);
 
 	private final DynamoDbAsyncClient dynamoDB;
 
