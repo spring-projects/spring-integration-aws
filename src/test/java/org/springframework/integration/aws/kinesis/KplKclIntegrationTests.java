@@ -25,13 +25,13 @@ import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 
@@ -66,7 +66,7 @@ import static org.assertj.core.api.Assertions.entry;
  *
  * @since 1.1
  */
-@Disabled("Depends on real call to http://169.254.169.254 through native library")
+@DisabledOnOs(OS.WINDOWS)
 @SpringJUnitConfig
 @DirtiesContext
 public class KplKclIntegrationTests implements LocalstackContainerTest {
@@ -89,21 +89,15 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 	private PollableChannel errorChannel;
 
 	@BeforeAll
-	static void setup() throws InterruptedException {
+	static void setup() {
 		AMAZON_KINESIS = LocalstackContainerTest.kinesisClient();
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		CLOUD_WATCH = LocalstackContainerTest.cloudWatchClient();
 
-		int n = 0;
-		while (n++ < 100 &&
-				!StreamStatus.ACTIVE.equals(
-						AMAZON_KINESIS.describeStream(request -> request.streamName(TEST_STREAM))
-								.join()
-								.streamDescription()
-								.streamStatus())) {
-
-			Thread.sleep(200);
-		}
+		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM).shardCount(1))
+				.thenCompose(result ->
+						AMAZON_KINESIS.waiter().waitUntilStreamExists(request -> request.streamName(TEST_STREAM)))
+				.join();
 	}
 
 	@AfterAll

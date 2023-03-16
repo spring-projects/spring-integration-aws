@@ -40,7 +40,7 @@ ext {
 	springCloudAwsVersion = '3.0.0-RC1'
 	springIntegrationVersion = '6.1.0-SNAPSHOT'
 	kinesisClientVersion = '2.4.5'
-	kinesisProducerVersion = '0.14.13'
+	kinesisProducerVersion = '0.15.5'
 	testcontainersVersion = '1.17.6'
 
 	idPrefix = 'aws'

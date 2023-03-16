@@ -24,11 +24,13 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
 /**
@@ -72,8 +74,13 @@ public interface LocalstackContainerTest {
 		return applyAwsClientOptions(CloudWatchAsyncClient.builder(), LocalStackContainer.Service.CLOUDWATCH);
 	}
 
-	static S3AsyncClient s3Client() {
+	static S3AsyncClient s3AsyncClient() {
 		return applyAwsClientOptions(S3AsyncClient.builder(), LocalStackContainer.Service.S3);
+	}
+
+	static S3Client s3Client() {
+		return applyAwsClientOptions(S3Client.builder().httpClient(UrlConnectionHttpClient.builder().build()),
+				LocalStackContainer.Service.S3);
 	}
 
 	static SqsAsyncClient sqsClient() {

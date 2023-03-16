@@ -24,7 +24,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.StreamStatus;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,20 +79,12 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 	private PollableChannel errorChannel;
 
 	@BeforeAll
-	static void setup() throws Exception {
+	static void setup() {
 		AMAZON_KINESIS_ASYNC = LocalstackContainerTest.kinesisClient();
-		AMAZON_KINESIS_ASYNC.createStream(request -> request.streamName(TEST_STREAM).shardCount(1)).join();
-
-		int n = 0;
-		while (n++ < 100 &&
-				!StreamStatus.ACTIVE.equals(
-						AMAZON_KINESIS_ASYNC.describeStream(request -> request.streamName(TEST_STREAM))
-								.join()
-								.streamDescription()
-								.streamStatus())) {
-
-			Thread.sleep(200);
-		}
+		AMAZON_KINESIS_ASYNC.createStream(request -> request.streamName(TEST_STREAM).shardCount(1))
+				.thenCompose(result ->
+						AMAZON_KINESIS_ASYNC.waiter().waitUntilStreamExists(request -> request.streamName(TEST_STREAM)))
+				.join();
 	}
 
 	@AfterAll

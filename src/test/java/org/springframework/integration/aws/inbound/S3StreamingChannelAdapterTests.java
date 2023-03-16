@@ -16,27 +16,16 @@
 
 package org.springframework.integration.aws.inbound;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.time.Instant;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mockito;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +33,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.Poller;
+import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.support.S3RemoteFileTemplate;
 import org.springframework.integration.aws.support.S3SessionFactory;
 import org.springframework.integration.aws.support.filters.S3PersistentAcceptOnceFileListFilter;
@@ -55,11 +45,8 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
-import org.springframework.util.FileCopyUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.willAnswer;
 
 /**
  * @author Christian Tzolov
@@ -67,42 +54,23 @@ import static org.mockito.BDDMockito.willAnswer;
  *
  * @since 1.1
  */
-@Disabled("Revise in favor of Local Stack")
 @SpringJUnitConfig
 @DirtiesContext
-public class S3StreamingChannelAdapterTests {
+public class S3StreamingChannelAdapterTests implements LocalstackContainerTest {
 
-	private static final String S3_BUCKET = "S3_BUCKET";
+	private static final String S3_BUCKET = "s3-bucket";
 
-	@TempDir
-	static Path TEMPORARY_FOLDER;
-
-	private static Map<S3Object, File> S3_OBJECTS;
+	private static S3Client S3;
 
 	@Autowired
 	private PollableChannel s3FilesChannel;
 
 	@BeforeAll
-	static void setup() throws IOException {
-		File remoteFolder = new File(TEMPORARY_FOLDER.toFile(), "remote");
-		remoteFolder.mkdir();
-		File aFile = new File(remoteFolder, "a.test");
-		aFile.createNewFile();
-		FileCopyUtils.copy("Hello".getBytes(), aFile);
-		File bFile = new File(remoteFolder, "b.test");
-		bFile.createNewFile();
-		FileCopyUtils.copy("Bye".getBytes(), bFile);
-
-		S3_OBJECTS = new HashMap<>();
-
-		for (File file : remoteFolder.listFiles()) {
-			S3Object s3Object =
-					S3Object.builder()
-							.key("subdir/" + file.getName())
-							.lastModified(Instant.ofEpochMilli(file.lastModified()))
-							.build();
-			S3_OBJECTS.put(s3Object, file);
-		}
+	static void setup() {
+		S3 = LocalstackContainerTest.s3Client();
+		S3.createBucket(request -> request.bucket(S3_BUCKET));
+		S3.putObject(request -> request.bucket(S3_BUCKET).key("subdir/a.test"), RequestBody.fromString("Hello"));
+		S3.putObject(request -> request.bucket(S3_BUCKET).key("subdir/b.test"), RequestBody.fromString("Bye"));
 	}
 
 	@Test
@@ -136,29 +104,9 @@ public class S3StreamingChannelAdapterTests {
 	public static class Config {
 
 		@Bean
-		public S3Client amazonS3() {
-			S3Client amazonS3 = Mockito.mock(S3Client.class);
-
-			willAnswer(invocation ->
-					ListObjectsResponse.builder()
-							.name(S3_BUCKET)
-							.contents(S3_OBJECTS.keySet().toArray(new S3Object[0]))
-							.build())
-					.given(amazonS3)
-					.listObjects(any(ListObjectsRequest.class));
-
-			S3_OBJECTS.forEach((s3Object, file) ->
-					willAnswer(invocation -> new FileInputStream(file))
-							.given(amazonS3)
-							.getObject(GetObjectRequest.builder().bucket(S3_BUCKET).key(s3Object.key()).build()));
-
-			return amazonS3;
-		}
-
-		@Bean
 		@InboundChannelAdapter(value = "s3FilesChannel", poller = @Poller(fixedDelay = "100"))
-		public S3StreamingMessageSource s3InboundStreamingMessageSource(S3Client amazonS3) {
-			S3SessionFactory s3SessionFactory = new S3SessionFactory(amazonS3);
+		public S3StreamingMessageSource s3InboundStreamingMessageSource() {
+			S3SessionFactory s3SessionFactory = new S3SessionFactory(S3);
 			S3RemoteFileTemplate s3FileTemplate = new S3RemoteFileTemplate(s3SessionFactory);
 			S3StreamingMessageSource s3MessageSource =
 					new S3StreamingMessageSource(s3FileTemplate, Comparator.comparing(S3Object::key));

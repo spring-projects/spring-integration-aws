@@ -111,7 +111,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 
 	@BeforeAll
 	static void setup() {
-		S3 = LocalstackContainerTest.s3Client();
+		S3 = LocalstackContainerTest.s3AsyncClient();
 		S3.createBucket(request -> request.bucket(S3_BUCKET_NAME)).join();
 	}
 
