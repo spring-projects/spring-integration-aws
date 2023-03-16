@@ -50,7 +50,6 @@ import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
-import software.amazon.kinesis.retrieval.polling.PollingConfig;
 
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
@@ -106,8 +105,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private InitialPositionInStreamExtended streamInitialSequence =
 			InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.LATEST);
-
-	private int idleBetweenPolls = 1000;
 
 	private int consumerBackoff = 1000;
 
@@ -176,10 +173,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	public void setStreamInitialSequence(InitialPositionInStreamExtended streamInitialSequence) {
 		Assert.notNull(streamInitialSequence, "'streamInitialSequence' must not be null");
 		this.streamInitialSequence = streamInitialSequence;
-	}
-
-	public void setIdleBetweenPolls(int idleBetweenPolls) {
-		this.idleBetweenPolls = Math.max(250, idleBetweenPolls);
 	}
 
 	public void setConsumerBackoff(int consumerBackoff) {
@@ -253,8 +246,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 		this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
 		this.config.retrievalConfig().glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer);
-		((PollingConfig) this.config.retrievalConfig().retrievalSpecificConfig())
-				.idleTimeBetweenReadsInMillis(this.idleBetweenPolls);
 	}
 
 	@Override
