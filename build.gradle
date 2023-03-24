@@ -38,7 +38,7 @@ ext {
 	servletApiVersion = '6.0.0'
 	log4jVersion = '2.19.0'
 	springCloudAwsVersion = '3.0.0-RC1'
-	springIntegrationVersion = '6.1.0-SNAPSHOT'
+	springIntegrationVersion = '6.0.4'
 	kinesisClientVersion = '2.4.5'
 	kinesisProducerVersion = '0.15.5'
 	testcontainersVersion = '1.17.6'

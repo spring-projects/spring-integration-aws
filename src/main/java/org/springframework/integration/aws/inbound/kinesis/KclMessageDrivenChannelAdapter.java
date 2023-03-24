@@ -144,6 +144,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
 		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
 		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
+		Assert.notEmpty(streams, "'streams' must not be empty.");
 		this.streams = streams;
 		this.kinesisClient = kinesisClient;
 		this.cloudWatchClient = cloudWatchClient;
