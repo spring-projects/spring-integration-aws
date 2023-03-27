@@ -51,6 +51,7 @@ import software.amazon.kinesis.processor.MultiStreamTracker;
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import software.amazon.kinesis.processor.SingleStreamTracker;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
 
@@ -240,8 +241,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		super.onInit();
 
 		if (this.streams.length == 1) {
-			this.config = new ConfigsBuilder(this.streams[0], this.consumerGroup, this.kinesisClient,
-					this.dynamoDBClient, this.cloudWatchClient, this.workerId, this.recordProcessorFactory);
+			this.config = new ConfigsBuilder(
+					new SingleStreamTracker(
+							StreamIdentifier.singleStreamInstance(this.streams[0]), this.streamInitialSequence),
+					this.consumerGroup, this.kinesisClient, this.dynamoDBClient, this.cloudWatchClient, this.workerId,
+					this.recordProcessorFactory);
 		}
 		else {
 			this.config = new ConfigsBuilder(new StreamsTracker(), this.consumerGroup, this.kinesisClient,
@@ -262,8 +266,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		LifecycleConfig lifecycleConfig = this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
 		RetrievalConfig retrievalConfig =
 				this.config.retrievalConfig()
-						.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer)
-						.initialPositionInStreamExtended(this.streamInitialSequence);
+						.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer);
 
 		this.scheduler =
 				new Scheduler(
