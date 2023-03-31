@@ -90,7 +90,7 @@ public class SnsMessageHandlerTests {
 		PublishRequest publishRequest = captor.getValue();
 
 		assertThat(publishRequest.messageStructure()).isEqualTo("json");
-		assertThat(publishRequest.topicArn()).isEqualTo("arn:aws:sns:eu-west-1:111111111111:topic");
+		assertThat(publishRequest.topicArn()).isEqualTo("arn:aws:sns:eu-west-1:111111111111:topic.fifo");
 		assertThat(publishRequest.subject()).isEqualTo("subject");
 		assertThat(publishRequest.messageGroupId()).isEqualTo("SUBJECT");
 		assertThat(publishRequest.messageDeduplicationId()).isEqualTo("BAR");
@@ -105,7 +105,7 @@ public class SnsMessageHandlerTests {
 		assertThat(messageAttributes.get("foo").stringValue()).isEqualTo("bar");
 
 		assertThat(reply.getHeaders().get(AwsHeaders.MESSAGE_ID)).isEqualTo("111");
-		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("arn:aws:sns:eu-west-1:111111111111:topic");
+		assertThat(reply.getHeaders().get(AwsHeaders.TOPIC)).isEqualTo("arn:aws:sns:eu-west-1:111111111111:topic.fifo");
 		assertThat(reply.getPayload()).isSameAs(payload);
 	}
 
@@ -121,7 +121,7 @@ public class SnsMessageHandlerTests {
 			willAnswer(invocation ->
 					CompletableFuture.completedFuture(
 							CreateTopicResponse.builder()
-									.topicArn("arn:aws:sns:eu-west-1:111111111111:topic")
+									.topicArn("arn:aws:sns:eu-west-1:111111111111:topic.fifo")
 									.build()))
 					.given(mock)
 					.createTopic(any(Consumer.class));

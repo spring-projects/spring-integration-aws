@@ -29,7 +29,6 @@ import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
-import org.springframework.core.log.LogMessage;
 import org.springframework.expression.Expression;
 import org.springframework.expression.TypeLocator;
 import org.springframework.expression.common.LiteralExpression;
@@ -209,31 +208,42 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		else {
 			Assert.state(this.topicArnExpression != null, "'topicArn' or 'topicArnExpression' must be specified.");
 			PublishRequest.Builder publishRequest = PublishRequest.builder();
-			String topicArn = this.topicArnExpression.getValue(getEvaluationContext(), message, String.class);
-			publishRequest.topicArn(this.topicArnResolver.resolveTopicArn(topicArn).toString());
+			String topic = this.topicArnExpression.getValue(getEvaluationContext(), message, String.class);
+			String topicArn = this.topicArnResolver.resolveTopicArn(topic).toString();
+			publishRequest.topicArn(topicArn);
 
 			if (this.subjectExpression != null) {
 				String subject = this.subjectExpression.getValue(getEvaluationContext(), message, String.class);
 				publishRequest.subject(subject);
 			}
 
-			if (this.messageGroupIdExpression != null) {
-				if (!topicArn.endsWith(".fifo")) {
-					logger.warn(LogMessage.format("a messageGroupId will be set for non-FIFO topic '%s'", topicArn));
+			if (topicArn.endsWith(".fifo")) {
+				String messageGroupId = null;
+				if (this.messageGroupIdExpression != null) {
+					messageGroupId =
+							this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
 				}
-				String messageGroupId =
-						this.messageGroupIdExpression.getValue(getEvaluationContext(), message, String.class);
-				publishRequest.messageGroupId(messageGroupId);
-			}
+				Assert.notNull(messageGroupId, () ->
+						"The 'messageGroupIdExpression' [" + this.messageGroupIdExpression + "] " +
+								"must not evaluate to null. The failed request message is " + message);
 
-			if (this.messageDeduplicationIdExpression != null) {
-				if (!topicArn.endsWith(".fifo")) {
-					logger.warn(
-							LogMessage.format("a messageDeduplicationId will be set for non-FIFO topic '%s'", topicArn));
+				publishRequest.messageGroupId(messageGroupId);
+
+				String messageDeduplicationId = null;
+				if (this.messageDeduplicationIdExpression != null) {
+					messageDeduplicationId =
+							this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message,
+									String.class);
 				}
-				String messageDeduplicationId =
-						this.messageDeduplicationIdExpression.getValue(getEvaluationContext(), message, String.class);
+				Assert.notNull(messageDeduplicationId, () ->
+						"The 'messageDeduplicationIdExpression' [" + this.messageDeduplicationIdExpression + "] " +
+								"must not evaluate to null. The failed request message is " + message);
+
 				publishRequest.messageDeduplicationId(messageDeduplicationId);
+			}
+			else if (this.messageGroupIdExpression != null || this.messageDeduplicationIdExpression != null) {
+				logger.info("The 'messageGroupIdExpression' and 'messageDeduplicationIdExpression' properties " +
+						"are ignored for non-FIFO topics.");
 			}
 
 			Object snsMessage = message.getPayload();
