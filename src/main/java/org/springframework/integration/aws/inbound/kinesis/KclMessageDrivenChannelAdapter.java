@@ -56,6 +56,8 @@ import software.amazon.kinesis.processor.StreamTracker;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.log.LogMessage;
@@ -63,6 +65,7 @@ import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
+import org.springframework.integration.aws.event.KinesisShardEndedEvent;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.endpoint.MessageProducerSupport;
 import org.springframework.integration.mapping.InboundMessageMapper;
@@ -86,7 +89,8 @@ import org.springframework.util.Assert;
  */
 @ManagedResource
 @IntegrationManagedResource
-public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
+public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
+		implements ApplicationEventPublisherAware {
 
 	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
@@ -127,6 +131,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 
 	private boolean bindSourceRecord;
 
+	private ApplicationEventPublisher applicationEventPublisher;
+
 	private volatile Scheduler scheduler;
 
 	public KclMessageDrivenChannelAdapter(String... streams) {
@@ -151,6 +157,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 		this.kinesisClient = kinesisClient;
 		this.cloudWatchClient = cloudWatchClient;
 		this.dynamoDBClient = dynamoDBClient;
+	}
+
+	@Override
+	public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+		this.applicationEventPublisher = applicationEventPublisher;
 	}
 
 	public void setExecutor(TaskExecutor executor) {
@@ -406,6 +417,11 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 			}
 			catch (ShutdownException | InvalidStateException ex) {
 				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
+			}
+
+			if (KclMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
+				KclMessageDrivenChannelAdapter.this.applicationEventPublisher.publishEvent(
+						new KinesisShardEndedEvent(KclMessageDrivenChannelAdapter.this, this.shardId));
 			}
 		}
 
