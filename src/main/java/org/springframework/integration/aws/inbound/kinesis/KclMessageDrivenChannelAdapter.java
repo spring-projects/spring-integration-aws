@@ -52,6 +52,7 @@ import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.processor.SingleStreamTracker;
+import software.amazon.kinesis.processor.StreamTracker;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.RetrievalConfig;
 
@@ -239,17 +240,23 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport {
 	@Override
 	protected void onInit() {
 		super.onInit();
+		this.config =
+				new ConfigsBuilder(buildStreamTracker(),
+						this.consumerGroup,
+						this.kinesisClient,
+						this.dynamoDBClient,
+						this.cloudWatchClient,
+						this.workerId,
+						this.recordProcessorFactory);
+	}
 
+	private StreamTracker buildStreamTracker() {
 		if (this.streams.length == 1) {
-			this.config = new ConfigsBuilder(
-					new SingleStreamTracker(
-							StreamIdentifier.singleStreamInstance(this.streams[0]), this.streamInitialSequence),
-					this.consumerGroup, this.kinesisClient, this.dynamoDBClient, this.cloudWatchClient, this.workerId,
-					this.recordProcessorFactory);
+			return new SingleStreamTracker(StreamIdentifier.singleStreamInstance(this.streams[0]),
+					this.streamInitialSequence);
 		}
 		else {
-			this.config = new ConfigsBuilder(new StreamsTracker(), this.consumerGroup, this.kinesisClient,
-					this.dynamoDBClient, this.cloudWatchClient, this.workerId, this.recordProcessorFactory);
+			return new StreamsTracker();
 		}
 	}
 

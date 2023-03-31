@@ -32,7 +32,7 @@ repositories {
 ext {
 	assertjVersion = '3.24.2'
 	awaitilityVersion = '4.2.0'
-	awsSdkVersion = '2.20.32'
+	awsSdkVersion = '2.20.35'
 	jacksonVersion = '2.14.2'
 	junitVersion = '5.9.2'
 	log4jVersion = '2.19.0'
