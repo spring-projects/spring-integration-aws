@@ -24,7 +24,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -48,14 +48,7 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 public interface LocalstackContainerTest {
 
 	LocalStackContainer LOCAL_STACK_CONTAINER =
-			new LocalStackContainer(
-					DockerImageName.parse("localstack/localstack:1.4.0"))
-					.withServices(
-							LocalStackContainer.Service.DYNAMODB,
-							LocalStackContainer.Service.KINESIS,
-							LocalStackContainer.Service.CLOUDWATCH,
-							LocalStackContainer.Service.S3,
-							LocalStackContainer.Service.SQS);
+			new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.0.0"));
 
 	@BeforeAll
 	static void startContainer() {
@@ -79,7 +72,7 @@ public interface LocalstackContainerTest {
 	}
 
 	static S3Client s3Client() {
-		return applyAwsClientOptions(S3Client.builder().httpClient(UrlConnectionHttpClient.builder().build()),
+		return applyAwsClientOptions(S3Client.builder().httpClient(ApacheHttpClient.create()),
 				LocalStackContainer.Service.S3);
 	}
 

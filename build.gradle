@@ -41,7 +41,7 @@ ext {
 	springIntegrationVersion = '6.0.4'
 	kinesisClientVersion = '2.4.8'
 	kinesisProducerVersion = '0.15.5'
-	testcontainersVersion = '1.17.6'
+	testcontainersVersion = '1.18.0'
 
 	idPrefix = 'aws'
 
@@ -128,12 +128,12 @@ dependencies {
 
 	optionalApi "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
 
+	testImplementation 'software.amazon.awssdk:apache-client'
+
 	testImplementation('org.springframework.integration:spring-integration-test') {
 		exclude group: 'junit'
 	}
-
 	testImplementation "org.assertj:assertj-core:$assertjVersion"
-
 	testImplementation("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
