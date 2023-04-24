@@ -1091,46 +1091,25 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						if (!records.isEmpty()) {
 							processRecords(records);
 						}
+						this.shardIterator = result.nextShardIterator();
 					}
+				}
+				catch (RequestShardForSequenceException requestShardForSequenceException) {
+					// Something wrong happened and not all records were processed.
+					// Must start from the provided sequence
+					KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
+					newOffset.setSequenceNumber(requestShardForSequenceException.getSequenceNumber());
+					newOffset.setIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER);
+					GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
+					this.shardIterator =
+							KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+									.getShardIterator(shardIteratorRequest)
+									.join()
+									.shardIterator();
 				}
 				finally {
 					attributesHolder.remove();
 					if (result != null) {
-						// If using manual checkpointer, we have to make sure we are allowed to use the next shard iterator
-						// Because if the manual checkpointer was not set to the latest record, it means there are records to be reprocessed
-						// and if we use the nextShardIterator, we will be skipping records that need to be reprocessed
-						List<Record> records = result.records();
-						if (CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode) &&
-								!records.isEmpty()) {
-							logger.info("Manual checkpointer. Must validate if should use getNextShardIterator()");
-							String lastRecordSequence = records.get(records.size() - 1).sequenceNumber();
-							String lastCheckpointSequence = this.checkpointer.getCheckpoint();
-							if (lastCheckpointSequence.equals(lastRecordSequence)) {
-								logger.info("latestCheckpointSequence is same as latestRecordSequence. " +
-										"Should getNextShardIterator()");
-								// Means the manual checkpointer has processed the last record, Should move forward
-								this.shardIterator = result.nextShardIterator();
-							}
-							else {
-								logger.info("latestCheckpointSequence is not the same as latestRecordSequence. " +
-										"Should Get a new iterator AFTER_SEQUENCE_NUMBER latestCheckpointSequence");
-								// Something wrong happened and not all records were processed.
-								// Must start from the latest known checkpoint
-								KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
-								newOffset.setSequenceNumber(lastCheckpointSequence);
-								newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
-								GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
-								this.shardIterator =
-										KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-												.getShardIterator(shardIteratorRequest)
-												.join()
-												.shardIterator();
-							}
-						}
-						else {
-							this.shardIterator = result.nextShardIterator();
-						}
-
 						if (this.shardIterator == null) {
 							if (KinesisMessageDrivenChannelAdapter.this.lockRegistry != null) {
 								KinesisMessageDrivenChannelAdapter.this.shardConsumerManager.shardOffsetsToConsumer
@@ -1138,21 +1117,17 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 							}
 							// Shard is closed: nothing to consume anymore.
 							// Checkpoint endingSequenceNumber to ensure shard is marked exhausted.
-							// If in CheckpointMode.manual, only checkpoint if lastCheckpointValue is also null, as this
-							// means that no records have ever been read and so the shard was empty
-							if (!CheckpointMode.manual.equals(KinesisMessageDrivenChannelAdapter.this.checkpointMode)
-									|| this.checkpointer.getLastCheckpointValue() == null) {
-								for (Shard shard : readShardList(this.shardOffset.getStream())) {
-									if (shard.shardId().equals(this.shardOffset.getShard())) {
-										String endingSequenceNumber =
-												shard.sequenceNumberRange().endingSequenceNumber();
-										if (endingSequenceNumber != null) {
-											checkpointSwallowingProvisioningExceptions(endingSequenceNumber);
-										}
-										break;
+							for (Shard shard : readShardList(this.shardOffset.getStream())) {
+								if (shard.shardId().equals(this.shardOffset.getShard())) {
+									String endingSequenceNumber =
+											shard.sequenceNumberRange().endingSequenceNumber();
+									if (endingSequenceNumber != null) {
+										checkpointSwallowingProvisioningExceptions(endingSequenceNumber);
 									}
+									break;
 								}
 							}
+
 							// Resharding is possible.
 							if (KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
 								KinesisMessageDrivenChannelAdapter.this.applicationEventPublisher.publishEvent(
@@ -1185,7 +1160,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			}
 			catch (ProvisionedThroughputExceededException ignored) {
 				// This exception is ignored to guarantee that an exhausted shard is marked as CLOSED
-				// even in the case it's not possible to checkpoint. Otherwise the ShardConsumer is
+				// even in the case it's not possible to checkpoint. Otherwise, the ShardConsumer is
 				// left in an illegal state where the shard iterator is null without any possibility
 				// of recovering from it.
 				logger.debug(ignored, "Exception while checkpointing empty shards");
@@ -1341,16 +1316,39 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			try {
 				sendMessage(messageToSend);
 			}
-			catch (Exception ex) {
-				logger.info(ex, () ->
-						"Got an exception during sending a '"
-								+ messageToSend
-								+ "'"
-								+ "\nfor the '"
-								+ rawRecord
-								+ "'.\n"
-								+ "Consider to use 'errorChannel' flow for the compensation logic.");
+			catch (RequestShardForSequenceException requestShardForSequenceException) {
+				// Rethrow
+				throw requestShardForSequenceException;
 			}
+			catch (Exception ex) {
+				RequestShardForSequenceException requestShardForSequenceExceptionInCause =
+						findRequestShardForSequenceExceptionInCause(ex);
+				if (requestShardForSequenceExceptionInCause != null) {
+					throw requestShardForSequenceExceptionInCause;
+				}
+				else {
+					logger.info(ex, () ->
+							"Got an exception during sending a '"
+									+ messageToSend
+									+ "'"
+									+ "\nfor the '"
+									+ rawRecord
+									+ "'.\n"
+									+ "Consider to use 'errorChannel' flow for the compensation logic.");
+				}
+			}
+		}
+
+		@Nullable
+		private static RequestShardForSequenceException findRequestShardForSequenceExceptionInCause(Throwable ex) {
+			if (ex instanceof RequestShardForSequenceException requestShardForSequenceException) {
+				return requestShardForSequenceException;
+			}
+			Throwable cause = ex.getCause();
+			if (cause != null && cause != ex) {
+				return findRequestShardForSequenceExceptionInCause(cause);
+			}
+			return null;
 		}
 
 		private void checkpointIfBatchMode() {

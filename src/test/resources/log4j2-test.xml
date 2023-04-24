@@ -9,7 +9,7 @@
 		<Logger name="org.springframework" level="warn"/>
 		<Logger name="org.springframework.integration" level="warn"/>
 		<Logger name="org.springframework.integration.aws" level="info"/>
-		<Logger name="org.testcontainers" level="debug"/>
+		<Logger name="org.testcontainers" level="warn"/>
 		<Root level="warn">
 			<AppenderRef ref="STDOUT"/>
 		</Root>

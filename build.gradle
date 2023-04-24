@@ -11,7 +11,7 @@ plugins {
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.0'
-	id 'com.jfrog.artifactory' version '4.31.7'
+	id 'com.jfrog.artifactory' version '4.31.9'
 }
 
 description = 'Spring Integration AWS Support'
@@ -32,15 +32,15 @@ repositories {
 ext {
 	assertjVersion = '3.24.2'
 	awaitilityVersion = '4.2.0'
-	awsSdkVersion = '2.20.35'
-	jacksonVersion = '2.14.2'
+	awsSdkVersion = '2.20.51'
+	jacksonVersion = '2.15.0'
 	junitVersion = '5.9.2'
-	log4jVersion = '2.19.0'
+	log4jVersion = '2.20.0'
 	servletApiVersion = '6.0.0'
 	springCloudAwsVersion = '3.0.0-RC2'
-	springIntegrationVersion = '6.0.4'
+	springIntegrationVersion = '6.0.5'
 	kinesisClientVersion = '2.4.8'
-	kinesisProducerVersion = '0.15.5'
+	kinesisProducerVersion = '0.15.6'
 	testcontainersVersion = '1.18.0'
 
 	idPrefix = 'aws'

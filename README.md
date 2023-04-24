@@ -398,7 +398,7 @@ Can be specified as `null` with meaning no conversion and the target `Message` i
 Additional headers like `AwsHeaders.RECEIVED_STREAM`, `AwsHeaders.SHARD`, `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` are populated to the message for downstream logic.
 When `CheckpointMode.manual` is used the `Checkpointer` instance is populated to the `AwsHeaders.CHECKPOINTER` header for an acknowledgment in the downstream logic manually. 
 
-The `KinesisMessageDrivenChannelAdapter` ca be configured with the `ListenerMode` `record` or `batch` to process records one by one or send the whole just polled batch of records.
+The `KinesisMessageDrivenChannelAdapter` can be configured with the `ListenerMode` `record` or `batch` to process records one by one or send the whole just polled batch of records.
 If `Converter` is configured to `null`, the entire `List<Record>` is sent as a payload.
 Otherwise, a list of converted `Record.getData().array()` is wrapped to the payload of message to send.
 In this case the `AwsHeaders.RECEIVED_PARTITION_KEY` and `AwsHeaders.RECEIVED_SEQUENCE_NUMBER` headers contains values as a `List<String>` of partition keys and sequence numbers of converted records respectively.
@@ -432,6 +432,9 @@ For example, users may want to fully read any parent shards before starting to r
                 .collect(Collectors.toList());
         }
 ```
+
+Starting with _version 3.0_. the `RequestShardForSequenceException` can be used for flow control to request the shard iterator for specific sequence.
+For example, when consumer has failed processing batch at specific record, throwing this exception with a sequence of that record will ensure at-least-once delivery since the shard iterator will move back to the requested record sequence.
 
 Also, the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][].
 See its JavaDocs for more information. 

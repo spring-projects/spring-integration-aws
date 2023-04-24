@@ -148,8 +148,6 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		Checkpointer checkpointer = headers.get(AwsHeaders.CHECKPOINTER, Checkpointer.class);
 		assertThat(checkpointer).isNotNull();
 
-		checkpointer.checkpoint();
-
 		message = this.kinesisChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isEqualTo("bar");
@@ -160,6 +158,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(headers.get(AwsHeaders.RECEIVED_STREAM)).isEqualTo(STREAM1);
 
 		assertThat(this.kinesisChannel.receive(10)).isNull();
+
+		checkpointer.checkpoint();
 
 		assertThat(this.checkpointStore.get("SpringIntegration" + ":" + STREAM1 + ":" + "1")).isEqualTo("2");
 

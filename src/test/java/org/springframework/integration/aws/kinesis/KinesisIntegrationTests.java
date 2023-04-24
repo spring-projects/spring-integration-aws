@@ -19,11 +19,13 @@ package org.springframework.integration.aws.kinesis;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.Record;
 
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,7 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
+import org.springframework.integration.aws.inbound.kinesis.RequestShardForSequenceException;
 import org.springframework.integration.aws.outbound.KinesisMessageHandler;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
@@ -113,6 +116,14 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 		assertThat(((Exception) errorMessage.getPayload()).getMessage())
 				.contains("Channel 'kinesisReceiveChannel' expected one of the following data types "
 						+ "[class java.util.Date], but received [class java.lang.String]");
+
+		String errorSequenceNumber = errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD, Record.class).sequenceNumber();
+
+		// Second exception for the same record since we have requested via RequestShardForSequenceException
+		errorMessage = this.errorChannel.receive(30_000);
+		assertThat(errorMessage).isNotNull();
+		assertThat(errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD, Record.class).sequenceNumber())
+				.isEqualTo(errorSequenceNumber);
 
 		for (int i = 0; i < 2; i++) {
 			this.kinesisSendChannel
@@ -208,10 +219,14 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 			QueueChannel queueChannel = new QueueChannel();
 			queueChannel.addInterceptor(new ChannelInterceptor() {
 
+				private final AtomicBoolean thrown = new AtomicBoolean();
+
 				@Override
 				public void postSend(Message<?> message, MessageChannel channel, boolean sent) {
-					if (message instanceof ErrorMessage) {
-						throw (RuntimeException) ((ErrorMessage) message).getPayload();
+					if (message instanceof ErrorMessage errorMessage && this.thrown.compareAndSet(false, true)) {
+						throw new RequestShardForSequenceException(
+								errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD, Record.class).sequenceNumber(),
+								errorMessage.getPayload());
 					}
 				}
 
