@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 the original author or authors.
+ * Copyright 2017-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.integration.metadata.ConcurrentMetadataStore;
 import org.springframework.integration.metadata.MetadataStore;
+import org.springframework.lang.Nullable;
 
 /**
  * An internal {@link Checkpointer} implementation based on provided {@link MetadataStore}
@@ -42,6 +43,10 @@ class ShardCheckpointer implements Checkpointer {
 
 	private final String key;
 
+	private volatile String firstSequenceInBatch;
+
+	private volatile String highestSequence;
+
 	private volatile String lastCheckpointValue;
 
 	private volatile boolean active = true;
@@ -53,7 +58,7 @@ class ShardCheckpointer implements Checkpointer {
 
 	@Override
 	public boolean checkpoint() {
-		return checkpoint(this.lastCheckpointValue);
+		return checkpoint(this.highestSequence);
 	}
 
 	@Override
@@ -66,7 +71,11 @@ class ShardCheckpointer implements Checkpointer {
 					return this.checkpointStore.replace(this.key, existingSequence, sequenceNumber);
 				}
 				else {
-					return this.checkpointStore.putIfAbsent(this.key, sequenceNumber) == null;
+					boolean stored = this.checkpointStore.putIfAbsent(this.key, sequenceNumber) == null;
+					if (stored) {
+						this.lastCheckpointValue = sequenceNumber;
+					}
+					return stored;
 				}
 			}
 		}
@@ -79,14 +88,30 @@ class ShardCheckpointer implements Checkpointer {
 		return false;
 	}
 
+	void setFirstSequenceInBatch(String firstSequenceInBatch) {
+		this.firstSequenceInBatch = firstSequenceInBatch;
+	}
+
+	@Nullable
+	String getFirstSequenceInBatch() {
+		return this.firstSequenceInBatch;
+	}
+
 	void setHighestSequence(String highestSequence) {
-		this.lastCheckpointValue = highestSequence;
+		this.highestSequence = highestSequence;
 	}
 
+	String getHighestSequence() {
+		return this.highestSequence;
+	}
+
+	@Nullable
 	String getCheckpoint() {
-		return this.checkpointStore.get(this.key);
+		this.lastCheckpointValue = this.checkpointStore.get(this.key);
+		return this.lastCheckpointValue;
 	}
 
+	@Nullable
 	String getLastCheckpointValue() {
 		return this.lastCheckpointValue;
 	}

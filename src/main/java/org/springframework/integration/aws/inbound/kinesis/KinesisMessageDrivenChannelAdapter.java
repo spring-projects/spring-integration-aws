@@ -65,6 +65,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.core.log.LogMessage;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.aws.event.KinesisShardEndedEvent;
@@ -1094,18 +1095,8 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.shardIterator = result.nextShardIterator();
 					}
 				}
-				catch (RequestShardForSequenceException requestShardForSequenceException) {
-					// Something wrong happened and not all records were processed.
-					// Must start from the provided sequence
-					KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
-					newOffset.setSequenceNumber(requestShardForSequenceException.getSequenceNumber());
-					newOffset.setIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER);
-					GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
-					this.shardIterator =
-							KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-									.getShardIterator(shardIteratorRequest)
-									.join()
-									.shardIterator();
+				catch (Exception ex) {
+					rewindIteratorOnError(ex, result);
 				}
 				finally {
 					attributesHolder.remove();
@@ -1152,6 +1143,39 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 					this.task = null;
 				}
 			};
+		}
+
+		private void rewindIteratorOnError(Exception ex, GetRecordsResponse result) {
+			KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
+			String lastCheckpoint = this.checkpointer.getLastCheckpointValue();
+			String highestSequence = this.checkpointer.getHighestSequence();
+			if (highestSequence.equals(lastCheckpoint)) {
+				logger.info(ex, "Record processor has thrown exception. " +
+						"Ignore since the highest sequence in batch was check-pointed.");
+				this.shardIterator = result.nextShardIterator();
+				return;
+			}
+			String newOffsetValue = lastCheckpoint;
+			if (lastCheckpoint != null) {
+				newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+			}
+			else {
+				newOffsetValue = this.checkpointer.getFirstSequenceInBatch();
+				newOffset.setIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER);
+			}
+
+			logger.info(ex,
+					LogMessage.format("Record processor has thrown exception. " +
+									"Rewind shard iterator %s sequence number: %s",
+							(lastCheckpoint != null ? "after" : "at"), newOffsetValue));
+
+			newOffset.setSequenceNumber(newOffsetValue);
+			GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
+			this.shardIterator =
+					KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+							.getShardIterator(shardIteratorRequest)
+							.join()
+							.shardIterator();
 		}
 
 		private void checkpointSwallowingProvisioningExceptions(String endingSequenceNumber) {
@@ -1205,6 +1229,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		private void processRecords(List<Record> records) {
 			logger.trace(() -> "Processing records: " + records + " for [" + ShardConsumer.this + "]");
 
+			this.checkpointer.setFirstSequenceInBatch(records.get(0).sequenceNumber());
 			this.checkpointer.setHighestSequence(records.get(records.size() - 1).sequenceNumber());
 
 			if (ListenerMode.record.equals(KinesisMessageDrivenChannelAdapter.this.listenerMode)) {
@@ -1313,42 +1338,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 
 			Message<?> messageToSend = messageBuilder.build();
 			setAttributesIfNecessary(rawRecord, messageToSend);
-			try {
-				sendMessage(messageToSend);
-			}
-			catch (RequestShardForSequenceException requestShardForSequenceException) {
-				// Rethrow
-				throw requestShardForSequenceException;
-			}
-			catch (Exception ex) {
-				RequestShardForSequenceException requestShardForSequenceExceptionInCause =
-						findRequestShardForSequenceExceptionInCause(ex);
-				if (requestShardForSequenceExceptionInCause != null) {
-					throw requestShardForSequenceExceptionInCause;
-				}
-				else {
-					logger.info(ex, () ->
-							"Got an exception during sending a '"
-									+ messageToSend
-									+ "'"
-									+ "\nfor the '"
-									+ rawRecord
-									+ "'.\n"
-									+ "Consider to use 'errorChannel' flow for the compensation logic.");
-				}
-			}
-		}
-
-		@Nullable
-		private static RequestShardForSequenceException findRequestShardForSequenceExceptionInCause(Throwable ex) {
-			if (ex instanceof RequestShardForSequenceException requestShardForSequenceException) {
-				return requestShardForSequenceException;
-			}
-			Throwable cause = ex.getCause();
-			if (cause != null && cause != ex) {
-				return findRequestShardForSequenceExceptionInCause(cause);
-			}
-			return null;
+			sendMessage(messageToSend);
 		}
 
 		private void checkpointIfBatchMode() {

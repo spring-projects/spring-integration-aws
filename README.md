@@ -433,8 +433,9 @@ For example, users may want to fully read any parent shards before starting to r
         }
 ```
 
-Starting with _version 3.0_. the `RequestShardForSequenceException` can be used for flow control to request the shard iterator for specific sequence.
-For example, when consumer has failed processing batch at specific record, throwing this exception with a sequence of that record will ensure at-least-once delivery since the shard iterator will move back to the requested record sequence.
+Starting with _version 3.0_, any exception thrown from the record process may lead to shard iterator rewinding to the latest check-pointed sequence or the first one in the current failed batch.
+This ensures an at-least-once delivery for possibly failed records.
+If the latest checkpoint is equal to the highest sequence in the batch, then shard consumer continue with the next iterator. 
 
 Also, the `KclMessageDrivenChannelAdapter` is provided for performing streams consumption by [Kinesis Client Library][].
 See its JavaDocs for more information. 

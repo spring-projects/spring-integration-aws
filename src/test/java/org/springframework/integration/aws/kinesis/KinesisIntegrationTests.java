@@ -36,7 +36,6 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.inbound.kinesis.KinesisMessageHeaderErrorMessageStrategy;
-import org.springframework.integration.aws.inbound.kinesis.RequestShardForSequenceException;
 import org.springframework.integration.aws.outbound.KinesisMessageHandler;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
@@ -224,9 +223,7 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 				@Override
 				public void postSend(Message<?> message, MessageChannel channel, boolean sent) {
 					if (message instanceof ErrorMessage errorMessage && this.thrown.compareAndSet(false, true)) {
-						throw new RequestShardForSequenceException(
-								errorMessage.getHeaders().get(AwsHeaders.RAW_RECORD, Record.class).sequenceNumber(),
-								errorMessage.getPayload());
+						throw (RuntimeException) errorMessage.getPayload();
 					}
 				}
 
