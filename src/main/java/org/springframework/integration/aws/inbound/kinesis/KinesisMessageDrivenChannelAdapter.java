@@ -1195,26 +1195,32 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			try {
 				return KinesisMessageDrivenChannelAdapter.this.amazonKinesis.getRecords(getRecordsRequest).join();
 			}
-			catch (ExpiredIteratorException e) {
-				// Iterator expired, but this does not mean that shard no longer contains
-				// records.
-				// Let's acquire iterator again (using checkpointer for iterator start
-				// sequence number).
-				logger.info(() ->
-						"Shard iterator for ["
-								+ ShardConsumer.this
-								+ "] expired.\n"
-								+ "A new one will be started from the check pointed sequence number.");
-				this.state = ConsumerState.EXPIRED;
-			}
-			catch (ProvisionedThroughputExceededException ex) {
-				logger.warn(() ->
-						"GetRecords request throttled for ["
-								+ ShardConsumer.this
-								+ "] with the reason: "
-								+ ex.getMessage());
-				// We are throttled, so let's sleep
-				prepareSleepState();
+			catch (CompletionException ex) {
+				Throwable cause = ex.getCause();
+				if (cause instanceof ExpiredIteratorException) {
+					// Iterator expired, but this does not mean that shard no longer contains
+					// records.
+					// Let's acquire iterator again (using checkpointer for iterator start
+					// sequence number).
+					logger.info(() ->
+							"Shard iterator for ["
+									+ ShardConsumer.this
+									+ "] expired.\n"
+									+ "A new one will be started from the check pointed sequence number.");
+					this.state = ConsumerState.EXPIRED;
+				}
+				else if (cause instanceof ProvisionedThroughputExceededException) {
+					logger.warn(() ->
+							"GetRecords request throttled for ["
+									+ ShardConsumer.this
+									+ "] with the reason: "
+									+ cause.getMessage());
+					// We are throttled, so let's sleep
+					prepareSleepState();
+				}
+				else {
+					throw ex;
+				}
 			}
 
 			return null;

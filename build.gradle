@@ -32,15 +32,15 @@ repositories {
 ext {
 	assertjVersion = '3.24.2'
 	awaitilityVersion = '4.2.0'
-	awsSdkVersion = '2.20.51'
+	awsSdkVersion = '2.20.57'
 	jacksonVersion = '2.15.0'
 	junitVersion = '5.9.2'
 	log4jVersion = '2.20.0'
 	servletApiVersion = '6.0.0'
-	springCloudAwsVersion = '3.0.0-RC2'
+	springCloudAwsVersion = '3.0.0'
 	springIntegrationVersion = '6.0.5'
 	kinesisClientVersion = '2.4.8'
-	kinesisProducerVersion = '0.15.6'
+	kinesisProducerVersion = '0.15.7'
 	testcontainersVersion = '1.18.0'
 
 	idPrefix = 'aws'

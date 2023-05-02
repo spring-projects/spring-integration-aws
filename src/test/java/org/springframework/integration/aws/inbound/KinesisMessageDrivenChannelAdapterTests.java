@@ -335,8 +335,16 @@ public class KinesisMessageDrivenChannelAdapterTests {
 							.shardIterator(shard1Iterator1)
 							.limit(25)
 							.build()))
-					.willThrow(ProvisionedThroughputExceededException.builder().message("Iterator throttled").build())
-					.willThrow(ExpiredIteratorException.builder().message("Iterator expired").build());
+					.willReturn(
+							CompletableFuture.failedFuture(
+									ProvisionedThroughputExceededException.builder()
+											.message("Iterator throttled")
+											.build()))
+					.willReturn(
+							CompletableFuture.failedFuture(
+									ExpiredIteratorException.builder()
+											.message("Iterator expired")
+											.build()));
 
 			SerializingConverter serializingConverter = new SerializingConverter();
 
