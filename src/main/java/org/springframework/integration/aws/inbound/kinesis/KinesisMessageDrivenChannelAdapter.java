@@ -65,7 +65,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.core.log.LogMessage;
 import org.springframework.core.serializer.support.DeserializingConverter;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.aws.event.KinesisShardEndedEvent;
@@ -1146,36 +1145,42 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		}
 
 		private void rewindIteratorOnError(Exception ex, GetRecordsResponse result) {
-			KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
 			String lastCheckpoint = this.checkpointer.getLastCheckpointValue();
 			String highestSequence = this.checkpointer.getHighestSequence();
-			if (highestSequence.equals(lastCheckpoint)) {
+
+			if (highestSequence == null) {
+				// Haven't reached record process - reuse the current shard iterator.
+				logger.info(ex, "getRecords request has thrown exception. " +
+						"No checkpoints - re-request with the current shard iterator.");
+			}
+			else if (highestSequence.equals(lastCheckpoint)) {
 				logger.info(ex, "Record processor has thrown exception. " +
 						"Ignore since the highest sequence in batch was check-pointed.");
 				this.shardIterator = result.nextShardIterator();
-				return;
 			}
-			String newOffsetValue = lastCheckpoint;
-			if (lastCheckpoint != null) {
-				newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+			else if (lastCheckpoint == null
+					|| new BigInteger(lastCheckpoint).compareTo(new BigInteger(this.shardIterator)) < 0) {
+
+				// No checkpoints for the shard - reuse the current shard iterator.
+				logger.info(ex, "Record processor has thrown exception. " +
+						"No checkpoints - re-request with the current shard iterator.");
 			}
 			else {
-				newOffsetValue = this.checkpointer.getFirstSequenceInBatch();
-				newOffset.setIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER);
+				KinesisShardOffset newOffset = new KinesisShardOffset(this.shardOffset);
+				newOffset.setIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER);
+
+				logger.info(ex, () ->
+						"Record processor has thrown exception. " +
+								"Rewind shard iterator after sequence number: " + lastCheckpoint);
+
+				newOffset.setSequenceNumber(lastCheckpoint);
+				GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
+				this.shardIterator =
+						KinesisMessageDrivenChannelAdapter.this.amazonKinesis
+								.getShardIterator(shardIteratorRequest)
+								.join()
+								.shardIterator();
 			}
-
-			logger.info(ex,
-					LogMessage.format("Record processor has thrown exception. " +
-									"Rewind shard iterator %s sequence number: %s",
-							(lastCheckpoint != null ? "after" : "at"), newOffsetValue));
-
-			newOffset.setSequenceNumber(newOffsetValue);
-			GetShardIteratorRequest shardIteratorRequest = newOffset.toShardIteratorRequest();
-			this.shardIterator =
-					KinesisMessageDrivenChannelAdapter.this.amazonKinesis
-							.getShardIterator(shardIteratorRequest)
-							.join()
-							.shardIterator();
 		}
 
 		private void checkpointSwallowingProvisioningExceptions(String endingSequenceNumber) {
@@ -1235,7 +1240,6 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 		private void processRecords(List<Record> records) {
 			logger.trace(() -> "Processing records: " + records + " for [" + ShardConsumer.this + "]");
 
-			this.checkpointer.setFirstSequenceInBatch(records.get(0).sequenceNumber());
 			this.checkpointer.setHighestSequence(records.get(records.size() - 1).sequenceNumber());
 
 			if (ListenerMode.record.equals(KinesisMessageDrivenChannelAdapter.this.listenerMode)) {

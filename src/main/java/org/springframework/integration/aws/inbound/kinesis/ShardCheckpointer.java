@@ -43,8 +43,6 @@ class ShardCheckpointer implements Checkpointer {
 
 	private final String key;
 
-	private volatile String firstSequenceInBatch;
-
 	private volatile String highestSequence;
 
 	private volatile String lastCheckpointValue;
@@ -88,19 +86,11 @@ class ShardCheckpointer implements Checkpointer {
 		return false;
 	}
 
-	void setFirstSequenceInBatch(String firstSequenceInBatch) {
-		this.firstSequenceInBatch = firstSequenceInBatch;
-	}
-
-	@Nullable
-	String getFirstSequenceInBatch() {
-		return this.firstSequenceInBatch;
-	}
-
 	void setHighestSequence(String highestSequence) {
 		this.highestSequence = highestSequence;
 	}
 
+	@Nullable
 	String getHighestSequence() {
 		return this.highestSequence;
 	}
