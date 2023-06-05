@@ -48,7 +48,7 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 public interface LocalstackContainerTest {
 
 	LocalStackContainer LOCAL_STACK_CONTAINER =
-			new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.0.0"));
+			new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.1.0"));
 
 	@BeforeAll
 	static void startContainer() {

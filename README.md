@@ -333,7 +333,7 @@ The Java Config looks like:
 public MessageHandler snsMessageHandler() {
     SnsMessageHandler handler = new SnsMessageHandler(amazonSns());
     adapter.setTopicArn("arn:aws:sns:eu-west:123456789012:test");
-    String bodyExpression = "SnsBodyBuilder.withDefault(payload).forProtocols(payload.substring(0, 140), 'sms')";
+    String bodyExpression = "T(SnsBodyBuilder).withDefault(payload).forProtocols(payload.substring(0, 140), 'sms')";
     handler.setBodyExpression(spelExpressionParser.parseExpression(bodyExpression));
 
     // message-group ID and deduplication ID are used for FIFO topics

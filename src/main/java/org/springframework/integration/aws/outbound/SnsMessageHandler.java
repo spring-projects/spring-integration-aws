@@ -192,7 +192,7 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		if (typeLocator instanceof StandardTypeLocator) {
 			/*
 			 * Register the 'org.springframework.integration.aws.support' package you
-			 * don't need a FQCN for the 'SnsMessageBuilder'.
+			 * don't need a FQCN for the 'SnsBodyBuilder'.
 			 */
 			((StandardTypeLocator) typeLocator).registerImport("org.springframework.integration.aws.support");
 		}
