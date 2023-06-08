@@ -40,7 +40,7 @@ ext {
 	springIntegrationVersion = '6.0.5'
 	kinesisClientVersion = '2.5.0'
 	kinesisProducerVersion = '0.15.7'
-	testcontainersVersion = '1.18.2'
+	testcontainersVersion = '1.18.3'
 
 	idPrefix = 'aws'
 

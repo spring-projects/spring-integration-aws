@@ -56,28 +56,27 @@ public interface LocalstackContainerTest {
 	}
 
 	static DynamoDbAsyncClient dynamoDbClient() {
-		return applyAwsClientOptions(DynamoDbAsyncClient.builder(), LocalStackContainer.Service.DYNAMODB);
+		return applyAwsClientOptions(DynamoDbAsyncClient.builder());
 	}
 
 	static KinesisAsyncClient kinesisClient() {
-		return applyAwsClientOptions(KinesisAsyncClient.builder(), LocalStackContainer.Service.KINESIS);
+		return applyAwsClientOptions(KinesisAsyncClient.builder());
 	}
 
 	static CloudWatchAsyncClient cloudWatchClient() {
-		return applyAwsClientOptions(CloudWatchAsyncClient.builder(), LocalStackContainer.Service.CLOUDWATCH);
+		return applyAwsClientOptions(CloudWatchAsyncClient.builder());
 	}
 
 	static S3AsyncClient s3AsyncClient() {
-		return applyAwsClientOptions(S3AsyncClient.builder(), LocalStackContainer.Service.S3);
+		return applyAwsClientOptions(S3AsyncClient.builder());
 	}
 
 	static S3Client s3Client() {
-		return applyAwsClientOptions(S3Client.builder().httpClient(ApacheHttpClient.create()),
-				LocalStackContainer.Service.S3);
+		return applyAwsClientOptions(S3Client.builder().httpClient(ApacheHttpClient.create()));
 	}
 
 	static SqsAsyncClient sqsClient() {
-		return applyAwsClientOptions(SqsAsyncClient.builder(), LocalStackContainer.Service.SQS);
+		return applyAwsClientOptions(SqsAsyncClient.builder());
 	}
 
 	static AwsCredentialsProvider credentialsProvider() {
@@ -85,13 +84,12 @@ public interface LocalstackContainerTest {
 				AwsBasicCredentials.create(LOCAL_STACK_CONTAINER.getAccessKey(), LOCAL_STACK_CONTAINER.getSecretKey()));
 	}
 
-	private static <B extends AwsClientBuilder<B, T>, T> T applyAwsClientOptions(B clientBuilder,
-			LocalStackContainer.Service serviceToBuild) {
-
+	private static <B extends AwsClientBuilder<B, T>, T> T applyAwsClientOptions(B clientBuilder) {
 		return clientBuilder
 				.region(Region.of(LOCAL_STACK_CONTAINER.getRegion()))
 				.credentialsProvider(credentialsProvider())
-				.endpointOverride(LOCAL_STACK_CONTAINER.getEndpointOverride(serviceToBuild))
+				.endpointOverride(LOCAL_STACK_CONTAINER.getEndpoint())
 				.build();
 	}
+
 }
