@@ -22,8 +22,6 @@ import java.io.InputStream;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
-import com.amazonaws.util.Base64;
-import com.amazonaws.util.Md5Utils;
 import org.apache.commons.io.FileUtils;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.internal.util.Mimetype;
@@ -38,7 +36,9 @@ import software.amazon.awssdk.transfer.s3.model.Transfer;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 import software.amazon.awssdk.transfer.s3.progress.TransferListener;
+import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.awssdk.utils.IoUtils;
+import software.amazon.awssdk.utils.Md5Utils;
 
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
@@ -296,7 +296,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					byte[] body = IoUtils.toByteArray(inputStream);
 					if (putObjectRequest.contentMD5() == null) {
 						byte[] md5Digest = DigestUtils.md5Digest(body);
-						putObjectRequestBuilder.contentMD5(Base64.encodeAsString(md5Digest));
+						putObjectRequestBuilder.contentMD5(BinaryUtils.toBase64(md5Digest));
 						inputStream.reset();
 					}
 					requestBody = AsyncRequestBody.fromBytes(body);
