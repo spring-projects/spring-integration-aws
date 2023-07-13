@@ -266,6 +266,9 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 		if (this.keyExpression != null) {
 			key = this.keyExpression.getValue(this.evaluationContext, requestMessage, String.class);
 		}
+		else if (payload instanceof File fileToUpload) {
+			key = fileToUpload.getName();
+		}
 
 		if (payload instanceof File fileToUpload && fileToUpload.isDirectory()) {
 			UploadDirectoryRequest.Builder uploadDirectoryRequest =
@@ -302,9 +305,6 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					requestBody = AsyncRequestBody.fromBytes(body);
 				}
 				else if (payload instanceof File fileToUpload) {
-					if (key == null) {
-						putObjectRequestBuilder.key(fileToUpload.getName());
-					}
 					if (putObjectRequest.contentMD5() == null) {
 						String contentMd5 = Md5Utils.md5AsBase64(fileToUpload);
 						putObjectRequestBuilder.contentMD5(contentMd5);
