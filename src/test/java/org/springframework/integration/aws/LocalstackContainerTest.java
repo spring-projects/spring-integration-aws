@@ -52,7 +52,7 @@ public interface LocalstackContainerTest {
 
 	LocalStackContainer LOCAL_STACK_CONTAINER =
 			new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.2.0"))
-					.withEnv(Optional.ofNullable(System.getenv("bamboo.vault.github.password"))
+					.withEnv(Optional.ofNullable(System.getenv("bamboo_vault.github.password"))
 							.map(value -> Map.of("GITHUB_API_TOKEN", value))
 							.orElse(Map.of()));
 
