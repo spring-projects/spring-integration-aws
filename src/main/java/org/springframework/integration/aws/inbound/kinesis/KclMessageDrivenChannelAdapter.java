@@ -335,7 +335,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 				", stream(s)='" + Arrays.toString(this.streams) + "'}";
 	}
 
-	private class RecordProcessorFactory implements ShardRecordProcessorFactory {
+	private final class RecordProcessorFactory implements ShardRecordProcessorFactory {
+
+		RecordProcessorFactory() {
+		}
 
 		@Override
 		public ShardRecordProcessor shardRecordProcessor() {
@@ -349,7 +352,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	}
 
-	private class StreamsTracker implements MultiStreamTracker {
+	private final class StreamsTracker implements MultiStreamTracker {
 
 		private final FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy =
 				new FormerStreamsLeasesDeletionStrategy.AutoDetectionAndDeferredDeletionStrategy() {
@@ -386,7 +389,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	/**
 	 * Processes records and checkpoints progress.
 	 */
-	private class RecordProcessor implements ShardRecordProcessor {
+	private final class RecordProcessor implements ShardRecordProcessor {
 
 		private final String stream;
 

@@ -24,7 +24,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -53,6 +53,10 @@ public interface LocalstackContainerTest {
 	@BeforeAll
 	static void startContainer() {
 		LOCAL_STACK_CONTAINER.start();
+		System.setProperty("software.amazon.awssdk.http.async.service.impl",
+				"software.amazon.awssdk.http.crt.AwsCrtSdkHttpService");
+		System.setProperty("software.amazon.awssdk.http.service.impl",
+				"software.amazon.awssdk.http.apache.ApacheSdkHttpService");
 	}
 
 	static DynamoDbAsyncClient dynamoDbClient() {
@@ -60,7 +64,7 @@ public interface LocalstackContainerTest {
 	}
 
 	static KinesisAsyncClient kinesisClient() {
-		return applyAwsClientOptions(KinesisAsyncClient.builder());
+		return applyAwsClientOptions(KinesisAsyncClient.builder().httpClientBuilder(NettyNioAsyncHttpClient.builder()));
 	}
 
 	static CloudWatchAsyncClient cloudWatchClient() {
@@ -72,7 +76,7 @@ public interface LocalstackContainerTest {
 	}
 
 	static S3Client s3Client() {
-		return applyAwsClientOptions(S3Client.builder().httpClient(ApacheHttpClient.create()));
+		return applyAwsClientOptions(S3Client.builder());
 	}
 
 	static SqsAsyncClient sqsClient() {

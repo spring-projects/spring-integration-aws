@@ -746,7 +746,8 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	}
 
-	private static class ExceptionReadyMetadataStore extends SimpleMetadataStore {
+	private static final class ExceptionReadyMetadataStore extends SimpleMetadataStore {
+
 		@Override
 		public boolean replace(String key, String oldValue, String newValue) {
 			if ("SpringIntegration:streamForResharding:closedShard4".equals(key)) {
@@ -755,5 +756,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 			return super.replace(key, oldValue, newValue);
 		}
+
 	}
+
 }

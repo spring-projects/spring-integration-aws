@@ -159,8 +159,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 		this.s3SendChannel.send(message);
 		assertThat(transferCompletedLatch.await(10, TimeUnit.SECONDS)).isTrue();
 
-		File outputFile = new File(temporaryFolder.toFile(), "outputFile");
-		outputFile.createNewFile();
+		File outputFile = new File(temporaryFolder.toFile(), "outputFile1");
 
 		GetObjectResponse getObjectResponse =
 				S3.getObject(request -> request.bucket(S3_BUCKET_NAME).key("foo.mp3"), outputFile.toPath())
@@ -208,8 +207,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 
 		assertThat(transferCompletedLatch.await(10, TimeUnit.SECONDS)).isTrue();
 
-		File outputFile = new File(temporaryFolder.toFile(), "outputFile");
-		outputFile.createNewFile();
+		File outputFile = new File(temporaryFolder.toFile(), "outputFile2");
 
 		GetObjectResponse getObjectResponse =
 				S3.getObject(request -> request.bucket(S3_BUCKET_NAME).key("myStream"), outputFile.toPath())
@@ -245,8 +243,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 
 		assertThat(transferCompletedLatch.await(10, TimeUnit.SECONDS)).isTrue();
 
-		File outputFile = new File(temporaryFolder.toFile(), "outputFile");
-		outputFile.createNewFile();
+		File outputFile = new File(temporaryFolder.toFile(), "outputFile3");
 
 		GetObjectResponse getObjectResponse =
 				S3.getObject(request -> request.bucket(S3_BUCKET_NAME).key("myStream"), outputFile.toPath())
@@ -325,8 +322,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 
 		copy.completionFuture().join();
 
-		File outputFile = new File(temporaryFolder.toFile(), "outputFile");
-		outputFile.createNewFile();
+		File outputFile = new File(temporaryFolder.toFile(), "outputFile4");
 
 		GetObjectResponse getObjectResponse =
 				S3.getObject(request -> request.bucket("their-bucket").key("theirTarget"), outputFile.toPath())
