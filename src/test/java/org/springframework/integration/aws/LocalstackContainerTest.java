@@ -16,6 +16,9 @@
 
 package org.springframework.integration.aws;
 
+import java.util.Map;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -48,7 +51,10 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 public interface LocalstackContainerTest {
 
 	LocalStackContainer LOCAL_STACK_CONTAINER =
-			new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.1.0"));
+			new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.2.0"))
+					.withEnv(Optional.ofNullable(System.getenv("bamboo.vault.github.password"))
+							.map(value -> Map.of("GITHUB_API_TOKEN", value))
+							.orElse(Map.of()));
 
 	@BeforeAll
 	static void startContainer() {
