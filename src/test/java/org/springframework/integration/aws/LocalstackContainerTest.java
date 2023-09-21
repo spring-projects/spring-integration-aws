@@ -78,7 +78,11 @@ public interface LocalstackContainerTest {
 	}
 
 	static S3AsyncClient s3AsyncClient() {
-		return applyAwsClientOptions(S3AsyncClient.builder());
+		return S3AsyncClient.crtBuilder()
+				.region(Region.of(LOCAL_STACK_CONTAINER.getRegion()))
+				.credentialsProvider(credentialsProvider())
+				.endpointOverride(LOCAL_STACK_CONTAINER.getEndpoint())
+				.build();
 	}
 
 	static S3Client s3Client() {

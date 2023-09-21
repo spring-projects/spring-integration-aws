@@ -48,6 +48,7 @@ These dependencies are optional in the project:
 * `com.amazonaws:amazon-kinesis-producer` - for KPL-based `MessageHandler` 
 * `software.amazon.awssdk:dynamodb` - for `DynamoDbMetadataStore` and `DynamoDbLockRegistry`
 * `software.amazon.awssdk:s3-transfer-manager` - for `S3MessageHandler`
+* `software.amazon.awssdk:aws-crt-client` - for `S3MessageHandler`
 
 Consider to include an appropriate dependency into your project when you use particular component from this project. 
 
@@ -187,6 +188,8 @@ public static class MyConfiguration {
 With this config you can send a message with the `java.io.File` as `payload` and the `transferManager.upload()` operation will be performed, where the file name is used as a S3 Object key.
 
 See more information in the `S3MessageHandler` JavaDocs.
+
+NOTE: The AWS SDK recommends to use `S3CrtAsyncClient` for `S3TransferManager`, therefore an `S3AsyncClient.crtBuilder()` has to be used to achieve respective upload and download requirements.
 
 ### Outbound Gateway
 

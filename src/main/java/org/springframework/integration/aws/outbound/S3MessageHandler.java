@@ -36,7 +36,6 @@ import software.amazon.awssdk.transfer.s3.model.Transfer;
 import software.amazon.awssdk.transfer.s3.model.UploadDirectoryRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 import software.amazon.awssdk.transfer.s3.progress.TransferListener;
-import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.awssdk.utils.IoUtils;
 import software.amazon.awssdk.utils.Md5Utils;
 
@@ -52,7 +51,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandlingException;
 import org.springframework.util.Assert;
-import org.springframework.util.DigestUtils;
 
 /**
  * The {@link AbstractReplyProducingMessageHandler} implementation for the Amazon S3
@@ -298,16 +296,14 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 				if (payload instanceof InputStream inputStream) {
 					byte[] body = IoUtils.toByteArray(inputStream);
 					if (putObjectRequest.contentMD5() == null) {
-						byte[] md5Digest = DigestUtils.md5Digest(body);
-						putObjectRequestBuilder.contentMD5(BinaryUtils.toBase64(md5Digest));
+						putObjectRequestBuilder.contentMD5(Md5Utils.md5AsBase64(body));
 						inputStream.reset();
 					}
 					requestBody = AsyncRequestBody.fromBytes(body);
 				}
 				else if (payload instanceof File fileToUpload) {
 					if (putObjectRequest.contentMD5() == null) {
-						String contentMd5 = Md5Utils.md5AsBase64(fileToUpload);
-						putObjectRequestBuilder.contentMD5(contentMd5);
+						putObjectRequestBuilder.contentMD5(Md5Utils.md5AsBase64(fileToUpload));
 					}
 					if (putObjectRequest.contentLength() == null) {
 						putObjectRequestBuilder.contentLength(fileToUpload.length());
@@ -320,8 +316,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 				}
 				else if (payload instanceof byte[] payloadBytes) {
 					if (putObjectRequest.contentMD5() == null) {
-						String contentMd5 = Md5Utils.md5AsBase64(payloadBytes);
-						putObjectRequestBuilder.contentMD5(contentMd5);
+						putObjectRequestBuilder.contentMD5(Md5Utils.md5AsBase64(payloadBytes));
 					}
 					if (putObjectRequest.contentLength() == null) {
 						putObjectRequestBuilder.contentLength((long) payloadBytes.length);
