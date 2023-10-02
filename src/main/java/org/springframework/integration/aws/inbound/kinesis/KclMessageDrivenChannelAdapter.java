@@ -16,7 +16,49 @@
 
 package org.springframework.integration.aws.inbound.kinesis;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
+
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializer;
+import software.amazon.awssdk.arns.Arn;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.utils.BinaryUtils;
+import software.amazon.kinesis.common.ConfigsBuilder;
+import software.amazon.kinesis.common.InitialPositionInStream;
+import software.amazon.kinesis.common.InitialPositionInStreamExtended;
+import software.amazon.kinesis.common.StreamConfig;
+import software.amazon.kinesis.common.StreamIdentifier;
+import software.amazon.kinesis.coordinator.Scheduler;
+import software.amazon.kinesis.exceptions.InvalidStateException;
+import software.amazon.kinesis.exceptions.ShutdownException;
+import software.amazon.kinesis.exceptions.ThrottlingException;
+import software.amazon.kinesis.lifecycle.LifecycleConfig;
+import software.amazon.kinesis.lifecycle.events.InitializationInput;
+import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
+import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
+import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
+import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
+import software.amazon.kinesis.processor.FormerStreamsLeasesDeletionStrategy;
+import software.amazon.kinesis.processor.MultiStreamTracker;
+import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
+import software.amazon.kinesis.processor.ShardRecordProcessor;
+import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import software.amazon.kinesis.processor.SingleStreamTracker;
+import software.amazon.kinesis.processor.StreamTracker;
+import software.amazon.kinesis.retrieval.KinesisClientRecord;
+import software.amazon.kinesis.retrieval.RetrievalConfig;
+
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.core.AttributeAccessor;
@@ -37,32 +79,6 @@ import org.springframework.integration.support.management.IntegrationManagedReso
 import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
-import software.amazon.awssdk.arns.Arn;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
-import software.amazon.awssdk.utils.BinaryUtils;
-import software.amazon.kinesis.common.*;
-import software.amazon.kinesis.coordinator.Scheduler;
-import software.amazon.kinesis.exceptions.InvalidStateException;
-import software.amazon.kinesis.exceptions.ShutdownException;
-import software.amazon.kinesis.exceptions.ThrottlingException;
-import software.amazon.kinesis.lifecycle.LifecycleConfig;
-import software.amazon.kinesis.lifecycle.events.*;
-import software.amazon.kinesis.processor.*;
-import software.amazon.kinesis.retrieval.KinesisClientRecord;
-import software.amazon.kinesis.retrieval.RetrievalConfig;
-
-import javax.annotation.Nullable;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon
@@ -71,296 +87,294 @@ import java.util.stream.Collectors;
  * @author Herv? Fortin
  * @author Artem Bilan
  * @author Dirk Bonhomme
+ *
  * @since 2.2.0
  */
 @ManagedResource
 @IntegrationManagedResource
 public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
-        implements ApplicationEventPublisherAware {
+		implements ApplicationEventPublisherAware {
 
-    private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
+	private static final ThreadLocal<AttributeAccessor> attributesHolder = new ThreadLocal<>();
 
-    private final ShardRecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
+	private final ShardRecordProcessorFactory recordProcessorFactory = new RecordProcessorFactory();
 
-    private final String[] streams;
+	private final String[] streams;
 
-    private final KinesisAsyncClient kinesisClient;
+	private final KinesisAsyncClient kinesisClient;
 
-    private final CloudWatchAsyncClient cloudWatchClient;
+	private final CloudWatchAsyncClient cloudWatchClient;
 
-    private final DynamoDbAsyncClient dynamoDBClient;
+	private final DynamoDbAsyncClient dynamoDBClient;
 
-    private TaskExecutor executor = new SimpleAsyncTaskExecutor();
+	private TaskExecutor executor = new SimpleAsyncTaskExecutor();
 
-    private String consumerGroup = "SpringIntegration";
+	private String consumerGroup = "SpringIntegration";
 
-    private InboundMessageMapper<byte[]> embeddedHeadersMapper;
+	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
-    private ConfigsBuilder config;
+	private ConfigsBuilder config;
 
-    private InitialPositionInStreamExtended streamInitialSequence =
-            InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.LATEST);
+	private InitialPositionInStreamExtended streamInitialSequence =
+			InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.LATEST);
 
-    private int consumerBackoff = 1000;
+	private int consumerBackoff = 1000;
 
-    private Converter<byte[], Object> converter = new DeserializingConverter();
+	private Converter<byte[], Object> converter = new DeserializingConverter();
 
-    private ListenerMode listenerMode = ListenerMode.record;
+	private ListenerMode listenerMode = ListenerMode.record;
 
-    private long checkpointsInterval = 5_000L;
+	private long checkpointsInterval = 5_000L;
 
-    private CheckpointMode checkpointMode = CheckpointMode.batch;
+	private CheckpointMode checkpointMode = CheckpointMode.batch;
 
-    private String workerId = UUID.randomUUID().toString();
+	private String workerId = UUID.randomUUID().toString();
 
-    private GlueSchemaRegistryDeserializer glueSchemaRegistryDeserializer;
+	private GlueSchemaRegistryDeserializer glueSchemaRegistryDeserializer;
 
-    private boolean bindSourceRecord;
+	private boolean bindSourceRecord;
 
-    private ApplicationEventPublisher applicationEventPublisher;
+	private ApplicationEventPublisher applicationEventPublisher;
 
-    private volatile Scheduler scheduler;
+	private volatile Scheduler scheduler;
 
-    public KclMessageDrivenChannelAdapter(String... streams) {
-        this(KinesisAsyncClient.create(), CloudWatchAsyncClient.create(), DynamoDbAsyncClient.create(), streams);
-    }
+	public KclMessageDrivenChannelAdapter(String... streams) {
+		this(KinesisAsyncClient.create(), CloudWatchAsyncClient.create(), DynamoDbAsyncClient.create(), streams);
+	}
 
-    public KclMessageDrivenChannelAdapter(Region region, String... streams) {
-        this(KinesisAsyncClient.builder().region(region).build(),
-                CloudWatchAsyncClient.builder().region(region).build(),
-                DynamoDbAsyncClient.builder().region(region).build(),
-                streams);
-    }
+	public KclMessageDrivenChannelAdapter(Region region, String... streams) {
+		this(KinesisAsyncClient.builder().region(region).build(),
+				CloudWatchAsyncClient.builder().region(region).build(),
+				DynamoDbAsyncClient.builder().region(region).build(),
+				streams);
+	}
 
-    public KclMessageDrivenChannelAdapter(KinesisAsyncClient kinesisClient, CloudWatchAsyncClient cloudWatchClient,
-                                          DynamoDbAsyncClient dynamoDBClient, String... streams) {
+	public KclMessageDrivenChannelAdapter(KinesisAsyncClient kinesisClient, CloudWatchAsyncClient cloudWatchClient,
+			DynamoDbAsyncClient dynamoDBClient, String... streams) {
 
-        Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
-        Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
-        Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
-        Assert.notEmpty(streams, "'streams' must not be empty.");
-        this.streams = streams;
-        this.kinesisClient = kinesisClient;
-        this.cloudWatchClient = cloudWatchClient;
-        this.dynamoDBClient = dynamoDBClient;
-    }
+		Assert.notNull(kinesisClient, "'kinesisClient' must not be null.");
+		Assert.notNull(cloudWatchClient, "'cloudWatchClient' must not be null.");
+		Assert.notNull(dynamoDBClient, "'dynamoDBClient' must not be null.");
+		Assert.notEmpty(streams, "'streams' must not be empty.");
+		this.streams = streams;
+		this.kinesisClient = kinesisClient;
+		this.cloudWatchClient = cloudWatchClient;
+		this.dynamoDBClient = dynamoDBClient;
+	}
 
-    @Override
-    public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-        this.applicationEventPublisher = applicationEventPublisher;
-    }
+	@Override
+	public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+		this.applicationEventPublisher = applicationEventPublisher;
+	}
 
-    public void setExecutor(TaskExecutor executor) {
-        Assert.notNull(executor, "'executor' must not be null.");
-        this.executor = executor;
-    }
+	public void setExecutor(TaskExecutor executor) {
+		Assert.notNull(executor, "'executor' must not be null.");
+		this.executor = executor;
+	}
 
-    public void setConsumerGroup(String consumerGroup) {
-        Assert.hasText(consumerGroup, "'consumerGroup' must not be empty");
-        this.consumerGroup = consumerGroup;
-    }
+	public void setConsumerGroup(String consumerGroup) {
+		Assert.hasText(consumerGroup, "'consumerGroup' must not be empty");
+		this.consumerGroup = consumerGroup;
+	}
 
-    public String getConsumerGroup() {
-        return this.consumerGroup;
-    }
+	public String getConsumerGroup() {
+		return this.consumerGroup;
+	}
 
-    /**
-     * Specify an {@link InboundMessageMapper} to extract message headers embedded into
-     * the record data.
-     *
-     * @param embeddedHeadersMapper the {@link InboundMessageMapper} to use.
-     */
-    public void setEmbeddedHeadersMapper(InboundMessageMapper<byte[]> embeddedHeadersMapper) {
-        this.embeddedHeadersMapper = embeddedHeadersMapper;
-    }
+	/**
+	 * Specify an {@link InboundMessageMapper} to extract message headers embedded into
+	 * the record data.
+	 * @param embeddedHeadersMapper the {@link InboundMessageMapper} to use.
+	 */
+	public void setEmbeddedHeadersMapper(InboundMessageMapper<byte[]> embeddedHeadersMapper) {
+		this.embeddedHeadersMapper = embeddedHeadersMapper;
+	}
 
-    public void setStreamInitialSequence(InitialPositionInStreamExtended streamInitialSequence) {
-        Assert.notNull(streamInitialSequence, "'streamInitialSequence' must not be null");
-        this.streamInitialSequence = streamInitialSequence;
-    }
+	public void setStreamInitialSequence(InitialPositionInStreamExtended streamInitialSequence) {
+		Assert.notNull(streamInitialSequence, "'streamInitialSequence' must not be null");
+		this.streamInitialSequence = streamInitialSequence;
+	}
 
-    public void setConsumerBackoff(int consumerBackoff) {
-        this.consumerBackoff = Math.max(1000, consumerBackoff);
-    }
+	public void setConsumerBackoff(int consumerBackoff) {
+		this.consumerBackoff = Math.max(1000, consumerBackoff);
+	}
 
-    /**
-     * Specify a {@link Converter} to deserialize the {@code byte[]} from record's body.
-     * Can be {@code null} meaning no deserialization.
-     *
-     * @param converter the {@link Converter} to use or null
-     */
-    public void setConverter(Converter<byte[], Object> converter) {
-        this.converter = converter;
-    }
+	/**
+	 * Specify a {@link Converter} to deserialize the {@code byte[]} from record's body.
+	 * Can be {@code null} meaning no deserialization.
+	 * @param converter the {@link Converter} to use or null
+	 */
+	public void setConverter(Converter<byte[], Object> converter) {
+		this.converter = converter;
+	}
 
-    public void setListenerMode(ListenerMode listenerMode) {
-        Assert.notNull(listenerMode, "'listenerMode' must not be null");
-        this.listenerMode = listenerMode;
-    }
+	public void setListenerMode(ListenerMode listenerMode) {
+		Assert.notNull(listenerMode, "'listenerMode' must not be null");
+		this.listenerMode = listenerMode;
+	}
 
-    /**
-     * Sets the interval between 2 checkpoints.
-     *
-     * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
-     */
-    public void setCheckpointsInterval(long checkpointsInterval) {
-        this.checkpointsInterval = checkpointsInterval;
-    }
+	/**
+	 * Sets the interval between 2 checkpoints.
+	 * @param checkpointsInterval interval between 2 checkpoints (in milliseconds)
+	 */
+	public void setCheckpointsInterval(long checkpointsInterval) {
+		this.checkpointsInterval = checkpointsInterval;
+	}
 
-    public void setCheckpointMode(CheckpointMode checkpointMode) {
-        Assert.notNull(checkpointMode, "'checkpointMode' must not be null");
-        this.checkpointMode = checkpointMode;
-    }
+	public void setCheckpointMode(CheckpointMode checkpointMode) {
+		Assert.notNull(checkpointMode, "'checkpointMode' must not be null");
+		this.checkpointMode = checkpointMode;
+	}
 
-    /**
-     * Sets the worker identifier used to distinguish different workers/processes of a
-     * Kinesis application.
-     *
-     * @param workerId the worker identifier to use
-     */
-    public void setWorkerId(String workerId) {
-        Assert.hasText(workerId, "'workerId' must not be null or empty");
-        this.workerId = workerId;
-    }
+	/**
+	 * Sets the worker identifier used to distinguish different workers/processes of a
+	 * Kinesis application.
+	 * @param workerId the worker identifier to use
+	 */
+	public void setWorkerId(String workerId) {
+		Assert.hasText(workerId, "'workerId' must not be null or empty");
+		this.workerId = workerId;
+	}
 
-    public void setGlueSchemaRegistryDeserializer(GlueSchemaRegistryDeserializer glueSchemaRegistryDeserializer) {
-        this.glueSchemaRegistryDeserializer = glueSchemaRegistryDeserializer;
-    }
+	public void setGlueSchemaRegistryDeserializer(GlueSchemaRegistryDeserializer glueSchemaRegistryDeserializer) {
+		this.glueSchemaRegistryDeserializer = glueSchemaRegistryDeserializer;
+	}
 
-    /**
-     * Set to true to bind the source consumer record in the header named
-     * {@link IntegrationMessageHeaderAccessor#SOURCE_DATA}. Does not apply to batch
-     * listeners.
-     *
-     * @param bindSourceRecord true to bind.
-     * @since 2.2
-     */
-    public void setBindSourceRecord(boolean bindSourceRecord) {
-        this.bindSourceRecord = bindSourceRecord;
-    }
+	/**
+	 * Set to true to bind the source consumer record in the header named
+	 * {@link IntegrationMessageHeaderAccessor#SOURCE_DATA}. Does not apply to batch
+	 * listeners.
+	 * @param bindSourceRecord true to bind.
+	 * @since 2.2
+	 */
+	public void setBindSourceRecord(boolean bindSourceRecord) {
+		this.bindSourceRecord = bindSourceRecord;
+	}
 
-    @Override
-    protected void onInit() {
-        super.onInit();
-        this.config =
-                new ConfigsBuilder(buildStreamTracker(),
-                        this.consumerGroup,
-                        this.kinesisClient,
-                        this.dynamoDBClient,
-                        this.cloudWatchClient,
-                        this.workerId,
-                        this.recordProcessorFactory);
-    }
+	@Override
+	protected void onInit() {
+		super.onInit();
+		this.config =
+				new ConfigsBuilder(buildStreamTracker(),
+						this.consumerGroup,
+						this.kinesisClient,
+						this.dynamoDBClient,
+						this.cloudWatchClient,
+						this.workerId,
+						this.recordProcessorFactory);
+	}
 
-    private StreamTracker buildStreamTracker() {
-        if (this.streams.length == 1) {
-            return new SingleStreamTracker(StreamIdentifier.singleStreamInstance(this.streams[0]),
-                    this.streamInitialSequence);
-        } else {
-            return new StreamsTracker();
-        }
-    }
+	private StreamTracker buildStreamTracker() {
+		if (this.streams.length == 1) {
+			return new SingleStreamTracker(StreamIdentifier.singleStreamInstance(this.streams[0]),
+					this.streamInitialSequence);
+		}
+		else {
+			return new StreamsTracker();
+		}
+	}
 
-    @Override
-    protected void doStart() {
-        super.doStart();
+	@Override
+	protected void doStart() {
+		super.doStart();
 
-        if (ListenerMode.batch.equals(this.listenerMode) && CheckpointMode.record.equals(this.checkpointMode)) {
-            this.checkpointMode = CheckpointMode.batch;
-            logger.warn("The 'checkpointMode' is overridden from [CheckpointMode.record] to [CheckpointMode.batch] "
-                    + "because it does not make sense in case of [ListenerMode.batch].");
-        }
+		if (ListenerMode.batch.equals(this.listenerMode) && CheckpointMode.record.equals(this.checkpointMode)) {
+			this.checkpointMode = CheckpointMode.batch;
+			logger.warn("The 'checkpointMode' is overridden from [CheckpointMode.record] to [CheckpointMode.batch] "
+					+ "because it does not make sense in case of [ListenerMode.batch].");
+		}
 
-        LifecycleConfig lifecycleConfig = this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
-        RetrievalConfig retrievalConfig =
-                this.config.retrievalConfig()
-                        .glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer);
+		LifecycleConfig lifecycleConfig = this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
+		RetrievalConfig retrievalConfig =
+				this.config.retrievalConfig()
+						.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer);
 
-        this.scheduler =
-                new Scheduler(
-                        this.config.checkpointConfig(),
-                        this.config.coordinatorConfig(),
-                        this.config.leaseManagementConfig(),
-                        lifecycleConfig,
-                        this.config.metricsConfig(),
-                        this.config.processorConfig(),
-                        retrievalConfig);
+		this.scheduler =
+				new Scheduler(
+						this.config.checkpointConfig(),
+						this.config.coordinatorConfig(),
+						this.config.leaseManagementConfig(),
+						lifecycleConfig,
+						this.config.metricsConfig(),
+						this.config.processorConfig(),
+						retrievalConfig);
 
-        this.executor.execute(this.scheduler);
-    }
+		this.executor.execute(this.scheduler);
+	}
 
-    /**
-     * Takes no action by default. Subclasses may override this if they need
-     * lifecycle-managed behavior.
-     */
-    @Override
-    protected void doStop() {
-        super.doStop();
-        this.scheduler.shutdown();
+	/**
+	 * Takes no action by default. Subclasses may override this if they need
+	 * lifecycle-managed behavior.
+	 */
+	@Override
+	protected void doStop() {
+		super.doStop();
+		this.scheduler.shutdown();
 
-    }
+	}
 
-    @Override
-    public void destroy() {
-        super.destroy();
-        if (isRunning()) {
-            this.scheduler.shutdown();
-        }
-    }
+	@Override
+	public void destroy() {
+		super.destroy();
+		if (isRunning()) {
+			this.scheduler.shutdown();
+		}
+	}
 
-    @Override
-    protected AttributeAccessor getErrorMessageAttributes(org.springframework.messaging.Message<?> message) {
-        AttributeAccessor attributes = attributesHolder.get();
-        if (attributes == null) {
-            return super.getErrorMessageAttributes(message);
-        } else {
-            return attributes;
-        }
-    }
+	@Override
+	protected AttributeAccessor getErrorMessageAttributes(org.springframework.messaging.Message<?> message) {
+		AttributeAccessor attributes = attributesHolder.get();
+		if (attributes == null) {
+			return super.getErrorMessageAttributes(message);
+		}
+		else {
+			return attributes;
+		}
+	}
 
-    @Override
-    public String toString() {
-        return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' +
-                ", stream(s)='" + Arrays.toString(this.streams) + "'}";
-    }
+	@Override
+	public String toString() {
+		return "KclMessageDrivenChannelAdapter{consumerGroup='" + this.consumerGroup + '\'' +
+				", stream(s)='" + Arrays.toString(this.streams) + "'}";
+	}
 
-    private final class RecordProcessorFactory implements ShardRecordProcessorFactory {
+	private final class RecordProcessorFactory implements ShardRecordProcessorFactory {
 
-        RecordProcessorFactory() {
-        }
+		RecordProcessorFactory() {
+		}
 
-        @Override
-        public ShardRecordProcessor shardRecordProcessor() {
-            throw new UnsupportedOperationException();
-        }
+		@Override
+		public ShardRecordProcessor shardRecordProcessor() {
+			throw new UnsupportedOperationException();
+		}
 
-        @Override
-        public ShardRecordProcessor shardRecordProcessor(StreamIdentifier streamIdentifier) {
-            return new RecordProcessor(streamIdentifier.streamName());
-        }
+		@Override
+		public ShardRecordProcessor shardRecordProcessor(StreamIdentifier streamIdentifier) {
+			return new RecordProcessor(streamIdentifier.streamName());
+		}
 
-    }
+	}
 
-    private final class StreamsTracker implements MultiStreamTracker {
-
+	private final class StreamsTracker implements MultiStreamTracker {
         private final static long EPOCH = 1696244140L;
-        private final FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy =
-                new FormerStreamsLeasesDeletionStrategy.AutoDetectionAndDeferredDeletionStrategy() {
 
-                    @Override
-                    public Duration waitPeriodToDeleteFormerStreams() {
-                        return Duration.ZERO;
-                    }
+		private final FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy =
+				new FormerStreamsLeasesDeletionStrategy.AutoDetectionAndDeferredDeletionStrategy() {
 
-                };
+					@Override
+					public Duration waitPeriodToDeleteFormerStreams() {
+						return Duration.ZERO;
+					}
+
+				};
 
         private final List<StreamConfig> streamConfigs =
                 Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
                         .map(streamName -> buildStreamConfig(streamName))
                         .toList();
 
-        StreamsTracker() {
-        }
+		StreamsTracker() {
+		}
 
         private StreamConfig buildStreamConfig(String streamName) {
             DescribeStreamResponse streamResponse = kinesisClient.describeStream(DescribeStreamRequest.builder().streamName(streamName).build()).join();
@@ -373,245 +387,254 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
             return this.streamConfigs;
         }
 
-        @Override
-        public FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy() {
-            return this.formerStreamsLeasesDeletionStrategy;
-        }
+		@Override
+		public FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy() {
+			return this.formerStreamsLeasesDeletionStrategy;
+		}
 
-    }
+	}
 
-    /**
-     * Processes records and checkpoints progress.
-     */
-    private final class RecordProcessor implements ShardRecordProcessor {
+	/**
+	 * Processes records and checkpoints progress.
+	 */
+	private final class RecordProcessor implements ShardRecordProcessor {
 
-        private final String stream;
+		private final String stream;
 
-        private String shardId;
+		private String shardId;
 
-        private long nextCheckpointTimeInMillis;
+		private long nextCheckpointTimeInMillis;
 
-        RecordProcessor(String stream) {
-            this.stream = stream;
-        }
+		RecordProcessor(String stream) {
+			this.stream = stream;
+		}
 
-        @Override
-        public void initialize(InitializationInput initializationInput) {
-            this.shardId = initializationInput.shardId();
-            logger.info(() -> "Initializing record processor for shard: " + this.shardId);
-        }
+		@Override
+		public void initialize(InitializationInput initializationInput) {
+			this.shardId = initializationInput.shardId();
+			logger.info(() -> "Initializing record processor for shard: " + this.shardId);
+		}
 
-        @Override
-        public void leaseLost(LeaseLostInput leaseLostInput) {
+		@Override
+		public void leaseLost(LeaseLostInput leaseLostInput) {
 
-        }
+		}
 
-        @Override
-        public void shardEnded(ShardEndedInput shardEndedInput) {
-            logger.info(LogMessage.format("Shard [%s] ended; checkpointing...", this.shardId));
-            try {
-                shardEndedInput.checkpointer().checkpoint();
-            } catch (ShutdownException | InvalidStateException ex) {
-                logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
-            }
+		@Override
+		public void shardEnded(ShardEndedInput shardEndedInput) {
+			logger.info(LogMessage.format("Shard [%s] ended; checkpointing...", this.shardId));
+			try {
+				shardEndedInput.checkpointer().checkpoint();
+			}
+			catch (ShutdownException | InvalidStateException ex) {
+				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
+			}
 
-            if (KclMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
-                KclMessageDrivenChannelAdapter.this.applicationEventPublisher.publishEvent(
-                        new KinesisShardEndedEvent(KclMessageDrivenChannelAdapter.this, this.shardId));
-            }
-        }
+			if (KclMessageDrivenChannelAdapter.this.applicationEventPublisher != null) {
+				KclMessageDrivenChannelAdapter.this.applicationEventPublisher.publishEvent(
+						new KinesisShardEndedEvent(KclMessageDrivenChannelAdapter.this, this.shardId));
+			}
+		}
 
-        @Override
-        public void shutdownRequested(ShutdownRequestedInput shutdownRequestedInput) {
-            logger.info("Scheduler is shutting down; checkpointing...");
-            try {
-                shutdownRequestedInput.checkpointer().checkpoint();
-            } catch (ShutdownException | InvalidStateException ex) {
-                logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
-            }
-        }
+		@Override
+		public void shutdownRequested(ShutdownRequestedInput shutdownRequestedInput) {
+			logger.info("Scheduler is shutting down; checkpointing...");
+			try {
+				shutdownRequestedInput.checkpointer().checkpoint();
+			}
+			catch (ShutdownException | InvalidStateException ex) {
+				logger.error(ex, "Exception while checkpointing at requested shutdown. Giving up");
+			}
+		}
 
-        @Override
-        public void processRecords(ProcessRecordsInput processRecordsInput) {
-            List<KinesisClientRecord> records = processRecordsInput.records();
-            RecordProcessorCheckpointer checkpointer = processRecordsInput.checkpointer();
-            logger.debug(() -> "Processing " + records.size() + " records from " + this.shardId);
+		@Override
+		public void processRecords(ProcessRecordsInput processRecordsInput) {
+			List<KinesisClientRecord> records = processRecordsInput.records();
+			RecordProcessorCheckpointer checkpointer = processRecordsInput.checkpointer();
+			logger.debug(() -> "Processing " + records.size() + " records from " + this.shardId);
 
-            try {
-                if (ListenerMode.record.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
-                    for (KinesisClientRecord record : records) {
-                        processSingleRecord(record, checkpointer);
-                        checkpointIfRecordMode(checkpointer, record);
-                        checkpointIfPeriodicMode(checkpointer, record);
-                    }
-                } else if (ListenerMode.batch.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
-                    processMultipleRecords(records, checkpointer);
-                    checkpointIfPeriodicMode(checkpointer, null);
-                }
-                checkpointIfBatchMode(checkpointer);
-            } finally {
-                attributesHolder.remove();
-            }
-        }
+			try {
+				if (ListenerMode.record.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
+					for (KinesisClientRecord record : records) {
+						processSingleRecord(record, checkpointer);
+						checkpointIfRecordMode(checkpointer, record);
+						checkpointIfPeriodicMode(checkpointer, record);
+					}
+				}
+				else if (ListenerMode.batch.equals(KclMessageDrivenChannelAdapter.this.listenerMode)) {
+					processMultipleRecords(records, checkpointer);
+					checkpointIfPeriodicMode(checkpointer, null);
+				}
+				checkpointIfBatchMode(checkpointer);
+			}
+			finally {
+				attributesHolder.remove();
+			}
+		}
 
-        private void processSingleRecord(KinesisClientRecord record, RecordProcessorCheckpointer checkpointer) {
-            performSend(prepareMessageForRecord(record), record, checkpointer);
-        }
+		private void processSingleRecord(KinesisClientRecord record, RecordProcessorCheckpointer checkpointer) {
+			performSend(prepareMessageForRecord(record), record, checkpointer);
+		}
 
-        private void processMultipleRecords(List<KinesisClientRecord> records,
-                                            RecordProcessorCheckpointer checkpointer) {
+		private void processMultipleRecords(List<KinesisClientRecord> records,
+				RecordProcessorCheckpointer checkpointer) {
 
-            AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(records);
-            if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-                List<Message<Object>> payload =
-                        records.stream()
-                                .map(this::prepareMessageForRecord)
-                                .map(AbstractIntegrationMessageBuilder::build)
-                                .collect(Collectors.toList());
+			AbstractIntegrationMessageBuilder<?> messageBuilder = getMessageBuilderFactory().withPayload(records);
+			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+				List<Message<Object>> payload =
+						records.stream()
+								.map(this::prepareMessageForRecord)
+								.map(AbstractIntegrationMessageBuilder::build)
+								.collect(Collectors.toList());
 
-                messageBuilder = getMessageBuilderFactory().withPayload(payload);
-            } else if (KclMessageDrivenChannelAdapter.this.converter != null) {
-                final List<String> partitionKeys = new ArrayList<>();
-                final List<String> sequenceNumbers = new ArrayList<>();
+				messageBuilder = getMessageBuilderFactory().withPayload(payload);
+			}
+			else if (KclMessageDrivenChannelAdapter.this.converter != null) {
+				final List<String> partitionKeys = new ArrayList<>();
+				final List<String> sequenceNumbers = new ArrayList<>();
 
-                List<Object> payload = records.stream()
-                        .map(r -> {
-                            partitionKeys.add(r.partitionKey());
-                            sequenceNumbers.add(r.sequenceNumber());
+				List<Object> payload = records.stream()
+						.map(r -> {
+							partitionKeys.add(r.partitionKey());
+							sequenceNumbers.add(r.sequenceNumber());
 
-                            return KclMessageDrivenChannelAdapter.this.converter.convert(r.data().array());
-                        })
-                        .collect(Collectors.toList());
+							return KclMessageDrivenChannelAdapter.this.converter.convert(r.data().array());
+						})
+						.collect(Collectors.toList());
 
-                messageBuilder = getMessageBuilderFactory().withPayload(payload)
-                        .setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
-                        .setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
-            }
+				messageBuilder = getMessageBuilderFactory().withPayload(payload)
+						.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
+						.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, sequenceNumbers);
+			}
 
-            performSend(messageBuilder, records, checkpointer);
-        }
+			performSend(messageBuilder, records, checkpointer);
+		}
 
-        private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(KinesisClientRecord record) {
-            Object payload = BinaryUtils.copyAllBytesFrom(record.data());
-            Message<?> messageToUse = null;
+		private AbstractIntegrationMessageBuilder<Object> prepareMessageForRecord(KinesisClientRecord record) {
+			Object payload = BinaryUtils.copyAllBytesFrom(record.data());
+			Message<?> messageToUse = null;
 
-            if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
-                try {
-                    messageToUse = KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper.toMessage((byte[]) payload);
-                    if (messageToUse == null) {
-                        throw new IllegalStateException("The 'embeddedHeadersMapper' returned null for payload: "
-                                + Arrays.toString((byte[]) payload));
-                    }
-                    payload = messageToUse.getPayload();
-                } catch (Exception ex) {
-                    logger.warn(ex, "Could not parse embedded headers. Remain payload untouched.");
-                }
-            }
+			if (KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper != null) {
+				try {
+					messageToUse = KclMessageDrivenChannelAdapter.this.embeddedHeadersMapper.toMessage((byte[]) payload);
+					if (messageToUse == null) {
+						throw new IllegalStateException("The 'embeddedHeadersMapper' returned null for payload: "
+								+ Arrays.toString((byte[]) payload));
+					}
+					payload = messageToUse.getPayload();
+				}
+				catch (Exception ex) {
+					logger.warn(ex, "Could not parse embedded headers. Remain payload untouched.");
+				}
+			}
 
-            if (payload instanceof byte[] && KclMessageDrivenChannelAdapter.this.converter != null) {
-                payload = KclMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
-            }
+			if (payload instanceof byte[] && KclMessageDrivenChannelAdapter.this.converter != null) {
+				payload = KclMessageDrivenChannelAdapter.this.converter.convert((byte[]) payload);
+			}
 
-            AbstractIntegrationMessageBuilder<Object> messageBuilder =
-                    getMessageBuilderFactory()
-                            .withPayload(payload)
-                            .setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
-                            .setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber());
+			AbstractIntegrationMessageBuilder<Object> messageBuilder =
+					getMessageBuilderFactory()
+							.withPayload(payload)
+							.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, record.partitionKey())
+							.setHeader(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, record.sequenceNumber());
 
-            if (KclMessageDrivenChannelAdapter.this.bindSourceRecord) {
-                messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
-            }
+			if (KclMessageDrivenChannelAdapter.this.bindSourceRecord) {
+				messageBuilder.setHeader(IntegrationMessageHeaderAccessor.SOURCE_DATA, record);
+			}
 
-            if (messageToUse != null) {
-                messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
-            }
+			if (messageToUse != null) {
+				messageBuilder.copyHeadersIfAbsent(messageToUse.getHeaders());
+			}
 
-            return messageBuilder;
-        }
+			return messageBuilder;
+		}
 
-        private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord,
-                                 RecordProcessorCheckpointer checkpointer) {
+		private void performSend(AbstractIntegrationMessageBuilder<?> messageBuilder, Object rawRecord,
+				RecordProcessorCheckpointer checkpointer) {
 
-            messageBuilder.setHeader(AwsHeaders.RECEIVED_STREAM, this.stream)
-                    .setHeader(AwsHeaders.SHARD, this.shardId);
+			messageBuilder.setHeader(AwsHeaders.RECEIVED_STREAM, this.stream)
+					.setHeader(AwsHeaders.SHARD, this.shardId);
 
-            if (CheckpointMode.manual.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
-                messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, checkpointer);
-            }
+			if (CheckpointMode.manual.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				messageBuilder.setHeader(AwsHeaders.CHECKPOINTER, checkpointer);
+			}
 
-            Message<?> messageToSend = messageBuilder.build();
-            setAttributesIfNecessary(rawRecord, messageToSend);
-            try {
-                sendMessage(messageToSend);
-            } catch (Exception ex) {
-                logger.error(ex, () -> "Got an exception during sending a '" + messageToSend + "'" + "\nfor the '" +
-                        rawRecord + "'.\n" + "Consider to use 'errorChannel' flow for the compensation logic.");
-            }
-        }
+			Message<?> messageToSend = messageBuilder.build();
+			setAttributesIfNecessary(rawRecord, messageToSend);
+			try {
+				sendMessage(messageToSend);
+			}
+			catch (Exception ex) {
+				logger.error(ex, () -> "Got an exception during sending a '" + messageToSend + "'" + "\nfor the '" +
+						rawRecord + "'.\n" + "Consider to use 'errorChannel' flow for the compensation logic.");
+			}
+		}
 
-        /**
-         * If there's an error channel, we create a new attributes holder here. Then set
-         * the attributes for use by the {@link ErrorMessageStrategy}.
-         *
-         * @param record  the Kinesis record to use.
-         * @param message the Spring Messaging message to use.
-         */
-        private void setAttributesIfNecessary(Object record, Message<?> message) {
-            if (getErrorChannel() != null) {
-                AttributeAccessor attributes = ErrorMessageUtils.getAttributeAccessor(message, null);
-                attributesHolder.set(attributes);
-                attributes.setAttribute(AwsHeaders.RAW_RECORD, record);
-            }
-        }
+		/**
+		 * If there's an error channel, we create a new attributes holder here. Then set
+		 * the attributes for use by the {@link ErrorMessageStrategy}.
+		 * @param record the Kinesis record to use.
+		 * @param message the Spring Messaging message to use.
+		 */
+		private void setAttributesIfNecessary(Object record, Message<?> message) {
+			if (getErrorChannel() != null) {
+				AttributeAccessor attributes = ErrorMessageUtils.getAttributeAccessor(message, null);
+				attributesHolder.set(attributes);
+				attributes.setAttribute(AwsHeaders.RAW_RECORD, record);
+			}
+		}
 
-        /**
-         * Checkpoint with retries.
-         *
-         * @param checkpointer checkpointer
-         * @param record       last processed record
-         */
-        private void checkpoint(RecordProcessorCheckpointer checkpointer, @Nullable KinesisClientRecord record) {
-            logger.info(() -> "Checkpointing shard " + this.shardId);
-            try {
-                if (record == null) {
-                    checkpointer.checkpoint();
-                } else {
-                    checkpointer.checkpoint(record.sequenceNumber());
-                }
-            } catch (ShutdownException se) {
-                // Ignore checkpoint if the processor instance has been shutdown (fail
-                // over).
-                logger.info(se, "Caught shutdown exception, skipping checkpoint.");
-            } catch (ThrottlingException ex) {
-                logger.info(ex, "Transient issue when checkpointing");
-            } catch (InvalidStateException ex) {
-                // This indicates an issue with the DynamoDB table (check for table, provisioned IOPS).
-                logger.error(ex, "Cannot save checkpoint to the DynamoDB table used by the Amazon Kinesis Client.");
-            }
-        }
+		/**
+		 * Checkpoint with retries.
+		 * @param checkpointer checkpointer
+		 * @param record last processed record
+		 */
+		private void checkpoint(RecordProcessorCheckpointer checkpointer, @Nullable KinesisClientRecord record) {
+			logger.info(() -> "Checkpointing shard " + this.shardId);
+			try {
+				if (record == null) {
+					checkpointer.checkpoint();
+				}
+				else {
+					checkpointer.checkpoint(record.sequenceNumber());
+				}
+			}
+			catch (ShutdownException se) {
+				// Ignore checkpoint if the processor instance has been shutdown (fail
+				// over).
+				logger.info(se, "Caught shutdown exception, skipping checkpoint.");
+			}
+			catch (ThrottlingException ex) {
+				logger.info(ex, "Transient issue when checkpointing");
+			}
+			catch (InvalidStateException ex) {
+				// This indicates an issue with the DynamoDB table (check for table, provisioned IOPS).
+				logger.error(ex, "Cannot save checkpoint to the DynamoDB table used by the Amazon Kinesis Client.");
+			}
+		}
 
-        private void checkpointIfBatchMode(RecordProcessorCheckpointer checkpointer) {
-            if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
-                checkpoint(checkpointer, null);
-            }
-        }
+		private void checkpointIfBatchMode(RecordProcessorCheckpointer checkpointer) {
+			if (CheckpointMode.batch.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				checkpoint(checkpointer, null);
+			}
+		}
 
-        private void checkpointIfRecordMode(RecordProcessorCheckpointer checkpointer, KinesisClientRecord record) {
-            if (CheckpointMode.record.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
-                checkpoint(checkpointer, record);
-            }
-        }
+		private void checkpointIfRecordMode(RecordProcessorCheckpointer checkpointer, KinesisClientRecord record) {
+			if (CheckpointMode.record.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)) {
+				checkpoint(checkpointer, record);
+			}
+		}
 
-        private void checkpointIfPeriodicMode(RecordProcessorCheckpointer checkpointer,
-                                              @Nullable KinesisClientRecord record) {
+		private void checkpointIfPeriodicMode(RecordProcessorCheckpointer checkpointer,
+				@Nullable KinesisClientRecord record) {
 
-            if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)
-                    && System.currentTimeMillis() > this.nextCheckpointTimeInMillis) {
-                checkpoint(checkpointer, record);
-                this.nextCheckpointTimeInMillis =
-                        System.currentTimeMillis() + KclMessageDrivenChannelAdapter.this.checkpointsInterval;
-            }
-        }
+			if (CheckpointMode.periodic.equals(KclMessageDrivenChannelAdapter.this.checkpointMode)
+					&& System.currentTimeMillis() > this.nextCheckpointTimeInMillis) {
+				checkpoint(checkpointer, record);
+				this.nextCheckpointTimeInMillis =
+						System.currentTimeMillis() + KclMessageDrivenChannelAdapter.this.checkpointsInterval;
+			}
+		}
 
     }
 

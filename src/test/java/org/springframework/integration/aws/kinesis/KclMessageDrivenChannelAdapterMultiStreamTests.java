@@ -140,7 +140,7 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
                 .streamName(TEST_STREAM2)
                 .build()).join();
         List<Consumer> stream2Consumers = AMAZON_KINESIS.listStreamConsumers(ListStreamConsumersRequest.builder()
-                .streamARN(streamSummary.streamDescription().streamARN())
+                .streamARN(stream2Summary.streamDescription().streamARN())
                 .build()).join().consumers();
 
         assertThat(stream1Consumers.size()).isEqualTo(1);
