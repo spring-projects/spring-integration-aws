@@ -17,6 +17,7 @@
 package org.springframework.integration.aws.kinesis;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,7 +33,6 @@ import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.aws.LocalstackContainerTest;
 import org.springframework.integration.aws.inbound.kinesis.KclMessageDrivenChannelAdapter;
 import org.springframework.integration.aws.support.AwsHeaders;
@@ -46,16 +46,19 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * @author Artem Bilan
  * @author Siddharth Jain
+ * @author Artem Bilan
  *
  * @since 3.0
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerTest {
 
-	private static final String TEST_STREAM = "TestStreamKcl";
+public class KclMessageDrivenChannelAdapterMultiStreamTests implements LocalstackContainerTest {
+
+	private static final String TEST_STREAM1 = "MultiStreamKcl1";
+
+	private static final String TEST_STREAM2 = "MultiStreamKcl2";
 
 	private static KinesisAsyncClient AMAZON_KINESIS;
 
@@ -72,47 +75,76 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		CLOUD_WATCH = LocalstackContainerTest.cloudWatchClient();
 
-		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM).shardCount(1))
-				.thenCompose(result ->
-						AMAZON_KINESIS.waiter().waitUntilStreamExists(request -> request.streamName(TEST_STREAM)))
-				.join();
-	}
+		CompletableFuture<?> completableFuture1 =
+				AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM1).shardCount(1))
+						.thenCompose(result -> AMAZON_KINESIS.waiter()
+								.waitUntilStreamExists(request -> request.streamName(TEST_STREAM1)));
 
+		CompletableFuture<?> completableFuture2 =
+				AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM2).shardCount(1))
+						.thenCompose(result -> AMAZON_KINESIS.waiter()
+								.waitUntilStreamExists(request -> request.streamName(TEST_STREAM2)));
+
+		CompletableFuture.allOf(completableFuture1, completableFuture2).join();
+	}
 
 	@AfterAll
 	static void tearDown() {
-		AMAZON_KINESIS
-				.deleteStream(request -> request.streamName(TEST_STREAM).enforceConsumerDeletion(true))
-				.thenCompose(result -> AMAZON_KINESIS.waiter()
-						.waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM)))
-				.join();
+		CompletableFuture<?> completableFuture1 =
+				AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM1).enforceConsumerDeletion(true))
+						.thenCompose(result -> AMAZON_KINESIS.waiter()
+								.waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM1)));
+
+		CompletableFuture<?> completableFuture2 =
+				AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM2).enforceConsumerDeletion(true))
+						.thenCompose(result -> AMAZON_KINESIS.waiter()
+								.waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM2)));
+
+		CompletableFuture.allOf(completableFuture1, completableFuture2).join();
 	}
 
 	@Test
-	void kclChannelAdapterReceivesRecords() {
+	public void kclChannelAdapterMultiStream() {
 		String testData = "test data";
+		AMAZON_KINESIS.putRecord(request -> request
+				.streamName(TEST_STREAM1)
+				.data(SdkBytes.fromUtf8String(testData))
+				.partitionKey("test"));
 
-		AMAZON_KINESIS.putRecord(request ->
-				request.streamName(TEST_STREAM)
-						.data(SdkBytes.fromUtf8String(testData))
-						.partitionKey("test"));
+		String testData2 = "test data 2";
+		AMAZON_KINESIS.putRecord(request -> request
+				.streamName(TEST_STREAM2)
+				.data(SdkBytes.fromUtf8String(testData2))
+				.partitionKey("test"));
 
-		// We need so long delay because KCL has a more than a minute setup phase.
+		// The below statement works but with a higher timeout. For 2 streams, this takes too long.
 		Message<?> receive = this.kinesisReceiveChannel.receive(300_000);
 		assertThat(receive).isNotNull();
 		assertThat(receive.getPayload()).isEqualTo(testData);
-		assertThat(receive.getHeaders()).containsKey(IntegrationMessageHeaderAccessor.SOURCE_DATA);
 		assertThat(receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class)).isNotEmpty();
 
-		List<Consumer> streamConsumers =
-				AMAZON_KINESIS.describeStream(r -> r.streamName(TEST_STREAM))
+		receive = this.kinesisReceiveChannel.receive(10_000);
+		assertThat(receive).isNotNull();
+		assertThat(receive.getPayload()).isEqualTo(testData2);
+
+		List<Consumer> stream1Consumers =
+				AMAZON_KINESIS.describeStream(request -> request.streamName(TEST_STREAM1))
 						.thenCompose(describeStreamResponse ->
-								AMAZON_KINESIS.listStreamConsumers(r ->
-										r.streamARN(describeStreamResponse.streamDescription().streamARN())))
+								AMAZON_KINESIS.listStreamConsumers(request ->
+										request.streamARN(describeStreamResponse.streamDescription().streamARN())))
 						.join()
 						.consumers();
 
-		assertThat(streamConsumers).hasSize(1);
+		List<Consumer> stream2Consumers = AMAZON_KINESIS
+				.describeStream(request -> request.streamName(TEST_STREAM2))
+				.thenCompose(describeStreamResponse ->
+						AMAZON_KINESIS.listStreamConsumers(request ->
+								request.streamARN(describeStreamResponse.streamDescription().streamARN())))
+				.join()
+				.consumers();
+
+		assertThat(stream1Consumers).hasSize(1);
+		assertThat(stream2Consumers).hasSize(1);
 	}
 
 	@Configuration
@@ -121,14 +153,13 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 
 		@Bean
 		public KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter() {
-			KclMessageDrivenChannelAdapter adapter =
-					new KclMessageDrivenChannelAdapter(AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB, TEST_STREAM);
+			KclMessageDrivenChannelAdapter adapter = new KclMessageDrivenChannelAdapter(
+					AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB, TEST_STREAM1, TEST_STREAM2);
 			adapter.setOutputChannel(kinesisReceiveChannel());
 			adapter.setStreamInitialSequence(
 					InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
 			adapter.setConverter(String::new);
-			adapter.setConsumerGroup("single_stream_group");
-			adapter.setBindSourceRecord(true);
+			adapter.setConsumerGroup("multi_stream_group");
 			return adapter;
 		}
 

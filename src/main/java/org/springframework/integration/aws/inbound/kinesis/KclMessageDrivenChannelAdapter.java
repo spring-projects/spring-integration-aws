@@ -26,10 +26,12 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializer;
+import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.StreamDescriptionSummary;
 import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.common.InitialPositionInStream;
@@ -85,6 +87,7 @@ import org.springframework.util.Assert;
  * @author Hervé Fortin
  * @author Artem Bilan
  * @author Dirk Bonhomme
+ * @author Siddharth Jain
  *
  * @since 2.2.0
  */
@@ -271,7 +274,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.cloudWatchClient,
 						this.workerId,
 						this.recordProcessorFactory);
-
 		this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
 
 		RetrievalSpecificConfig retrievalSpecificConfig;
@@ -394,18 +396,31 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 				};
 
-		private final List<StreamConfig> streamConfigs =
-				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
-						.map(streamName ->
-								new StreamConfig(StreamIdentifier.singleStreamInstance(streamName),
-										KclMessageDrivenChannelAdapter.this.streamInitialSequence))
-						.toList();
+		private List<StreamConfig> streamConfigs = null;
 
 		StreamsTracker() {
 		}
 
+		private StreamConfig buildStreamConfig(String streamName) {
+			StreamDescriptionSummary descriptionSummary =
+					KclMessageDrivenChannelAdapter.this.kinesisClient
+							.describeStreamSummary(request -> request.streamName(streamName))
+							.join().streamDescriptionSummary();
+			return new StreamConfig(StreamIdentifier.multiStreamInstance(
+					Arn.fromString(descriptionSummary.streamARN()),
+					descriptionSummary.streamCreationTimestamp().getEpochSecond()),
+					KclMessageDrivenChannelAdapter.this.streamInitialSequence);
+		}
+
 		@Override
 		public List<StreamConfig> streamConfigList() {
+			if (this.streamConfigs == null) {
+				// Lazy loading the Stream Configs, only during inquiry.
+				this.streamConfigs = new ArrayList<>();
+				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
+						.forEach(streamName -> this.streamConfigs.add(buildStreamConfig(streamName)));
+			}
+
 			return this.streamConfigs;
 		}
 
