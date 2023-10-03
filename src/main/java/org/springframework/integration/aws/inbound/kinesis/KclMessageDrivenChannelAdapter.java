@@ -82,7 +82,7 @@ import org.springframework.util.Assert;
  * The {@link MessageProducerSupport} implementation for receiving data from Amazon
  * Kinesis stream(s) using AWS KCL.
  *
- * @author Herv? Fortin
+ * @author Hervé Fortin
  * @author Artem Bilan
  * @author Dirk Bonhomme
  *
