@@ -31,8 +31,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.common.InitialPositionInStream;
@@ -87,7 +87,6 @@ import org.springframework.util.Assert;
  * @author Herv? Fortin
  * @author Artem Bilan
  * @author Dirk Bonhomme
- *
  * @since 2.2.0
  */
 @ManagedResource
@@ -263,7 +262,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.workerId,
 						this.recordProcessorFactory);
 	}
-
 	private StreamTracker buildStreamTracker() {
 		if (this.streams.length == 1) {
 			return new SingleStreamTracker(StreamIdentifier.singleStreamInstance(this.streams[0]),
@@ -272,6 +270,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 		else {
 			return new StreamsTracker();
 		}
+
 	}
 
 	@Override
@@ -356,8 +355,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	private final class StreamsTracker implements MultiStreamTracker {
-        private final static long EPOCH = 1696244140L;
-
 		private final FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy =
 				new FormerStreamsLeasesDeletionStrategy.AutoDetectionAndDeferredDeletionStrategy() {
 
@@ -368,30 +365,34 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 				};
 
-        private final List<StreamConfig> streamConfigs =
-                Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
-                        .map(streamName -> buildStreamConfig(streamName))
-                        .toList();
+		private List<StreamConfig> streamConfigs = new ArrayList<>();
 
 		StreamsTracker() {
 		}
 
-        private StreamConfig buildStreamConfig(String streamName) {
-            DescribeStreamResponse streamResponse = kinesisClient.describeStream(DescribeStreamRequest.builder().streamName(streamName).build()).join();
-            return new StreamConfig(StreamIdentifier.multiStreamInstance(Arn.fromString(streamResponse.streamDescription().streamARN()), EPOCH),
-                    KclMessageDrivenChannelAdapter.this.streamInitialSequence);
-        }
+		private StreamConfig buildStreamConfig(String streamName) {
+			logger.info(LogMessage.format("Initializing stream config for Stream: [%s] for Multi Stream Tracker", streamName));
 
-        @Override
-        public List<StreamConfig> streamConfigList() {
-            return this.streamConfigs;
-        }
+			DescribeStreamSummaryResponse streamSummaryResponse = KclMessageDrivenChannelAdapter.this.kinesisClient.describeStreamSummary(DescribeStreamSummaryRequest.builder().streamName(streamName).build()).join();
+			return new StreamConfig(StreamIdentifier.multiStreamInstance(Arn.fromString(streamSummaryResponse.streamDescriptionSummary().streamARN()), streamSummaryResponse.streamDescriptionSummary().streamCreationTimestamp().toEpochMilli()),
+					KclMessageDrivenChannelAdapter.this.streamInitialSequence);
+		}
+
+		@Override
+		public List<StreamConfig> streamConfigList() {
+			if (this.streamConfigs.size() == 0) {
+				logger.info("Lazy loading the Stream Configs for Multi stream Tracker");
+				// Lazy loading the Stream Configs, only during inquiry.
+				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams).forEach(streamName -> this.streamConfigs.add(buildStreamConfig(streamName)));
+			}
+
+			return this.streamConfigs;
+		}
 
 		@Override
 		public FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy() {
 			return this.formerStreamsLeasesDeletionStrategy;
 		}
-
 	}
 
 	/**
@@ -636,6 +637,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 			}
 		}
 
-    }
+	}
 
 }
