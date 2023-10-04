@@ -26,12 +26,14 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializer;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.StreamDescriptionSummary;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.common.InitialPositionInStream;
@@ -274,6 +276,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.cloudWatchClient,
 						this.workerId,
 						this.recordProcessorFactory);
+
 		this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
 
 		RetrievalSpecificConfig retrievalSpecificConfig;
@@ -317,7 +320,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 					+ "because it does not make sense in case of [ListenerMode.batch].");
 		}
 
-
 		this.scheduler =
 				new Scheduler(
 						this.config.checkpointConfig(),
@@ -339,7 +341,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	protected void doStop() {
 		super.doStop();
 		this.scheduler.shutdown();
-
 	}
 
 	@Override
@@ -396,32 +397,28 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 				};
 
-		private List<StreamConfig> streamConfigs = null;
+		private final Flux<StreamConfig> streamConfigs =
+				Flux.fromArray(KclMessageDrivenChannelAdapter.this.streams)
+						.flatMap((streamName) ->
+								Mono.fromFuture(KclMessageDrivenChannelAdapter.this.kinesisClient
+										.describeStreamSummary(request -> request.streamName(streamName))))
+						.map(DescribeStreamSummaryResponse::streamDescriptionSummary)
+						.map((summary) ->
+								StreamIdentifier.multiStreamInstance(
+										Arn.fromString(summary.streamARN()),
+										summary.streamCreationTimestamp()
+												.getEpochSecond()))
+						.map((streamIdentifier) ->
+								new StreamConfig(streamIdentifier,
+										KclMessageDrivenChannelAdapter.this.streamInitialSequence))
+						.cache();
 
 		StreamsTracker() {
 		}
 
-		private StreamConfig buildStreamConfig(String streamName) {
-			StreamDescriptionSummary descriptionSummary =
-					KclMessageDrivenChannelAdapter.this.kinesisClient
-							.describeStreamSummary(request -> request.streamName(streamName))
-							.join().streamDescriptionSummary();
-			return new StreamConfig(StreamIdentifier.multiStreamInstance(
-					Arn.fromString(descriptionSummary.streamARN()),
-					descriptionSummary.streamCreationTimestamp().getEpochSecond()),
-					KclMessageDrivenChannelAdapter.this.streamInitialSequence);
-		}
-
 		@Override
 		public List<StreamConfig> streamConfigList() {
-			if (this.streamConfigs == null) {
-				// Lazy loading the Stream Configs, only during inquiry.
-				this.streamConfigs = new ArrayList<>();
-				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
-						.forEach(streamName -> this.streamConfigs.add(buildStreamConfig(streamName)));
-			}
-
-			return this.streamConfigs;
+			return this.streamConfigs.collectList().block();
 		}
 
 		@Override

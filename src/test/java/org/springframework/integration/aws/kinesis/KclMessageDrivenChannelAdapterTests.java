@@ -128,6 +128,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 					InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
 			adapter.setConverter(String::new);
 			adapter.setConsumerGroup("single_stream_group");
+			adapter.setFanOut(false);
 			adapter.setBindSourceRecord(true);
 			return adapter;
 		}
