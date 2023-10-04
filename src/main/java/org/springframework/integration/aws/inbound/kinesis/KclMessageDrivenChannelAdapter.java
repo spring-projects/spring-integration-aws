@@ -31,8 +31,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
+import software.amazon.awssdk.services.kinesis.model.StreamDescriptionSummary;
 import software.amazon.awssdk.utils.BinaryUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.common.InitialPositionInStream;
@@ -87,6 +86,8 @@ import org.springframework.util.Assert;
  * @author Herv? Fortin
  * @author Artem Bilan
  * @author Dirk Bonhomme
+ * @author Siddharth Jain
+ *
  * @since 2.2.0
  */
 @ManagedResource
@@ -262,6 +263,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.workerId,
 						this.recordProcessorFactory);
 	}
+
 	private StreamTracker buildStreamTracker() {
 		if (this.streams.length == 1) {
 			return new SingleStreamTracker(StreamIdentifier.singleStreamInstance(this.streams[0]),
@@ -355,6 +357,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	}
 
 	private final class StreamsTracker implements MultiStreamTracker {
+
 		private final FormerStreamsLeasesDeletionStrategy formerStreamsLeasesDeletionStrategy =
 				new FormerStreamsLeasesDeletionStrategy.AutoDetectionAndDeferredDeletionStrategy() {
 
@@ -365,25 +368,28 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 				};
 
-		private List<StreamConfig> streamConfigs = new ArrayList<>();
+		private List<StreamConfig> streamConfigs = null;
 
 		StreamsTracker() {
 		}
 
 		private StreamConfig buildStreamConfig(String streamName) {
-			logger.info(LogMessage.format("Initializing stream config for Stream: [%s] for Multi Stream Tracker", streamName));
-
-			DescribeStreamSummaryResponse streamSummaryResponse = KclMessageDrivenChannelAdapter.this.kinesisClient.describeStreamSummary(DescribeStreamSummaryRequest.builder().streamName(streamName).build()).join();
-			return new StreamConfig(StreamIdentifier.multiStreamInstance(Arn.fromString(streamSummaryResponse.streamDescriptionSummary().streamARN()), streamSummaryResponse.streamDescriptionSummary().streamCreationTimestamp().toEpochMilli()),
+			StreamDescriptionSummary descriptionSummary =
+					KclMessageDrivenChannelAdapter.this.kinesisClient.describeStreamSummary
+									(request -> request.streamName(streamName)).join().streamDescriptionSummary();
+			return new StreamConfig(StreamIdentifier.multiStreamInstance(
+					Arn.fromString(descriptionSummary.streamARN()),
+					descriptionSummary.streamCreationTimestamp().getEpochSecond()),
 					KclMessageDrivenChannelAdapter.this.streamInitialSequence);
 		}
 
 		@Override
 		public List<StreamConfig> streamConfigList() {
-			if (this.streamConfigs.size() == 0) {
-				logger.info("Lazy loading the Stream Configs for Multi stream Tracker");
+			if (this.streamConfigs == null) {
 				// Lazy loading the Stream Configs, only during inquiry.
-				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams).forEach(streamName -> this.streamConfigs.add(buildStreamConfig(streamName)));
+				this.streamConfigs = new ArrayList<>();
+				Arrays.stream(KclMessageDrivenChannelAdapter.this.streams)
+						.forEach(streamName -> this.streamConfigs.add(buildStreamConfig(streamName)));
 			}
 
 			return this.streamConfigs;

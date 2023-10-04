@@ -50,7 +50,8 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * @author Artem Bilan
+ * @author Siddharth Jain
+ *
  * @since 3.0
  */
 @SpringJUnitConfig
@@ -59,7 +60,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class KclMessageDrivenChannelAdapterMultiStreamTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM1 = "MultiStreamKcl1";
+
 	private static final String TEST_STREAM2 = "MultiStreamKcl2";
+
 	private static KinesisAsyncClient AMAZON_KINESIS;
 
 	private static DynamoDbAsyncClient DYNAMO_DB;
@@ -78,23 +81,38 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 		DYNAMO_DB = LocalstackContainerTest.dynamoDbClient();
 		CLOUD_WATCH = LocalstackContainerTest.cloudWatchClient();
 
-		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM1).shardCount(1)).thenCompose(result -> AMAZON_KINESIS.waiter().waitUntilStreamExists(request -> request.streamName(TEST_STREAM1))).join();
+		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM1).shardCount(1))
+				.thenCompose(result -> AMAZON_KINESIS.waiter()
+						.waitUntilStreamExists(request -> request.streamName(TEST_STREAM1)))
+				.join();
 
-		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM2).shardCount(1)).thenCompose(result -> AMAZON_KINESIS.waiter().waitUntilStreamExists(request -> request.streamName(TEST_STREAM2))).join();
+		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM2).shardCount(1))
+				.thenCompose(result -> AMAZON_KINESIS.waiter().
+						waitUntilStreamExists(request -> request.streamName(TEST_STREAM2)))
+				.join();
 	}
 
 	@AfterAll
 	static void tearDown() {
-		AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM1).enforceConsumerDeletion(true)).thenCompose(result -> AMAZON_KINESIS.waiter().waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM1))).join();
+		AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM1).enforceConsumerDeletion(true))
+				.thenCompose(result -> AMAZON_KINESIS.waiter()
+						.waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM1)))
+				.join();
 
-		AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM2).enforceConsumerDeletion(true)).thenCompose(result -> AMAZON_KINESIS.waiter().waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM2))).join();
+		AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM2).enforceConsumerDeletion(true))
+				.thenCompose(result -> AMAZON_KINESIS.waiter()
+						.waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM2)))
+				.join();
 	}
 
 	@Test
 	@Disabled
 	void kclChannelAdapterReceivesRecords() {
 		String testData = "test data";
-		AMAZON_KINESIS.putRecord(request -> request.streamName(TEST_STREAM1).data(SdkBytes.fromUtf8String(testData)).partitionKey("test"));
+		AMAZON_KINESIS.putRecord(request -> request
+				.streamName(TEST_STREAM1)
+				.data(SdkBytes.fromUtf8String(testData))
+				.partitionKey("test"));
 		// We need so long delay because KCL has a more than a minute setup phase.
 		Message<?> receive = this.kinesisReceiveChannel.receive(300_000);
 		assertThat(receive).isNotNull();
@@ -106,14 +124,21 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 	@Test
 	public void kclChannelAdapter_shouldRegisterStreamConsumer() {
 		String testData = "test data";
-		AMAZON_KINESIS.putRecord(request -> request.streamName(TEST_STREAM1).data(SdkBytes.fromUtf8String(testData)).partitionKey("test"));
+		AMAZON_KINESIS.putRecord(request -> request
+				.streamName(TEST_STREAM1)
+				.data(SdkBytes.fromUtf8String(testData))
+				.partitionKey("test"));
 		// The below statement works but with a higher timeout. For 2 streams, this takes too long.
 		Message<?> receive = this.kinesisReceiveChannel.receive(300_000);
-		DescribeStreamResponse streamSummary = AMAZON_KINESIS.describeStream(DescribeStreamRequest.builder().streamName(TEST_STREAM1).build()).join();
-		List<Consumer> stream1Consumers = AMAZON_KINESIS.listStreamConsumers(ListStreamConsumersRequest.builder().streamARN(streamSummary.streamDescription().streamARN()).build()).join().consumers();
+		DescribeStreamResponse streamSummary = AMAZON_KINESIS.describeStream(
+					request -> 	request.streamName(TEST_STREAM1)).join();
+		List<Consumer> stream1Consumers = AMAZON_KINESIS.listStreamConsumers(
+					request -> request.streamARN(streamSummary.streamDescription().streamARN())).join().consumers();
 
-		DescribeStreamResponse stream2Summary = AMAZON_KINESIS.describeStream(DescribeStreamRequest.builder().streamName(TEST_STREAM2).build()).join();
-		List<Consumer> stream2Consumers = AMAZON_KINESIS.listStreamConsumers(ListStreamConsumersRequest.builder().streamARN(stream2Summary.streamDescription().streamARN()).build()).join().consumers();
+		DescribeStreamResponse stream2Summary = AMAZON_KINESIS.describeStream(
+				request -> request.streamName(TEST_STREAM2)).join();
+		List<Consumer> stream2Consumers = AMAZON_KINESIS.listStreamConsumers(
+				request -> request.streamARN(stream2Summary.streamDescription().streamARN())).join().consumers();
 
 		assertThat(stream1Consumers.size()).isEqualTo(1);
 		assertThat(stream2Consumers.size()).isEqualTo(1);

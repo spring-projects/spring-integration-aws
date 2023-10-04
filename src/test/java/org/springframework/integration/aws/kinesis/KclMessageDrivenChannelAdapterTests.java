@@ -50,6 +50,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * @author Artem Bilan
+ * @author Siddharth Jain
+ *
  * @since 3.0
  */
 @SpringJUnitConfig
@@ -57,6 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStreamKcl";
+
 	private static KinesisAsyncClient AMAZON_KINESIS;
 
 	private static DynamoDbAsyncClient DYNAMO_DB;
