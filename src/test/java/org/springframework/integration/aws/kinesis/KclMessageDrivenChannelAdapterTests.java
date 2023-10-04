@@ -87,8 +87,10 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 
 	@AfterAll
 	static void tearDown() {
-			AMAZON_KINESIS.deleteStream(request -> request.streamName(TEST_STREAM).enforceConsumerDeletion(true)).thenCompose(result ->
-					AMAZON_KINESIS.waiter().waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM)))
+			AMAZON_KINESIS
+					.deleteStream(request -> request.streamName(TEST_STREAM).enforceConsumerDeletion(true))
+					.thenCompose(result -> AMAZON_KINESIS.waiter()
+							.waitUntilStreamNotExists(request -> request.streamName(TEST_STREAM)))
 					.join();
 	}
 

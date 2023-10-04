@@ -375,8 +375,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		private StreamConfig buildStreamConfig(String streamName) {
 			StreamDescriptionSummary descriptionSummary =
-					KclMessageDrivenChannelAdapter.this.kinesisClient.describeStreamSummary
-									(request -> request.streamName(streamName)).join().streamDescriptionSummary();
+					KclMessageDrivenChannelAdapter.this.kinesisClient
+							.describeStreamSummary(request -> request.streamName(streamName))
+							.join().streamDescriptionSummary();
 			return new StreamConfig(StreamIdentifier.multiStreamInstance(
 					Arn.fromString(descriptionSummary.streamARN()),
 					descriptionSummary.streamCreationTimestamp().getEpochSecond()),

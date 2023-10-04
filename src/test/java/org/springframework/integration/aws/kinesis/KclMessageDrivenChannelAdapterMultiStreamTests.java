@@ -27,9 +27,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.Consumer;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
-import software.amazon.awssdk.services.kinesis.model.ListStreamConsumersRequest;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 
@@ -87,8 +85,8 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 				.join();
 
 		AMAZON_KINESIS.createStream(request -> request.streamName(TEST_STREAM2).shardCount(1))
-				.thenCompose(result -> AMAZON_KINESIS.waiter().
-						waitUntilStreamExists(request -> request.streamName(TEST_STREAM2)))
+				.thenCompose(result -> AMAZON_KINESIS.waiter()
+						.waitUntilStreamExists(request -> request.streamName(TEST_STREAM2)))
 				.join();
 	}
 
@@ -128,17 +126,23 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 				.streamName(TEST_STREAM1)
 				.data(SdkBytes.fromUtf8String(testData))
 				.partitionKey("test"));
+
 		// The below statement works but with a higher timeout. For 2 streams, this takes too long.
 		Message<?> receive = this.kinesisReceiveChannel.receive(300_000);
-		DescribeStreamResponse streamSummary = AMAZON_KINESIS.describeStream(
-					request -> 	request.streamName(TEST_STREAM1)).join();
-		List<Consumer> stream1Consumers = AMAZON_KINESIS.listStreamConsumers(
-					request -> request.streamARN(streamSummary.streamDescription().streamARN())).join().consumers();
+		DescribeStreamResponse streamSummary = AMAZON_KINESIS
+				.describeStream(request -> 	request.streamName(TEST_STREAM1))
+				.join();
 
-		DescribeStreamResponse stream2Summary = AMAZON_KINESIS.describeStream(
-				request -> request.streamName(TEST_STREAM2)).join();
-		List<Consumer> stream2Consumers = AMAZON_KINESIS.listStreamConsumers(
-				request -> request.streamARN(stream2Summary.streamDescription().streamARN())).join().consumers();
+		List<Consumer> stream1Consumers = AMAZON_KINESIS
+				.listStreamConsumers(request -> request.streamARN(streamSummary.streamDescription().streamARN()))
+				.join().consumers();
+
+		DescribeStreamResponse stream2Summary = AMAZON_KINESIS
+				.describeStream(request -> request.streamName(TEST_STREAM2)).join();
+
+		List<Consumer> stream2Consumers = AMAZON_KINESIS
+				.listStreamConsumers(request -> request.streamARN(stream2Summary.streamDescription().streamARN()))
+				.join().consumers();
 
 		assertThat(stream1Consumers.size()).isEqualTo(1);
 		assertThat(stream2Consumers.size()).isEqualTo(1);
@@ -150,9 +154,11 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 		@Bean
 		public KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter() {
 			String[] multiInputStreams = new String[] {TEST_STREAM1, TEST_STREAM2};
-			KclMessageDrivenChannelAdapter adapter = new KclMessageDrivenChannelAdapter(AMAZON_KINESIS, CLOUD_WATCH, DYNAMO_DB, multiInputStreams);
+			KclMessageDrivenChannelAdapter adapter = new KclMessageDrivenChannelAdapter(
+					AMAZON_KINESIS,	CLOUD_WATCH, DYNAMO_DB, multiInputStreams);
 			adapter.setOutputChannel(kinesisReceiveChannel());
-			adapter.setStreamInitialSequence(InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
+			adapter.setStreamInitialSequence(
+					InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
 			adapter.setConverter(String::new);
 			adapter.setBindSourceRecord(true);
 			return adapter;
