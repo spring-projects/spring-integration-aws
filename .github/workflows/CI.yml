@@ -10,7 +10,6 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GRADLE_ENTERPRISE_CACHE_USER }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GRADLE_ENTERPRISE_CACHE_PASSWORD }}
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
-  GRADLE_ENTERPRISE_CACHE_URL: 'https://ge-cache.spring.vmware.com/cache'
 
 jobs:
   build_snapshot:
@@ -48,7 +47,7 @@ jobs:
 
       - name: Build and Publish
         run: |
-          jf gradle build dist artifactoryPublish -Duser.name=spring-builds+github@vmware.com
+          jf gradle build dist artifactoryPublish -Duser.name=spring-builds+github
           jf build-publish
 
       - name: Capture Test Results
@@ -56,5 +55,5 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-results
-          path: '*/build/reports/tests/**/*.*'
+          path: '**/build/reports/tests/**/*.*'
           retention-days: 3

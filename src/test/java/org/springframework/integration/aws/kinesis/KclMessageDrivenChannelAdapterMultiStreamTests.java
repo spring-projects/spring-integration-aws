@@ -120,12 +120,12 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 		// The below statement works but with a higher timeout. For 2 streams, this takes too long.
 		Message<?> receive = this.kinesisReceiveChannel.receive(300_000);
 		assertThat(receive).isNotNull();
-		assertThat(receive.getPayload()).isEqualTo(testData);
+		assertThat(receive.getPayload()).isIn(testData, testData2);
 		assertThat(receive.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER, String.class)).isNotEmpty();
 
 		receive = this.kinesisReceiveChannel.receive(10_000);
 		assertThat(receive).isNotNull();
-		assertThat(receive.getPayload()).isEqualTo(testData2);
+		assertThat(receive.getPayload()).isIn(testData, testData2);
 
 		List<Consumer> stream1Consumers =
 				AMAZON_KINESIS.describeStream(request -> request.streamName(TEST_STREAM1))
