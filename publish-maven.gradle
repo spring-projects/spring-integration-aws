@@ -54,15 +54,22 @@ publishing {
     }
 }
 
+artifactory {
+    publish {
+        defaults {
+           def  zipArtifactProps =
+                   ['zip.name': 'spring-integration-aws',
+                    'zip.displayname': 'Spring Integration Aws',
+                    'zip.deployed': 'false']
+            properties {
+                mavenJava zipArtifactProps, '*:*:*:*@zip'
+                mavenJava  'zip.type': 'docs', '*:*:*:docs@zip'
+                mavenJava 'zip.type': 'dist', '*:*:*:dist@zip'
+            }
+        }
+    }
+}
+
 artifactoryPublish {
     publications(publishing.publications.mavenJava)
-    def  zipArtifactProps =
-            ['zip.name': 'spring-integration-aws',
-             'zip.displayname': 'Spring Integration Aws',
-             'zip.deployed': 'false']
-    properties {
-        mavenJava zipArtifactProps, '*:*:*:*@zip'
-        mavenJava  'zip.type': 'docs', '*:*:*:docs@zip'
-        mavenJava 'zip.type': 'dist', '*:*:*:dist@zip'
-    }
 }
