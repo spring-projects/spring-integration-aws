@@ -15,7 +15,7 @@ jobs:
   build_snapshot:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'spring-projects'
-    name: CI Build ${{ github.ref_name }} SNAPSHOT
+    name: CI Build $GITHUB_REF_NAME SNAPSHOT
     steps:
 
       - uses: actions/checkout@v3
@@ -42,18 +42,11 @@ jobs:
             --server-id-deploy repo.spring.io \
             --repo-resolve snapshot \
             --repo-deploy snapshot
-          echo JFROG_CLI_BUILD_NAME=spring-integration-aws-${{ github.ref_name }} >> $GITHUB_ENV
+          echo JFROG_CLI_BUILD_NAME=${GITHUB_REPOSITORY#*/}-$GITHUB_REF_NAME >> $GITHUB_ENV
           echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
 
       - name: Build and Publish
         run: |
           jf gradle build dist artifactoryPublish -Duser.name=spring-builds+github
-          jf build-publish
+          jf rt build-publish
 
-      - name: Capture Test Results
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-results
-          path: '**/build/reports/tests/**/*.*'
-          retention-days: 3
