@@ -15,7 +15,7 @@ jobs:
   build_snapshot:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'spring-projects'
-    name: CI Build $GITHUB_REF_NAME SNAPSHOT
+    name: CI Build ${{ github.ref_name }} SNAPSHOT
     steps:
 
       - uses: actions/checkout@v3
@@ -42,7 +42,7 @@ jobs:
             --server-id-deploy repo.spring.io \
             --repo-resolve snapshot \
             --repo-deploy snapshot
-          echo JFROG_CLI_BUILD_NAME=${GITHUB_REPOSITORY#*/}-$GITHUB_REF_NAME >> $GITHUB_ENV
+          echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ github.ref_name }} >> $GITHUB_ENV
           echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
 
       - name: Build and Publish
