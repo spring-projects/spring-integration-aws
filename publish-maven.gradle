@@ -56,4 +56,9 @@ publishing {
 
 artifactoryPublish {
     publications(publishing.publications.mavenJava)
+    properties {
+        mavenJava '*:*:*:*@zip', 'zip.name': 'spring-integration-aws', 'zip.displayname': 'Spring Integration Aws', 'zip.deployed': false
+        mavenJava '*:*:*:docs@zip', 'zip.type': 'docs'
+        mavenJava '*:*:*:dist@zip', 'zip.type': 'dist'
+    }
 }
