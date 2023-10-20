@@ -1,0 +1,71 @@
+name: Build and Stage Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc'
+        required: true
+      nextDevelopmentVersion:
+        description: 'Next development version like 3.1.1-SNAPSHOT'
+        required: true
+
+run-name: Release version ${{ inputs.releaseVersion }}
+
+env:
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GRADLE_ENTERPRISE_CACHE_USER }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GRADLE_ENTERPRISE_CACHE_PASSWORD }}
+  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
+
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'spring-projects'
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: 17
+          cache: gradle
+
+      - uses: jfrog/setup-jfrog-cli@v3
+        with:
+          version: 2.50.2
+        env:
+          JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
+
+      - name: Configure JFrog Cli
+        run: |
+          repoResolve=${{ (contains(inputs.releaseVersion, 'M') || contains(inputs.releaseVersion, 'RC')) && 'milestone' || 'release' }}
+          jf gradlec \
+            --use-wrapper \
+            --uses-plugin \
+            --deploy-ivy-desc=false \
+            --server-id-resolve repo.spring.io \
+            --server-id-deploy repo.spring.io \
+            --repo-resolve $repoResolve \
+            --repo-deploy libs-staging-local
+          echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ inputs.releaseVersion }} >> $GITHUB_ENV
+          echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
+
+      - name: Set Release Version
+        run: |
+          sed -i "s/version=.*/version=${{ inputs.releaseVersion }}/" gradle.properties 
+
+      - name: Build and Publish
+        run: |
+          jf gradle build dist artifactoryPublish -Duser.name=spring-builds+github
+          jf rt build-publish
+
+      - name: Tag Release and Next Development Version
+        run: |
+          git config --global user.name spring-builds
+          git commit -a -m "[artifactory-release] Release version ${{ inputs.releaseVersion }}"
+          git tag "v${{ inputs.releaseVersion }}"
+          git push --tags origin
+          sed -i "s/version=.*/version=${{ inputs.nextDevelopmentVersion }}/" gradle.properties 
+          git commit -a -m "[artifactory-release] Next development version"
+          git push origin
