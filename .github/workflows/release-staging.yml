@@ -39,14 +39,13 @@ jobs:
 
       - name: Configure JFrog Cli
         run: |
-          repoResolve=${{ (contains(inputs.releaseVersion, 'M') || contains(inputs.releaseVersion, 'RC')) && 'milestone' || 'release' }}
           jf gradlec \
             --use-wrapper \
             --uses-plugin \
             --deploy-ivy-desc=false \
             --server-id-resolve repo.spring.io \
             --server-id-deploy repo.spring.io \
-            --repo-resolve $repoResolve \
+            --repo-resolve ${{ (contains(inputs.releaseVersion, 'M') || contains(inputs.releaseVersion, 'RC')) && 'milestone' || 'release' }} \
             --repo-deploy libs-staging-local
           echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ inputs.releaseVersion }} >> $GITHUB_ENV
           echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
@@ -62,7 +61,8 @@ jobs:
 
       - name: Tag Release and Next Development Version
         run: |
-          git config --global user.name spring-builds
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git commit -a -m "[artifactory-release] Release version ${{ inputs.releaseVersion }}"
           git tag "v${{ inputs.releaseVersion }}"
           git push --tags origin
