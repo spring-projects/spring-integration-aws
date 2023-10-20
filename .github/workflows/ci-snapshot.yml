@@ -1,4 +1,4 @@
-name: CI
+name: CI SNAPSHOT
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ jobs:
   build_snapshot:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'spring-projects'
-    name: CI Build ${{ github.ref_name }} SNAPSHOT
+    name: CI Build SNAPSHOT for ${{ github.ref_name }}
     steps:
 
       - uses: actions/checkout@v3

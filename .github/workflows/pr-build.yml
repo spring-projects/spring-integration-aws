@@ -1,4 +1,4 @@
-name: Pull Request build
+name: Pull Request Build
 
 on:
   pull_request:
@@ -28,3 +28,10 @@ jobs:
           gradle-build-scan-report: false
           arguments: check
 
+      - name: Capture Test Results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: '*/build/reports/tests/**/*.*'
+          retention-days: 3
