@@ -12,7 +12,7 @@ on:
 
 jobs:
   release_to_central:
-    uses: .github/workflows/spring-artifactory-promote-central.yml
+    uses: ./.github/workflows/spring-artifactory-promote-central.yml
     with:
       buildName: ${{ inputs.buildName }}
       buildNumber: ${{ inputs.buildNumber }}

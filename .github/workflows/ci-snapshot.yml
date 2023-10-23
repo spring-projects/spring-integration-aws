@@ -8,5 +8,5 @@ on:
 
 jobs:
   build_snapshot:
-    uses: .github/workflows/spring-artifactory-gradle-snapshot.yml
+    uses: ./.github/workflows/spring-artifactory-gradle-snapshot.yml
     secrets: inherit

@@ -12,7 +12,7 @@ on:
 
 jobs:
   staging:
-    uses: .github/workflows/spring-artifactory-gradle-release-staging.yml
+    uses: ./.github/workflows/spring-artifactory-gradle-release-staging.yml
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
       nextDevelopmentVersion: ${{ inputs.nextDevelopmentVersion }}
