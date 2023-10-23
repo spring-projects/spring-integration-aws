@@ -17,8 +17,6 @@ on:
         default: 'dist'
         type: string
 
-run-name: Release version ${{ inputs.releaseVersion }}
-
 env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GRADLE_ENTERPRISE_CACHE_USER }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GRADLE_ENTERPRISE_CACHE_PASSWORD }}

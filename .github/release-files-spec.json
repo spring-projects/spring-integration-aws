@@ -7,7 +7,7 @@
             {
               "@build.name": "${buildname}",
               "@build.number": "${buildnumber}",
-              "path": {"$match": "org.springframework*"}
+              "path": {"$match": "org/springframework*"}
             },
             {
               "$or": [
