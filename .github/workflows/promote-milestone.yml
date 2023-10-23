@@ -6,11 +6,9 @@ on:
       buildName:
         description: 'The Artifactory Build Name'
         required: true
-        type: string
       buildNumber:
-        description: 'The Artifactory Build'
+        description: 'The Artifactory Build Number'
         required: true
-        type: number
 
 jobs:
   promote_milestone:

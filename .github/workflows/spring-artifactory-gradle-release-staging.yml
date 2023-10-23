@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       releaseVersion:
-        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc'
+        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
         required: true
         type: string
       nextDevelopmentVersion:

@@ -7,7 +7,7 @@ on:
         description: 'The Artifactory Build Name'
         required: true
       buildNumber:
-        description: 'The Artifactory Build'
+        description: 'The Artifactory Build Number'
         required: true
 
 jobs:

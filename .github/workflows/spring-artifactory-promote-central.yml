@@ -8,9 +8,9 @@ on:
         required: true
         type: string
       buildNumber:
-        description: 'The Artifactory Build'
+        description: 'The Artifactory Build Number'
         required: true
-        type: number
+        type: string
 
 jobs:
   release_to_central:
