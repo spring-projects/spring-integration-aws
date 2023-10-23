@@ -11,7 +11,7 @@ on:
         required: true
 
 jobs:
-  staging:
+  promote_milestone:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'spring-projects'
     steps:
