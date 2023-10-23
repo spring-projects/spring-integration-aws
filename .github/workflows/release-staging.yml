@@ -68,3 +68,8 @@ jobs:
           sed -i "s/version=.*/version=${{ inputs.nextDevelopmentVersion }}/" gradle.properties 
           git commit -a -m "[artifactory-release] Next development version"
           git push origin
+
+      - name: Print Build Info
+        run: |
+          echo "::notice ::Artifactory Build Name=$JFROG_CLI_BUILD_NAME"
+          echo "::notice ::Artifactory Build Number=$JFROG_CLI_BUILD_NUMBER"
