@@ -2,51 +2,11 @@ name: CI SNAPSHOT
 
 on:
   workflow_dispatch:
-  workflow_call:
   push:
     branches:
       - main
 
-env:
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GRADLE_ENTERPRISE_CACHE_USER }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GRADLE_ENTERPRISE_CACHE_PASSWORD }}
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
-
 jobs:
   build_snapshot:
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'spring-projects'
-    name: CI Build SNAPSHOT for ${{ github.ref_name }}
-    steps:
-
-      - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
-
-      - name: Set up Gradle
-        uses: spring-io/spring-gradle-build-action@v2
-
-      - uses: jfrog/setup-jfrog-cli@v3
-        with:
-          version: 2.50.2
-        env:
-          JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
-
-      - name: Configure JFrog Cli
-        run: |
-          jf gradlec \
-            --use-wrapper \
-            --uses-plugin \
-            --deploy-ivy-desc=false \
-            --server-id-resolve repo.spring.io \
-            --server-id-deploy repo.spring.io \
-            --repo-resolve snapshot \
-            --repo-deploy libs-snapshot-local
-          echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ github.ref_name }} >> $GITHUB_ENV
-          echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
-
-      - name: Build and Publish
-        run: |
-          jf gradle build dist artifactoryPublish
-          jf rt build-publish
-
+    uses: .github/workflows/spring-artifactory-gradle-snapshot.yml
+    secrets: inherit

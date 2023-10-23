@@ -6,22 +6,16 @@ on:
       buildName:
         description: 'The Artifactory Build Name'
         required: true
+        type: string
       buildNumber:
         description: 'The Artifactory Build'
         required: true
+        type: number
 
 jobs:
   promote_milestone:
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'spring-projects'
-    steps:
-
-      - uses: jfrog/setup-jfrog-cli@v3
-        with:
-          version: 2.50.2
-        env:
-          JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
-
-      - name: Promote Build
-        run: |
-          jfrog rt build-promote ${{ inputs.buildName }} ${{ inputs.buildNumber }} libs-milestone-local
+    uses: .github/workflows/spring-artifactory-promote-milestone.yml
+    with:
+      buildName: ${{ inputs.buildName }}
+      buildNumber: ${{ inputs.buildNumber }}
+    secrets: inherit

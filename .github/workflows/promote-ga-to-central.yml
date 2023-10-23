@@ -12,45 +12,8 @@ on:
 
 jobs:
   release_to_central:
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'spring-projects'
-    steps:
-
-      - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
-
-      - uses: jfrog/setup-jfrog-cli@v3
-        with:
-          version: 2.50.2
-        env:
-          JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
-
-      - name: Promote Build
-        run: |
-          jfrog rt build-promote ${{ inputs.buildName }} ${{ inputs.buildNumber }} libs-release-local
-
-      # Download released files
-      - name: Download Release Files
-        run: |
-          jfrog rt download \
-            --spec .github/release-files-spec.json \
-            --spec-vars "buildname=${{ inputs.buildName }};buildnumber=${{ inputs.buildNumber }}"
-
-      # Create checksums, signatures and create staging repo on central and upload
-      - uses: jvalkeal/nexus-sync@v0.0.2
-        id: nexus
-        with:
-          url: ${{ secrets.OSSRH_URL }}
-          username: ${{ secrets.OSSRH_S01_TOKEN_USERNAME }}
-          password: ${{ secrets.OSSRH_S01_TOKEN_PASSWORD }}
-          staging-profile-name: ${{ secrets.OSSRH_STAGING_PROFILE_NAME }}
-          create: true
-          upload: true
-          generate-checksums: true
-          pgp-sign: true
-          upload-parallel: 10
-          pgp-sign-passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          pgp-sign-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          close: true
-          release: true
+    uses: .github/workflows/spring-artifactory-promote-central.yml
+    with:
+      buildName: ${{ inputs.buildName }}
+      buildNumber: ${{ inputs.buildNumber }}
+    secrets: inherit
