@@ -44,6 +44,7 @@ import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.exceptions.InvalidStateException;
 import software.amazon.kinesis.exceptions.ShutdownException;
 import software.amazon.kinesis.exceptions.ThrottlingException;
+import software.amazon.kinesis.lifecycle.LifecycleConfig;
 import software.amazon.kinesis.lifecycle.events.InitializationInput;
 import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
 import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
@@ -57,6 +58,7 @@ import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.processor.SingleStreamTracker;
 import software.amazon.kinesis.processor.StreamTracker;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
+import software.amazon.kinesis.retrieval.RetrievalConfig;
 import software.amazon.kinesis.retrieval.RetrievalSpecificConfig;
 import software.amazon.kinesis.retrieval.fanout.FanOutConfig;
 import software.amazon.kinesis.retrieval.polling.PollingConfig;
@@ -276,28 +278,6 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.cloudWatchClient,
 						this.workerId,
 						this.recordProcessorFactory);
-
-		this.config.lifecycleConfig().taskBackoffTimeMillis(this.consumerBackoff);
-
-		RetrievalSpecificConfig retrievalSpecificConfig;
-
-		String singleStreamName = this.streams.length == 1 ? this.streams[0] : null;
-
-		if (this.fanOut) {
-			retrievalSpecificConfig =
-					new FanOutConfig(this.kinesisClient)
-							.applicationName(this.consumerGroup)
-							.streamName(singleStreamName);
-		}
-		else {
-			retrievalSpecificConfig =
-					new PollingConfig(this.kinesisClient)
-							.streamName(singleStreamName);
-		}
-
-		this.config.retrievalConfig()
-				.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer)
-				.retrievalSpecificConfig(retrievalSpecificConfig);
 	}
 
 	private StreamTracker buildStreamTracker() {
@@ -320,15 +300,36 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 					+ "because it does not make sense in case of [ListenerMode.batch].");
 		}
 
+		LifecycleConfig lifecycleConfig =  this.config.lifecycleConfig();
+		lifecycleConfig.taskBackoffTimeMillis(this.consumerBackoff);
+
+		RetrievalSpecificConfig retrievalSpecificConfig;
+		String singleStreamName = this.streams.length == 1 ? this.streams[0] : null;
+		if (this.fanOut) {
+			retrievalSpecificConfig =
+					new FanOutConfig(this.kinesisClient)
+							.applicationName(this.consumerGroup)
+							.streamName(singleStreamName);
+		}
+		else {
+			retrievalSpecificConfig =
+					new PollingConfig(this.kinesisClient)
+							.streamName(singleStreamName);
+		}
+
+		RetrievalConfig retrievalConfig = this.config.retrievalConfig()
+				.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer)
+				.retrievalSpecificConfig(retrievalSpecificConfig);
+
 		this.scheduler =
 				new Scheduler(
 						this.config.checkpointConfig(),
 						this.config.coordinatorConfig(),
 						this.config.leaseManagementConfig(),
-						this.config.lifecycleConfig(),
+						lifecycleConfig,
 						this.config.metricsConfig(),
 						this.config.processorConfig(),
-						this.config.retrievalConfig());
+						retrievalConfig);
 
 		this.executor.execute(this.scheduler);
 	}
