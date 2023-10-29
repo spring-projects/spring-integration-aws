@@ -112,7 +112,8 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 						.join()
 						.consumers();
 
-		assertThat(streamConsumers).hasSize(1);
+		// Because FanOut is false, there would be no Stream Consumers.
+		assertThat(streamConsumers).hasSize(0);
 	}
 
 	@Configuration
