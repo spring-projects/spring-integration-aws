@@ -15,7 +15,6 @@ on:
 jobs:
   promote_milestone:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'spring-projects'
     steps:
 
       - uses: jfrog/setup-jfrog-cli@v3

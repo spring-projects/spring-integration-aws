@@ -15,7 +15,6 @@ on:
 jobs:
   release_to_central:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'spring-projects'
     steps:
 
       - uses: actions/checkout@v3
