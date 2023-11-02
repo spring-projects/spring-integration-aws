@@ -66,10 +66,8 @@ artifactory {
                 mavenJava  'zip.type': 'docs', '*:*:*:docs@zip'
                 mavenJava 'zip.type': 'dist', '*:*:*:dist@zip'
             }
+
+            publications(publishing.publications.mavenJava)
         }
     }
-}
-
-artifactoryPublish {
-    publications(publishing.publications.mavenJava)
 }
