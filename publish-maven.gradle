@@ -54,7 +54,7 @@ publishing {
     }
 }
 
-tasks.register('artifactoryPublish') {
+tasks.named('artifactoryPublish') {
     publications(publishing.publications.mavenJava)
     def zipArtifactProps =
             ['zip.name'       : 'spring-integration-aws',
