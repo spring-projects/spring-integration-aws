@@ -7,10 +7,6 @@ on:
         description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
         required: true
         type: string
-      nextDevelopmentVersion:
-        description: 'Next development version like 3.1.1-SNAPSHOT'
-        required: true
-        type: string
       gradleTasks:
         description: 'Additional Gradle tasks. The `build` and `artifactoryPublish` are included.'
         required: false
@@ -44,11 +40,6 @@ jobs:
         run: |
           jf gradlec \
             --use-wrapper \
-            --uses-plugin \
-            --deploy-ivy-desc=false \
-            --server-id-resolve repo.spring.io \
-            --server-id-deploy repo.spring.io \
-            --repo-resolve ${{ (contains(inputs.releaseVersion, 'M') || contains(inputs.releaseVersion, 'RC')) && 'milestone' || 'release' }} \
             --repo-deploy libs-staging-local
           echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ inputs.releaseVersion }} >> $GITHUB_ENV
           echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
@@ -69,7 +60,7 @@ jobs:
           git commit -a -m "[artifactory-release] Release version ${{ inputs.releaseVersion }}"
           git tag "v${{ inputs.releaseVersion }}"
           git push --tags origin
-          sed -i "s/version=.*/version=${{ inputs.nextDevelopmentVersion }}/" gradle.properties 
+          jf gradle nextDevelopmentVersion 
           git commit -a -m "[artifactory-release] Next development version"
           git push origin
 

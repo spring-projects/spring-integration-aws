@@ -35,11 +35,6 @@ jobs:
         run: |
           jf gradlec \
             --use-wrapper \
-            --uses-plugin \
-            --deploy-ivy-desc=false \
-            --server-id-resolve repo.spring.io \
-            --server-id-deploy repo.spring.io \
-            --repo-resolve snapshot \
             --repo-deploy libs-snapshot-local
           echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ github.ref_name }} >> $GITHUB_ENV
           echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV

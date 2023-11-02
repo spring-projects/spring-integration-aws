@@ -6,9 +6,6 @@ on:
       releaseVersion:
         description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
         required: true
-      nextDevelopmentVersion:
-        description: 'Next development version like 3.1.1-SNAPSHOT'
-        required: true
 
 run-name: Release version ${{ inputs.releaseVersion }}
 
@@ -17,5 +14,4 @@ jobs:
     uses: ./.github/workflows/spring-artifactory-gradle-release-staging.yml
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
-      nextDevelopmentVersion: ${{ inputs.nextDevelopmentVersion }}
     secrets: inherit
