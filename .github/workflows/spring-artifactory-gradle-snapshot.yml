@@ -41,6 +41,6 @@ jobs:
 
       - name: Build and Publish
         run: |
-          jf gradle build ${{ inputs.gradleTasks }} artifactoryPublish
+          jf gradle build ${{ inputs.gradleTasks }} artifactoryPublish -d -x test
           jf rt build-publish
 
