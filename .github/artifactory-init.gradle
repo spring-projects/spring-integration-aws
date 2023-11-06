@@ -15,7 +15,9 @@ gradle.projectsLoaded {
 
                     publications('mavenJava')
                 }
+                forkCount = 10
             }
+            clientConfig.setConnectionRetries(4)
         }
     }
 }
