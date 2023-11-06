@@ -37,7 +37,7 @@ jobs:
           path: init
 
       - name: Copy the artifactory-init.gradle
-        run: rsync init/.github/artifactory-init.gradle $GRADLE_USER_HOME/init.d/
+        run: rsync init/.github/artifactory-init.gradle ~/.gradle/init.d/
 
       - uses: jfrog/setup-jfrog-cli@v3
         with:
