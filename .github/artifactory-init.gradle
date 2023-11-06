@@ -1,19 +1,21 @@
-apply plugin: org.jfrog.gradle.plugin.artifactory.ArtifactoryPlugin
+gradle.projectsLoaded {
+    rootProject {
+        artifactory {
+            publish {
+                defaults {
+                    def  zipArtifactProps =
+                            ['zip.name': 'spring-integration-aws',
+                             'zip.displayname': 'Spring Integration Aws',
+                             'zip.deployed': 'false']
+                    properties {
+                        mavenJava zipArtifactProps, '*:*:*:*@zip'
+                        mavenJava  'zip.type': 'docs', '*:*:*:docs@zip'
+                        mavenJava 'zip.type': 'dist', '*:*:*:dist@zip'
+                    }
 
-artifactory {
-    publish {
-        defaults {
-            def  zipArtifactProps =
-                    ['zip.name': 'spring-integration-aws',
-                     'zip.displayname': 'Spring Integration Aws',
-                     'zip.deployed': 'false']
-            properties {
-                mavenJava zipArtifactProps, '*:*:*:*@zip'
-                mavenJava  'zip.type': 'docs', '*:*:*:docs@zip'
-                mavenJava 'zip.type': 'dist', '*:*:*:dist@zip'
+                    publications('mavenJava')
+                }
             }
-
-            publications('mavenJava')
         }
     }
 }
