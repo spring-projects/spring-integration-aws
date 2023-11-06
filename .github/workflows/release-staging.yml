@@ -11,7 +11,7 @@ run-name: Release version ${{ inputs.releaseVersion }}
 
 jobs:
   staging:
-    uses: ./.github/workflows/spring-artifactory-gradle-release-staging.yml
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
     secrets: inherit

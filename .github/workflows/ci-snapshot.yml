@@ -8,5 +8,5 @@ on:
 
 jobs:
   build_snapshot:
-    uses: ./.github/workflows/spring-artifactory-gradle-snapshot.yml
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-snapshot.yml@main
     secrets: inherit

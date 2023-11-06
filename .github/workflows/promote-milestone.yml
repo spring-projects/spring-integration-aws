@@ -12,7 +12,7 @@ on:
 
 jobs:
   promote_milestone:
-    uses: ./.github/workflows/spring-artifactory-promote-milestone.yml
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-milestone.yml@main
     with:
       buildName: ${{ inputs.buildName }}
       buildNumber: ${{ inputs.buildNumber }}

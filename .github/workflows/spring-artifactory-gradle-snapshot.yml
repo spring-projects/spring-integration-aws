@@ -20,10 +20,18 @@ jobs:
     name: CI Build SNAPSHOT for ${{ github.ref_name }}
     steps:
 
-      - uses: actions/checkout@v3
-
       - name: Set up Gradle
         uses: spring-io/spring-gradle-build-action@v2
+
+      - name: Checkout Common Repo
+        uses: actions/checkout@v3
+        with:
+          repository: spring-projects/spring-integration-aws
+
+      - name: Copy the artifactory-init.gradle
+        run: cp .github/artifactory-init.gradle $GRADLE_USER_HOME/init.d
+
+      - uses: actions/checkout@v3
 
       - uses: jfrog/setup-jfrog-cli@v3
         with:
