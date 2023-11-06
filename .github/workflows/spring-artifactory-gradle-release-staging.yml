@@ -23,18 +23,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
+          show-progress: false
 
       - name: Set up Gradle
         uses: spring-io/spring-gradle-build-action@v2
 
       - name: Checkout Common Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: spring-projects/spring-integration-aws
           path: init
+          show-progress: false
 
       - name: Copy the artifactory-init.gradle
         run: rsync init/.github/artifactory-init.gradle ~/.gradle/init.d/

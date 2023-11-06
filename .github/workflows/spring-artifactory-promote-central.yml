@@ -17,9 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: spring-projects/spring-integration-aws
+          show-progress: false
 
       - uses: jfrog/setup-jfrog-cli@v3
         with:
