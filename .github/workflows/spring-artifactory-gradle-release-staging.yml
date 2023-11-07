@@ -35,11 +35,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: spring-projects/spring-integration-aws
-          path: init
+          path: build
           show-progress: false
 
-      - name: Copy the artifactory-init.gradle
-        run: rsync init/.github/artifactory-init.gradle ~/.gradle/init.d/
+      - name: Copy the spring-project-init.gradle
+        run: rsync build/.github/spring-project-init.gradle ~/.gradle/init.d/
 
       - uses: jfrog/setup-jfrog-cli@v3
         with:
@@ -61,7 +61,7 @@ jobs:
 
       - name: Build and Publish
         run: |
-          jf gradle build ${{ inputs.gradleTasks }} artifactoryPublish
+          jf gradle clean build ${{ inputs.gradleTasks }} artifactoryPublish
           jf rt build-publish
 
       - name: Tag Release and Next Development Version

@@ -276,27 +276,4 @@ task dist(dependsOn: assemble) {
 	description = 'Builds -dist and -docs distribution archives.'
 }
 
-tasks.register('nextDevelopmentVersion') {
-	onlyIf { isCI }
-	doLast {
-		if (!project.version.endsWith('-SNAPSHOT')) {
-			String nextDevelopmentVersion
-			if (project.version.contains('-M') || project.version.contains('-RC')) {
-				nextDevelopmentVersion = project.version - ~/(M|RC)\d+/ + 'SNAPSHOT'
-			}
-			else {
-				def versionParts = project.version.tokenize('.')
-				def major = versionParts[0]
-				def minor = versionParts[1]
-				def patch = versionParts[2] as int
-				nextDevelopmentVersion = major + '.' + minor + '.' + (++patch)+ '-SNAPSHOT'
-			}
-
-			def gradleProperties = file('gradle.properties')
-			def newProps = gradleProperties.text.replace(project.version, nextDevelopmentVersion)
-			gradleProperties.text = newProps
-		}
-	}
-}
-
 apply from: "${rootProject.projectDir}/publish-maven.gradle"
