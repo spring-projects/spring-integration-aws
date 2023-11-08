@@ -6,7 +6,6 @@ plugins {
 	id 'java-library'
 	id 'eclipse'
 	id 'idea'
-	id 'jacoco'
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.3'
@@ -101,10 +100,6 @@ dependencyManagement {
 	}
 }
 
-jacoco {
-	toolVersion = '0.8.10'
-}
-
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
 	toolVersion = '10.12.4'
@@ -181,20 +176,9 @@ ext.xLintArg = '-Xlint:all,-options'
 
 test {
 	maxHeapSize = '1024m'
-	jacoco {
-		destinationFile = file('build/jacoco.exec')
-	}
 	useJUnitPlatform()
 	// suppress all console output during testing unless running `gradle -i`
 	logging.captureStandardOutput(LogLevel.INFO)
-}
-
-jacocoTestReport {
-	dependsOn test
-	reports {
-		xml.required = true
-		html.required = false
-	}
 }
 
 check.dependsOn javadoc
