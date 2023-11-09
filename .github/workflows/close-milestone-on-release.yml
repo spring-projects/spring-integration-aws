@@ -24,10 +24,8 @@ jobs:
       - name: Close Milestone
         run: |
           TAG=${{ inputs.releaseTag }}
-          echo TAG=$TAG 
-          MILESTONE_NAME=${TAG#v}
-          echo MILESTONE_NAME=$MILESTONE_NAME
-          MILESTONE_ID="$(gh api repos/$OWNER/$REPO/milestones --jq '.[] | select(.title == "$MILESTONE_NAME") | .number')"
+          export MILESTONE_NAME=${TAG#v}
+          MILESTONE_ID=$(gh api repos/$OWNER/$REPO/milestones --jq '.[] | select(.title == env.MILESTONE_NAME) | .number')
           echo MILESTONE_ID=$MILESTONE_ID
           if [ $MILESTONE_ID ]; then
             gh api -X PATCH repos/$OWNER/$REPO/milestones/$MILESTONE_ID -f state='closed'
