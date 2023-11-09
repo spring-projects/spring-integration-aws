@@ -34,7 +34,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
 
       - id: get-milestone-id
-        run: echo milestoneId=${{steps.list_milestones.outputs.data}} | jq '.[] | select(.title == "${{steps.get-milestone-from-tag.outputs.milestoneName}}") | .number' >> $GITHUB_OUTPUT
+        run: echo milestoneId='${{steps.list_milestones.outputs.data}}' | jq '.[] | select(.title == "${{steps.get-milestone-from-tag.outputs.milestoneName}}") | .number' >> $GITHUB_OUTPUT
 
       - name: Close Milestone
         if: ${{steps.get-milestone-id.outputs.milestoneId}}
