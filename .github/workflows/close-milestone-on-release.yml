@@ -15,14 +15,16 @@ on:
         type: string
 
 jobs:
-  build:
+  close-milestone:
 
     runs-on: ubuntu-latest
 
     steps:
 
       - id: get-milestone-from-tag
-        run: echo milestoneName=${${{ inputs.releaseTag }}#v} >> $GITHUB_OUTPUT
+        run: |
+          TAG=${{ inputs.releaseTag }}
+          echo milestoneName=${TAG#v} >> $GITHUB_OUTPUT
 
       - uses: octokit/request-action@v2.x
         id: list_milestones

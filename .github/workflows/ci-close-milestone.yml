@@ -1,7 +1,9 @@
-name: Close Milestone and Notify Slack
+name: Close Milestone
 
 on:
-  release
+  release:
+    types:
+      - published
 
 jobs:
   close-milestone:
