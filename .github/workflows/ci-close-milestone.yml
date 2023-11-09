@@ -3,7 +3,7 @@ name: Close Milestone
 on:
   release:
     types:
-      - published
+      - created
 
 jobs:
   close-milestone:

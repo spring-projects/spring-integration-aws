@@ -36,13 +36,13 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
 
-      - name: Announce Release on Slack
-        uses: slackapi/slack-github-action@v1.24.0
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SPRING_RELEASE_SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-        with:
-          payload: |
-            {
-              "text": "${{ github.event.repository.name }}-announcing `${{ steps.milestone-id.outputs.version }}`"
-            }
+#      - name: Announce Release on Slack
+#        uses: slackapi/slack-github-action@v1.24.0
+#        env:
+#          SLACK_WEBHOOK_URL: ${{ secrets.SPRING_RELEASE_SLACK_WEBHOOK_URL }}
+#          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+#        with:
+#          payload: |
+#            {
+#              "text": "${{ github.event.repository.name }}-announcing `${{ steps.milestone-id.outputs.version }}`"
+#            }
