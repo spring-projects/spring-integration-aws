@@ -42,4 +42,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SPRING_RELEASE_SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         with:
-          slack-message: ${{ github.event.repository.name }}-announcing `${{ steps.milestone-id.outputs.version }}`
+          payload: |
+            {
+              "text": "${{ github.event.repository.name }}-announcing `${{ steps.milestone-id.outputs.version }}`"
+            }
