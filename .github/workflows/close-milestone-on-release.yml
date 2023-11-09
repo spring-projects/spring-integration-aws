@@ -21,28 +21,17 @@ jobs:
 
     steps:
 
-      - id: get-milestone-from-tag
+      - name: Close Milestone
         run: |
           TAG=${{ inputs.releaseTag }}
-          echo milestoneName=${TAG#v} >> $GITHUB_OUTPUT
-
-      - uses: octokit/request-action@v2.x
-        id: list_milestones
-        with:
-          route: GET /repos/${{ github.repository }}/milestones
+          MILESTONE_NAME=${TAG#v}
+          MILESTONE_ID="$(gh api repos/$OWNER/$REPO/milestones --jq '.[] | select(.title == "$MILESTONE_NAME") | .number')"
+          if [ $MILESTONE_ID ]; then
+            gh api -X PATCH repos/$OWNER/$REPO/milestones/$MILESTONE_ID -f state='closed'
+          fi      
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
-
-      - id: get-milestone-id
-        run: echo milestoneId='${{steps.list_milestones.outputs.data}}' | jq '.[] | select(.title == "${{steps.get-milestone-from-tag.outputs.milestoneName}}") | .number' >> $GITHUB_OUTPUT
-
-      - name: Close Milestone
-        if: ${{steps.get-milestone-id.outputs.milestoneId}}
-        uses: octokit/request-action@v2.x
-        with:
-          route: PATCH /repos/${{ github.repository }}/milestones/${{steps.get-milestone-id.outputs.milestoneId}}
-          state: "closed"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
 
 
