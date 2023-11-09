@@ -56,8 +56,7 @@ jobs:
           echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
 
       - name: Set Release Version
-        run: |
-          sed -i "s/version=.*/version=${{ inputs.releaseVersion }}/" gradle.properties 
+        run: sed -i "s/version=.*/version=${{ inputs.releaseVersion }}/" gradle.properties
 
       - name: Build and Publish
         run: |

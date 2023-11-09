@@ -1,0 +1,40 @@
+name: Close Milestone and Notify Slack
+
+on:
+  workflow_call:
+    inputs:
+      releaseTag:
+        description: 'The tag of the release for Milestone to close. Usually starts with `v`'
+        required: true
+        type: string
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - id: get-milestone-from-tag
+        run: echo milestoneName=${${{ inputs.releaseTag }}#v} >> $GITHUB_OUTPUT
+
+      - uses: octokit/request-action@v2.x
+        id: list_milestones
+        with:
+          route: GET /repos/${{ github.repository }}/milestones
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
+
+      - id: get-milestone-id
+        run: echo milestoneId=${{steps.list_milestones.outputs.data}} | jq '.[] | select(.title == "${{steps.get-milestone-from-tag.outputs.milestoneName}}") | .number' >> $GITHUB_OUTPUT
+
+      - name: Close Milestone
+        if: ${{steps.get-milestone-id.outputs.milestoneId}}
+        uses: octokit/request-action@v2.x
+        with:
+          route: PATCH /repos/${{ github.repository }}/milestones/${{steps.get-milestone-id.outputs.milestoneId}}
+          state: "closed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
+
+

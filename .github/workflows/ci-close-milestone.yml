@@ -1,0 +1,12 @@
+name: Close Milestone and Notify Slack
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  close-milestone:
+    uses: spring-projects/spring-integration-aws/.github/workflows/close-milestone-on-release.yml@main
+    with:
+      releaseTag: ${{ github.ref_name }}
+    secrets: inherit
