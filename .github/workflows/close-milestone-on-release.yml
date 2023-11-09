@@ -26,11 +26,7 @@ jobs:
           TAG=${{ inputs.releaseTag }}
           export MILESTONE_NAME=${TAG#v}
           MILESTONE_ID=$(gh api repos/$OWNER/$REPO/milestones --jq '.[] | select(.title == env.MILESTONE_NAME) | .number')
-          echo MILESTONE_ID=$MILESTONE_ID
-          if [ $MILESTONE_ID ]; then
-            gh api -X PATCH repos/$OWNER/$REPO/milestones/$MILESTONE_ID -f state='closed'
-          echo repo closed
-          fi      
+          gh api -X PATCH repos/$OWNER/$REPO/milestones/$MILESTONE_ID -f state='closed' --silent
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
           OWNER: ${{ github.repository_owner }}
