@@ -1,6 +1,7 @@
 name: Close Milestone and Notify Slack
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       releaseTag:
