@@ -2,6 +2,11 @@ name: Close Milestone and Notify Slack
 
 on:
   workflow_dispatch:
+    inputs:
+      releaseTag:
+        description: 'The tag of the release for Milestone to close. Usually starts with `v`'
+        required: true
+        type: string
   workflow_call:
     inputs:
       releaseTag:
