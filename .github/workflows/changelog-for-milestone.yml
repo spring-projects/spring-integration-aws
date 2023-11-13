@@ -22,9 +22,6 @@ on:
         required: false
         type: string
 
-env:
-  GENERATOR_VERSION: 0.0.8
-
 jobs:
   generate-changelog:
     runs-on: ubuntu-latest
@@ -36,13 +33,6 @@ jobs:
           repository: spring-projects/spring-integration-aws
           show-progress: false
 
-      - uses: nvoxland/jar-download-action@v1
-        with:
-          groupId: spring-io
-          artifactId: github-changelog-generator
-          version: ${{ env.GENERATOR_VERSION }}
-          outputDirectory: .
-
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
@@ -50,7 +40,9 @@ jobs:
           java-version: 17
 
       - name: Generate Changelog
-        run: java -jar github-changelog-generator-$GENERATOR_VERSION.jar --spring.config.location=changelog-application.yml ${{ inputs.milestone }} changelog.md
+        run: |
+          wget -q https://github.com/spring-io/github-changelog-generator/releases/download/v0.0.8/github-changelog-generator.jar
+          java -jar github-changelog-generator.jar --spring.config.location=changelog-application.yml ${{ inputs.milestone }} changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
           REPO_TEAM: ${{ inputs.repositoryTeam }}
