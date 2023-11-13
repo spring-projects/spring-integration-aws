@@ -42,7 +42,7 @@ jobs:
       - name: Generate Changelog
         run: |
           wget -q https://github.com/spring-io/github-changelog-generator/releases/download/v0.0.8/github-changelog-generator.jar
-          java -jar github-changelog-generator.jar --spring.config.location=changelog-application.yml ${{ inputs.milestone }} changelog.md
+          java -jar github-changelog-generator.jar --spring.config.location=.github/changelog-application.yml ${{ inputs.milestone }} changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
           REPO_TEAM: ${{ inputs.repositoryTeam }}
