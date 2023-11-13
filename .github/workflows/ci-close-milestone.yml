@@ -2,7 +2,7 @@ name: Close Milestone
 
 on:
   release:
-    types: [created,prereleased,released,published]
+    types: [published]
 
 jobs:
   close-milestone:

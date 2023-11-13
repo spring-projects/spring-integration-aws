@@ -1,0 +1,59 @@
+name: Generate Changelog for Provided Milestone
+
+on:
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: 'Milestone title, e.g 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
+        required: true
+        type: string
+      repositoryTeam:
+        description: 'Comma-separate GitHub user names for repository team members to exclude from contributors'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      milestone:
+        description: 'Milestone title, e.g 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
+        required: true
+        type: string
+      repositoryTeam:
+        description: 'Comma-separate GitHub user names for repository team members to exclude from contributors'
+        required: false
+        type: string
+
+env:
+  GENERATOR_VERSION: 0.0.8
+
+jobs:
+  generate-changelog:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout Common Repo
+        uses: actions/checkout@v4
+        with:
+          repository: spring-projects/spring-integration-aws
+          show-progress: false
+
+      - uses: nvoxland/jar-download-action@v1
+        with:
+          groupId: spring-io
+          artifactId: github-changelog-generator
+          version: $GENERATOR_VERSION
+          outputDirectory: .
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: 17
+
+      - name: Generate Changelog
+        run: java -jar github-changelog-generator-$GENERATOR_VERSION.jar --spring.config.location=changelog-application.yml ${{ inputs.milestone }} changelog.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
+          REPO_TEAM: ${{ inputs.repositoryTeam }}
+
+      - name: Print Changelog
+        run: echo "::notice ::$(cat changelog.md)"
