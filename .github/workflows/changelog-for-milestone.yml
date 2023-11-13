@@ -40,7 +40,7 @@ jobs:
         with:
           groupId: spring-io
           artifactId: github-changelog-generator
-          version: $GENERATOR_VERSION
+          version: ${{ env.GENERATOR_VERSION }}
           outputDirectory: .
 
       - name: Set up JDK
