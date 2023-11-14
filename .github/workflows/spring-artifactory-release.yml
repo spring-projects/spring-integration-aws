@@ -19,7 +19,7 @@ env:
 
 jobs:
   staging:
-    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
+    uses: ./.github/workflows/stage-release.yml
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
     secrets: inherit

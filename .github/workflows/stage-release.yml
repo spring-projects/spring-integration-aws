@@ -1,7 +1,7 @@
-name: Perform Release
+name: Stage Release with Gradle to Artifactory
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       releaseVersion:
         description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
@@ -9,9 +9,8 @@ on:
         type: string
 
 jobs:
-  release:
-    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-release.yml@main
+  staging:
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
-      repositoryTeam: artembilan,garyrussell
     secrets: inherit
