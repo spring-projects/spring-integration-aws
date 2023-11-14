@@ -66,8 +66,10 @@ jobs:
             --use-wrapper \
             --repo-deploy libs-staging-local
           
-          echo buildName=${{ github.event.repository.name }}-${{ inputs.releaseVersion }} >> $GITHUB_OUTPUT
-          echo buildNumber=$GITHUB_RUN_NUMBER >> $GITHUB_OUTPUT
+          echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ inputs.releaseVersion }} >> $GITHUB_ENV
+          echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
+          echo buildName=$JFROG_CLI_BUILD_NAME >> $GITHUB_OUTPUT
+          echo buildNumber=$JFROG_CLI_BUILD_NUMBER >> $GITHUB_OUTPUT
 
       - name: Set Release Version
         run: sed -i "s/version=.*/version=${{ inputs.releaseVersion }}/" gradle.properties
@@ -75,7 +77,7 @@ jobs:
       - name: Build and Publish
         run: |
           jf gradle clean build ${{ inputs.gradleTasks }} artifactoryPublish
-          jf rt build-publish  ${{ steps.configure-jfrog.outputs.buildName }} ${{ steps.configure-jfrog.outputs.buildNumber }}
+          jf rt build-publish
 
       - name: Tag Release and Next Development Version
         run: |
