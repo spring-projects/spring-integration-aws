@@ -30,20 +30,20 @@ jobs:
 
   promote-milestone:
     if: ${{ contains(inputs.releaseVersion, '-M') || contains(inputs.releaseVersion, '-RC') }}
-    needs: verify-staged
+    needs: [staging, verify-staged]
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-milestone.yml@main
     with:
-      buildName: ${{ env.JFROG_CLI_BUILD_NAME }}
-      buildNumber: ${{ env.JFROG_CLI_BUILD_NUMBER }}
+      buildName: ${{ needs.staging.outputs.buildName }}
+      buildNumber: ${{ needs.staging.outputs.buildNumber }}
     secrets: inherit
 
   promote-ga:
     if: ${{ ! contains(inputs.releaseVersion, '-') }}
-    needs: verify-staged
+    needs: [staging, verify-staged]
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-central.yml@main
     with:
-      buildName: ${{ env.JFROG_CLI_BUILD_NAME }}
-      buildNumber: ${{ env.JFROG_CLI_BUILD_NUMBER }}
+      buildName: ${{ needs.staging.outputs.buildName }}
+      buildNumber: ${{ needs.staging.outputs.buildNumber }}
     secrets: inherit
 
   finalize:
