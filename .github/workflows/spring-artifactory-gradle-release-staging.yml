@@ -19,7 +19,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
 
 jobs:
-  staging:
+  staging-to-artifactory-with-gradle:
     runs-on: ubuntu-latest
     steps:
 

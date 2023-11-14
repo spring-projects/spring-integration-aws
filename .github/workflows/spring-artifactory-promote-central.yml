@@ -13,7 +13,7 @@ on:
         type: string
 
 jobs:
-  release_to_central:
+  release-to-central:
     runs-on: ubuntu-latest
     steps:
 
@@ -29,8 +29,7 @@ jobs:
           JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
 
       - name: Promote Build
-        run: |
-          jfrog rt build-promote ${{ inputs.buildName }} ${{ inputs.buildNumber }} libs-release-local
+        run: jfrog rt build-promote ${{ inputs.buildName }} ${{ inputs.buildNumber }} libs-release-local
 
       # Download released files
       - name: Download Release Files

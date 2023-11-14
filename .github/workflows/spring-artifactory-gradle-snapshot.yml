@@ -15,7 +15,7 @@ env:
   GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
 
 jobs:
-  build_snapshot:
+  build-snapshot-with-gradle:
     runs-on: ubuntu-latest
     name: CI Build SNAPSHOT for ${{ github.ref_name }}
     steps:

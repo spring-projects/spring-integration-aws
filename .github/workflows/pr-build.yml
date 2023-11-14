@@ -6,5 +6,5 @@ on:
       - main
 
 jobs:
-  build:
+  build-pull-request:
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-gradle-pull-request-build.yml@main

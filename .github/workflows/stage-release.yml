@@ -9,7 +9,7 @@ on:
         type: string
 
 jobs:
-  staging:
+  staging-with-gradle:
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
     with:
       releaseVersion: ${{ inputs.releaseVersion }}

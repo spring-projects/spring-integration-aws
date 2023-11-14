@@ -9,16 +9,15 @@ on:
         type: string
 
 jobs:
-  verify-staged:
+  verify-staged-with-jfrog:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
+      - uses: jfrog/setup-jfrog-cli@v3
         with:
-          distribution: adopt
-          java-version: 17
-          cache: 'maven'
+          version: 2.50.4
+        env:
+          JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
 
-      - name: Download staged artifact
-        run: mvn dependency:get -DrepoUrl=https://repo.spring.io/libs-staging-local -Dartifact=org.springframework.integration:spring-integration-aws:${{ inputs.releaseVersion }}
+      - name: Download Artifact from Staging Repo
+        run: jfrog rt download libs-staging-local/org/springframework/integration/spring-integration-aws/${{ inputs.releaseVersion }}/spring-integration-aws-${{ inputs.releaseVersion }}.jar
