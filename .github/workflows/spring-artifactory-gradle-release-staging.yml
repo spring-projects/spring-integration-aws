@@ -75,7 +75,7 @@ jobs:
       - name: Build and Publish
         run: |
           jf gradle clean build ${{ inputs.gradleTasks }} artifactoryPublish
-          jf rt build-publish
+          jf rt build-publish  ${{ steps.configure-jfrog.outputs.buildName }} ${{ steps.configure-jfrog.outputs.buildNumber }}
 
       - name: Tag Release and Next Development Version
         run: |
