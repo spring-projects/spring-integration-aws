@@ -1,0 +1,58 @@
+name: Perform Release
+
+on:
+  workflow_call:
+    inputs:
+      releaseVersion:
+        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
+        required: true
+        type: string
+      repositoryTeam:
+        description: 'Comma-separate GitHub user names for repository team members to exclude from contributors'
+        required: false
+        type: string
+
+run-name: Release version ${{ inputs.releaseVersion }}
+
+env:
+  IS_GA: ${{ (contains(inputs.releaseVersion, '-M') || contains(inputs.releaseVersion, '-RC')) && false || true }}
+
+jobs:
+  staging:
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
+    with:
+      releaseVersion: ${{ inputs.releaseVersion }}
+    secrets: inherit
+
+  verify-staged:
+    needs: staging
+    uses: ./.github/workflows/verify-staged-artifacts.yml
+    with:
+      releaseVersion: ${{ inputs.releaseVersion }}
+    secrets: inherit
+
+  promote_milestone:
+    if: ${{ !env.IS_GA }}
+    needs: verify-staged
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-milestone.yml@main
+    with:
+      buildName: $JFROG_CLI_BUILD_NAME
+      buildNumber: $JFROG_CLI_BUILD_NUMBER
+    secrets: inherit
+
+  promote_ga:
+    if: ${{ env.IS_GA }}
+    needs: verify-staged
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-central.yml@main
+    with:
+      buildName: $JFROG_CLI_BUILD_NAME
+      buildNumber: $JFROG_CLI_BUILD_NUMBER
+    secrets: inherit
+
+  finalize:
+    needs: [promote_milestone, promote_ga]
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-finalize-release.yml@main
+    with:
+      milestone: ${{ inputs.releaseVersion }}
+      repositoryTeam: ${{ inputs.repositoryTeam }}
+    secrets: inherit

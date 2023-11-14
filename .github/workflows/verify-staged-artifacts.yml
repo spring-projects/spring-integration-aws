@@ -1,0 +1,25 @@
+name: Verify Staged Artifacts
+
+on:
+  workflow_call:
+    inputs:
+      releaseVersion:
+        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
+        required: true
+        type: string
+
+jobs:
+  verify-staged:
+    needs: staging
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: adopt
+          java-version: 17
+          cache: 'maven'
+
+      - name: Download staged artifact
+        run: mvn dependency:get -DrepoUrl=https://repo.spring.io/libs-staging-local -Dartifact=org.springframework.integration:spring-integration-aws:${{ inputs.releaseVersion }}

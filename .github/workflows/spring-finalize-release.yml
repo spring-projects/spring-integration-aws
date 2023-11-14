@@ -1,16 +1,6 @@
 name: Create GH release and Notify Slack
 
 on:
-  workflow_dispatch:
-    inputs:
-      milestone:
-        description: 'Milestone title, e.g 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
-        required: true
-        type: string
-      repositoryTeam:
-        description: 'Comma-separate GitHub user names for repository team members to exclude from contributors'
-        required: false
-        type: string
   workflow_call:
     inputs:
       milestone:
@@ -39,7 +29,7 @@ jobs:
         run: |
           wget -q https://github.com/spring-io/github-changelog-generator/releases/download/v0.0.8/github-changelog-generator.jar
           
-          java -jar github-changelog-generator.jar $MILESTONE changelog.md --debug \
+          java -jar github-changelog-generator.jar $MILESTONE changelog.md \
             --changelog.repository=$GITHUB_REPOSITORY \
             --github.username=spring-builds \
             --github.password=${{ secrets.GH_ACTIONS_REPO_TOKEN }} \
