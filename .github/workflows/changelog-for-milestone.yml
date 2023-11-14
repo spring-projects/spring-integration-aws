@@ -45,7 +45,7 @@ jobs:
           java -jar github-changelog-generator.jar --spring.config.location=.github/changelog-application.yml ${{ inputs.milestone }} changelog.md
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
-          REPO_TEAM: ${{ inputs.repositoryTeam }}
+          REPO_TEAM: "[ ${{ inputs.repositoryTeam }} ]"
 
       - name: Print Changelog
         run: echo "::notice ::$(cat changelog.md)"

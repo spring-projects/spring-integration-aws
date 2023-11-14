@@ -2,7 +2,7 @@ changelog:
   repository: ${GITHUB_REPOSITORY}
   contributors:
     exclude:
-      names: [ ${REPO_TEAM} ]
+      names: ${REPO_TEAM}
 github:
   username: spring-builds
   password: ${GITHUB_TOKEN}
