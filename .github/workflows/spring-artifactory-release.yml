@@ -47,7 +47,7 @@ jobs:
     secrets: inherit
 
   finalize:
-    needs: [promote_milestone, promote_ga]
+    needs: [promote-milestone, promote-ga]
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-finalize-release.yml@main
     with:
       milestone: ${{ inputs.releaseVersion }}
