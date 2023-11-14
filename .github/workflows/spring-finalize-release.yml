@@ -32,7 +32,7 @@ jobs:
           java -jar github-changelog-generator.jar $MILESTONE changelog.md \
             --changelog.repository=$GITHUB_REPOSITORY \
             --github.username=spring-builds \
-            --github.password=${{ secrets.GH_ACTIONS_REPO_TOKEN }} \
+            --github.password=$GITHUB_TOKEN \
             --changelog.contributors.exclude.names=${{ inputs.repositoryTeam }}
 
       - name: GitHub Release

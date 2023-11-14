@@ -10,7 +10,6 @@ on:
 
 jobs:
   verify-staged:
-    needs: staging
     runs-on: ubuntu-latest
     steps:
 
