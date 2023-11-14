@@ -31,22 +31,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - uses: actions/checkout@v4
+        with:
+          show-progress: false
+
       - name: Generate Changelog
         run: |
           wget -q https://github.com/spring-io/github-changelog-generator/releases/download/v0.0.8/github-changelog-generator.jar
           
-          java -jar github-changelog-generator.jar $MILESTONE changelog.md \
+          java -jar github-changelog-generator.jar $MILESTONE changelog.md --debug \
             --changelog.repository=$GITHUB_REPOSITORY \
             --github.username=spring-builds \
             --github.password=${{ secrets.GH_ACTIONS_REPO_TOKEN }} \
             --changelog.contributors.exclude.names=${{ inputs.repositoryTeam }}
 
       - name: GitHub Release
-        run: gh release create v$MILESTONE -F changelog.md
+        run: gh release create v${{ env.MILESTONE }} -F changelog.md
 
       - name: Close Milestone
         run: |
-          MILESTONE_ID=$(gh api repos/$GITHUB_REPOSITORY/milestones --jq '.[] | select(.title == env.$MILESTONE) | .number')
+          MILESTONE_ID=$(gh api repos/$GITHUB_REPOSITORY/milestones --jq '.[] | select(.title == env.MILESTONE) | .number')
           if [ $MILESTONE_ID ]; then
             gh api -X PATCH repos/$GITHUB_REPOSITORY/milestones/$MILESTONE_ID -f state='closed' --silent
           fi
