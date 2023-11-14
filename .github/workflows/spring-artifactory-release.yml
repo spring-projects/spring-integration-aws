@@ -33,8 +33,8 @@ jobs:
     needs: verify-staged
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-milestone.yml@main
     with:
-      buildName: $JFROG_CLI_BUILD_NAME
-      buildNumber: $JFROG_CLI_BUILD_NUMBER
+      buildName: ${{ env.JFROG_CLI_BUILD_NAME }}
+      buildNumber: ${{ env.JFROG_CLI_BUILD_NUMBER }}
     secrets: inherit
 
   promote-ga:
@@ -42,8 +42,8 @@ jobs:
     needs: verify-staged
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-central.yml@main
     with:
-      buildName: $JFROG_CLI_BUILD_NAME
-      buildNumber: $JFROG_CLI_BUILD_NUMBER
+      buildName: ${{ env.JFROG_CLI_BUILD_NAME }}
+      buildNumber: ${{ env.JFROG_CLI_BUILD_NUMBER }}
     secrets: inherit
 
   finalize:
