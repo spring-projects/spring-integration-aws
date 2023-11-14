@@ -48,6 +48,7 @@ import org.springframework.util.StringUtils;
  * @author Jim Krygowski
  * @author Anwar Chirakkattil
  * @author Xavier François
+ * @author Rogerio Lino
  */
 public class S3Session implements Session<S3Object> {
 
@@ -82,8 +83,11 @@ public class S3Session implements Session<S3Object> {
 		List<S3Object> objectSummaries = new ArrayList<>();
 		do {
 			objectListing = this.amazonS3.listObjects(listObjectsRequest.build());
-			objectSummaries.addAll(objectListing.contents());
-			listObjectsRequest.marker(objectListing.nextMarker());
+			List<S3Object> contents = objectListing.contents();
+			objectSummaries.addAll(contents);
+			if (objectListing.isTruncated()) {
+				listObjectsRequest.marker(contents.get(contents.size() - 1).key());
+			}
 		}
 		while (objectListing.isTruncated());
 
@@ -108,10 +112,13 @@ public class S3Session implements Session<S3Object> {
 		List<String> names = new ArrayList<>();
 		do {
 			objectListing = this.amazonS3.listObjects(listObjectsRequest.build());
-			for (S3Object objectSummary : objectListing.contents()) {
+			List<S3Object> contents = objectListing.contents();
+			for (S3Object objectSummary : contents) {
 				names.add(objectSummary.key());
 			}
-			listObjectsRequest.marker(objectListing.nextMarker());
+			if (objectListing.isTruncated()) {
+				listObjectsRequest.marker(contents.get(contents.size() - 1).key());
+			}
 		}
 		while (objectListing.isTruncated());
 
