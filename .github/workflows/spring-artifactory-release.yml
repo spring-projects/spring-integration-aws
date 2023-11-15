@@ -16,8 +16,6 @@ on:
         required: false
         type: string
 
-run-name: Release version ${{ inputs.releaseVersion }}
-
 jobs:
   staging:
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-stage-release.yml@main
