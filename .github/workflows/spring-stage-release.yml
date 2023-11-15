@@ -1,0 +1,76 @@
+name: Stage Release with Gradle or Maven to Artifactory
+
+on:
+  workflow_call:
+    inputs:
+      releaseVersion:
+        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
+        required: true
+        type: string
+
+    outputs:
+      buildName:
+        description: 'Artifactory Build Name'
+        value: ${{ jobs.staging-with-gradle.outputs.buildName }}
+      buildNumber:
+        description: 'Artifactory Build Number'
+        value: ${{ jobs.staging-with-gradle.outputs.buildNumber }}
+
+
+jobs:
+  maven-or-gradle:
+    runs-on: ubuntu-latest
+    outputs:
+      isMaven: ${{ steps.is-maven.outputs.isMaven }}
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: Check if project is Maven-based
+        id: is-maven
+        run: |
+          if test -f pom.xml
+          then
+            echo isMaven=true >> $GITHUB_OUTPUT
+          else
+            echo isMaven=false >> $GITHUB_OUTPUT
+          fi
+
+  staging-with-gradle:
+    needs: maven-or-gradle
+    if: ${{ ! needs.maven-or-gradle.outputs.isMaven }}
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
+    with:
+      releaseVersion: ${{ inputs.releaseVersion }}
+    secrets: inherit
+
+
+  staging-with-maven:
+    needs: maven-or-gradle
+    if: ${{ needs.maven-or-gradle.outputs.isMaven }}
+    uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-maven-release-staging.yml@main
+    with:
+      releaseVersion: ${{ inputs.releaseVersion }}
+    secrets: inherit
+
+  build-info:
+    needs: [staging-with-gradle, staging-with-maven]
+    runs-on: ubuntu-latest
+    outputs:
+      buildName: ${{ steps.output-build-info.outputs.buildName }}
+      buildNumber: ${{ steps.output-build-info.outputs.buildNumber }}
+
+    steps:
+      - name: Output Build Info
+        id: output-build-info
+        run: |
+          if [ ${{ needs.staging-with-gradle.outputs.buildName }} ]
+          then
+            echo buildName=${{ needs.staging-with-gradle.outputs.buildName }} >> $GITHUB_OUTPUT
+            echo buildNumber=${{ needs.staging-with-gradle.outputs.buildNumber }} >> $GITHUB_OUTPUT
+          else
+            echo buildName=${{ needs.staging-with-maven.outputs.buildName }} >> $GITHUB_OUTPUT
+            echo buildNumber=${{ needs.staging-with-maven.outputs.buildNumber }} >> $GITHUB_OUTPUT
+          fi

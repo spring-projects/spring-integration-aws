@@ -1,4 +1,4 @@
-name: Build with Gradle and Stage Release to Artifactory
+name: Build with Maven and Stage Release to Artifactory
 
 on:
   workflow_call:
@@ -7,51 +7,37 @@ on:
         description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
         required: true
         type: string
-      gradleTasks:
-        description: 'Additional Gradle tasks. The `build` and `artifactoryPublish` are included.'
+      mavenArgs:
+        description: 'Additional mvn command arguments: goals, plugins etc. The `install` is included.'
         required: false
-        default: 'dist'
         type: string
 
     outputs:
       buildName:
         description: 'Artifactory Build Name'
-        value: ${{ jobs.staging-to-artifactory-with-gradle.outputs.buildName }}
+        value: ${{ jobs.staging-to-artifactory-with-maven.outputs.buildName }}
       buildNumber:
         description: 'Artifactory Build Number'
-        value: ${{ jobs.staging-to-artifactory-with-gradle.outputs.buildNumber }}
-
-env:
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GRADLE_ENTERPRISE_CACHE_USER }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GRADLE_ENTERPRISE_CACHE_PASSWORD }}
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
+        value: ${{ jobs.staging-to-artifactory-with-maven.outputs.buildNumber }}
 
 jobs:
-  staging-to-artifactory-with-gradle:
+  staging-to-artifactory-with-maven:
     runs-on: ubuntu-latest
     outputs:
       buildName: ${{ steps.configure-jfrog.outputs.buildName }}
       buildNumber: ${{ steps.configure-jfrog.outputs.buildNumber }}
-
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
-          show-progress: false
 
-      - name: Set up Gradle
-        uses: spring-io/spring-gradle-build-action@v2
-
-      - name: Checkout Common Repo
-        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v3
         with:
-          repository: spring-projects/spring-integration-aws
-          path: build
-          show-progress: false
-
-      - name: Copy the spring-project-init.gradle
-        run: rsync build/.github/spring-project-init.gradle ~/.gradle/init.d/
+          distribution: adopt
+          java-version: 17
+          cache: 'maven'
 
       - uses: jfrog/setup-jfrog-cli@v3
         with:
@@ -62,9 +48,12 @@ jobs:
       - name: Configure JFrog Cli
         id: configure-jfrog
         run: |
-          jf gradlec \
-            --use-wrapper \
-            --repo-deploy libs-staging-local
+          jf mvnc \
+            --use-wrapper=true \
+            --repo-resolve-releases=libs-milestone \
+            --repo-resolve-snapshots=snapshot \
+            --repo-deploy-releases=libs-staging-local \
+            --repo-deploy-snapshots=libs-snapshot-local
           
           buildName=${{ github.event.repository.name }}-${{ inputs.releaseVersion }}
           echo JFROG_CLI_BUILD_NAME=$buildName >> $GITHUB_ENV
@@ -73,12 +62,21 @@ jobs:
           echo buildNumber=$JFROG_CLI_BUILD_NUMBER >> $GITHUB_OUTPUT
 
       - name: Set Release Version
-        run: sed -i "s/version=.*/version=${{ inputs.releaseVersion }}/" gradle.properties
+        run: |
+          ./mvnw versions:set -DnewVersion=${{ inputs.releaseVersion }} -DgenerateBackupPoms=false -DprocessAllModules=true -B -ntp
 
       - name: Build and Publish
         run: |
-          jf gradle clean build ${{ inputs.gradleTasks }} artifactoryPublish
+          jf mvn install -B -ntp ${{ inputs.mavenArgs }}
           jf rt build-publish
+
+      - name: Capture Test Results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: '**/target/surefire-reports/**/*.*'
+          retention-days: 3
 
       - name: Tag Release and Next Development Version
         run: |
@@ -87,6 +85,8 @@ jobs:
           git commit -a -m "[artifactory-release] Release version ${{ inputs.releaseVersion }}"
           git tag "v${{ inputs.releaseVersion }}"
           git push --tags origin
-          jf gradle nextDevelopmentVersion 
+          ./mvnw build-helper:parse-version versions:set \
+            -DnewVersion='${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${{ (contains(inputs.releaseVersion, '-M') || contains(inputs.releaseVersion, '-RC')) && '${parsedVersion.incrementalVersion}' || '${parsedVersion.nextIncrementalVersion}' }}'-SNAPSHOT \
+            -DgenerateBackupPoms=false -DprocessAllModules=true -B -ntp
           git commit -a -m "[artifactory-release] Next development version"
           git push origin
