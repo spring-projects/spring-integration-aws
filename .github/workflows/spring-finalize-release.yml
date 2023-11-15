@@ -36,7 +36,7 @@ jobs:
             --changelog.contributors.exclude.names=${{ inputs.repositoryTeam }}
 
       - name: GitHub Release
-        run: gh release create v${{ env.MILESTONE }} -F changelog.md
+        run: gh release create v${{ env.MILESTONE }} -F changelog.md ${{ (contains(env.MILESTONE, '-M') || contains(env.MILESTONE, '-RC')) && '--prerelease' }}
 
       - name: Close Milestone
         run: |
@@ -45,13 +45,13 @@ jobs:
             gh api -X PATCH repos/$GITHUB_REPOSITORY/milestones/$MILESTONE_ID -f state='closed' --silent
           fi
 
-      - name: Announce Release on Slack
-        uses: slackapi/slack-github-action@v1.24.0
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SPRING_RELEASE_SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-        with:
-          payload: |
-            {
-              "text": "${{ github.event.repository.name }}-announcing `${{ env.MILESTONE }}`"
-            }
+#      - name: Announce Release on Slack
+#        uses: slackapi/slack-github-action@v1.24.0
+#        env:
+#          SLACK_WEBHOOK_URL: ${{ secrets.SPRING_RELEASE_SLACK_WEBHOOK_URL }}
+#          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+#        with:
+#          payload: |
+#            {
+#              "text": "${{ github.event.repository.name }}-announcing `${{ env.MILESTONE }}`"
+#            }
