@@ -7,14 +7,18 @@ on:
         description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
         required: true
         type: string
+      buildToolArgs:
+        description: 'Additional Maven or Gradle command arguments: tasks, goals, plugins etc. The `install` for Maven is included. The `build` and `artifactoryPublish` for Gradle are included.'
+        required: false
+        type: string
 
     outputs:
       buildName:
         description: 'Artifactory Build Name'
-        value: ${{ jobs.staging-with-gradle.outputs.buildName }}
+        value: ${{ jobs.build-info.outputs.buildName }}
       buildNumber:
         description: 'Artifactory Build Number'
-        value: ${{ jobs.staging-with-gradle.outputs.buildNumber }}
+        value: ${{ jobs.build-info.outputs.buildNumber }}
 
 
 jobs:
@@ -44,6 +48,7 @@ jobs:
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-gradle-release-staging.yml@main
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
+      gradleTasks: ${{ inputs.buildToolArgs }}
     secrets: inherit
 
 
@@ -53,10 +58,12 @@ jobs:
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-maven-release-staging.yml@main
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
+      mavenArgs: ${{ inputs.buildToolArgs }}
     secrets: inherit
 
   build-info:
     needs: [staging-with-gradle, staging-with-maven]
+    if: ${{ !(failure() || cancelled()) }}
     runs-on: ubuntu-latest
     outputs:
       buildName: ${{ steps.output-build-info.outputs.buildName }}

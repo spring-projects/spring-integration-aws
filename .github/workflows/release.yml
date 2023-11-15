@@ -13,5 +13,6 @@ jobs:
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-release.yml@main
     with:
       releaseVersion: ${{ inputs.releaseVersion }}
+      buildToolArgs: dist
       repositoryTeam: artembilan,garyrussell
     secrets: inherit

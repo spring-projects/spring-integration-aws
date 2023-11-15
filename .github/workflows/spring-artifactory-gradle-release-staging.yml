@@ -10,7 +10,6 @@ on:
       gradleTasks:
         description: 'Additional Gradle tasks. The `build` and `artifactoryPublish` are included.'
         required: false
-        default: 'dist'
         type: string
 
     outputs:
