@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
+          token: $GITHUB_TOKEN
           show-progress: false
 
       - name: Set up Gradle
