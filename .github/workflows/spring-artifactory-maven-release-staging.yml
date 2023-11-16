@@ -30,6 +30,7 @@ jobs:
 
       - uses: actions/checkout@v3
         with:
+          token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
           show-progress: false
 
       - name: Set up JDK
