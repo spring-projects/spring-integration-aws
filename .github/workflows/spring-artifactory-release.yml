@@ -3,10 +3,6 @@ name: Perform Release with Artifactory
 on:
   workflow_call:
     inputs:
-      releaseVersion:
-        description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
-        required: true
-        type: string
       buildToolArgs:
         description: 'Additional Maven or Gradle command arguments: tasks, goals, plugins etc. The `install` for Maven is included. The `build` and `artifactoryPublish` for Gradle are included.'
         required: false
