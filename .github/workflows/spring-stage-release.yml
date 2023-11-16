@@ -75,9 +75,13 @@ jobs:
         run: |
           if [ ${{ needs.staging-with-gradle.outputs.buildName }} ]
           then
-            echo buildName=${{ needs.staging-with-gradle.outputs.buildName }} >> $GITHUB_OUTPUT
-            echo buildNumber=${{ needs.staging-with-gradle.outputs.buildNumber }} >> $GITHUB_OUTPUT
+            buildName=${{ needs.staging-with-gradle.outputs.buildName }}
+            buildNumber=${{ needs.staging-with-gradle.outputs.buildNumber }}
           else
-            echo buildName=${{ needs.staging-with-maven.outputs.buildName }} >> $GITHUB_OUTPUT
-            echo buildNumber=${{ needs.staging-with-maven.outputs.buildNumber }} >> $GITHUB_OUTPUT
+            buildName=${{ needs.staging-with-maven.outputs.buildName }}
+            buildNumber=${{ needs.staging-with-maven.outputs.buildNumber }}
           fi
+          echo buildName=$buildName >> $GITHUB_OUTPUT
+          echo buildNumber=$buildNumber >> $GITHUB_OUTPUT
+          echo "::notice::Artifactory Build Name=$buildName"
+          echo "::notice::Artifactory Build Number=$buildNumber"
