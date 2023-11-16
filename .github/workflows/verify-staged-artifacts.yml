@@ -14,14 +14,13 @@ jobs:
     steps:
 
       - uses: jfrog/setup-jfrog-cli@v3
-        with:
-          version: 2.51.1
         env:
           JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
 
       - name: Download Artifact from Staging Repo
         run: |
-          jfrog rt download libs-staging-local/org/springframework/integration/spring-integration-aws/${{ inputs.releaseVersion }}/spring-integration-aws-${{ inputs.releaseVersion }}.jar spring-integration-aws.jar
+          jfrog rt download libs-staging-local/org/springframework/integration/spring-integration-aws/${{ inputs.releaseVersion }}/spring-integration-aws-${{ inputs.releaseVersion }}.jar ./spring-integration-aws.jar
+          ls
           if [ ! -f spring-integration-aws.jar ]
           then
             echo "::error title=No staged artifact::No spring-integration-aws-${{ inputs.releaseVersion }}.jar in staging repository"
