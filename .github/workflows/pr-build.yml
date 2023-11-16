@@ -7,4 +7,4 @@ on:
 
 jobs:
   build-pull-request:
-    uses: spring-projects/spring-integration-aws/.github/workflows/spring-gradle-pull-request-build.yml@main
+    uses: artembilan/spring-messaging-build-tools/spring-gradle-pull-request-build.yml@main
