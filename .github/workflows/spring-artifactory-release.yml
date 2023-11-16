@@ -57,8 +57,8 @@ jobs:
     secrets: inherit
 
   promote-milestone:
-    needs: [staging, verify-staged]
-    if: ${{ (contains(inputs.releaseVersion, '-M') || contains(inputs.releaseVersion, '-RC')) }}
+    needs: [releaseVersion, staging, verify-staged]
+    if: ${{ (contains(needs.releaseVersion.outputs.releaseVersion, '-M') || contains(needs.releaseVersion.outputs.releaseVersion, '-RC')) }}
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-milestone.yml@main
     with:
       buildName: ${{ needs.staging.outputs.buildName }}
@@ -66,8 +66,8 @@ jobs:
     secrets: inherit
 
   promote-ga:
-    needs: [staging, verify-staged]
-    if: ${{ !contains(inputs.releaseVersion, '-') }}
+    needs: [releaseVersion, staging, verify-staged]
+    if: ${{ !contains(needs.releaseVersion.outputs.releaseVersion, '-') }}
     uses: spring-projects/spring-integration-aws/.github/workflows/spring-artifactory-promote-central.yml@main
     with:
       buildName: ${{ needs.staging.outputs.buildName }}
