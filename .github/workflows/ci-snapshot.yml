@@ -6,50 +6,9 @@ on:
     branches:
       - main
 
-env:
-  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GRADLE_ENTERPRISE_CACHE_USER }}
-  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GRADLE_ENTERPRISE_CACHE_PASSWORD }}
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
-
 jobs:
-  build-snapshot-with-gradle:
-    runs-on: ubuntu-latest
-    name: CI Build SNAPSHOT for ${{ github.ref_name }}
-    steps:
-
-      - uses: actions/checkout@v4
-        with:
-          show-progress: false
-
-      - name: Set up Gradle
-        uses: spring-io/spring-gradle-build-action@v2
-
-      - name: Checkout Common Repo
-        uses: actions/checkout@v4
-        with:
-          repository: artembilan/spring-messaging-build-tools
-          path: build
-          show-progress: false
-
-      - name: Copy the spring-project-init.gradle
-        run: rsync build/spring-project-init.gradle ~/.gradle/init.d/
-
-      - uses: jfrog/setup-jfrog-cli@v3
-        with:
-          version: 2.51.1
-        env:
-          JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
-
-      - name: Configure JFrog Cli
-        run: |
-          jf gradlec \
-            --use-wrapper \
-            --repo-deploy libs-snapshot-local
-          echo JFROG_CLI_BUILD_NAME=${{ github.event.repository.name }}-${{ github.ref_name }} >> $GITHUB_ENV
-          echo JFROG_CLI_BUILD_NUMBER=$GITHUB_RUN_NUMBER >> $GITHUB_ENV
-
-      - name: Build and Publish
-        run: |
-          jf gradle clean build dist artifactoryPublish
-          jf rt build-publish
-
+  build-snapshot:
+    uses: artembilan/spring-messaging-build-tools/.github/workflows/spring-artifactory-gradle-snapshot.yml@main
+    secrets: inherit
+    with:
+      gradleTasks: dist
