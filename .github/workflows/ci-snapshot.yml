@@ -8,5 +8,5 @@ on:
 
 jobs:
   build-snapshot:
-    uses: artembilan/spring-messaging-build-tools/spring-artifactory-gradle-snapshot.yml@main
+    uses: artembilan/spring-messaging-build-tools/.github/workflows/spring-artifactory-gradle-snapshot.yml@main
     secrets: inherit

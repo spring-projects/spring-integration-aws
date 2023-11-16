@@ -7,7 +7,7 @@ run-name: Release current version for branch ${{ github.ref_name }}
 
 jobs:
   release:
-    uses: artembilan/spring-messaging-build-tools/spring-artifactory-release.yml@main
+    uses: artembilan/spring-messaging-build-tools/.github/workflows/spring-artifactory-release.yml@main
     with:
       buildToolArgs: dist
     secrets: inherit
