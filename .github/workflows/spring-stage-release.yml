@@ -83,5 +83,4 @@ jobs:
           fi
           echo buildName=$buildName >> $GITHUB_OUTPUT
           echo buildNumber=$buildNumber >> $GITHUB_OUTPUT
-          echo "::notice::Artifactory Build Name=$buildName"
-          echo "::notice::Artifactory Build Number=$buildNumber"
+          echo "::notice title=Artifactory Build Name & Number::$buildName/$buildNumber"

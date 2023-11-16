@@ -35,7 +35,9 @@ jobs:
             --changelog.contributors.exclude.names=$repositoryTeam
 
       - name: GitHub Release
-        run: gh release create v${{ env.MILESTONE }} -F changelog.md ${{ (contains(env.MILESTONE, '-M') || contains(env.MILESTONE, '-RC')) && '--prerelease' }}
+        run: | 
+          RELEASE_URL=$(gh release create v${{ env.MILESTONE }} -F changelog.md ${{ (contains(env.MILESTONE, '-M') || contains(env.MILESTONE, '-RC')) && '--prerelease' }})
+          echo "::notice title=Release Page::$RELEASE_URL"
 
       - name: Close Milestone
         run: |

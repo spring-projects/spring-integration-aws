@@ -39,7 +39,7 @@ jobs:
             exit 1
           fi
           echo releaseVersion=$RELEASE_VERSION >> $GITHUB_OUTPUT
-          echo "::notice::RELEASE VERSION=$RELEASE_VERSION"
+          echo "::notice title=RELEASE VERSION::$RELEASE_VERSION"
 
   staging:
     needs: releaseVersion
