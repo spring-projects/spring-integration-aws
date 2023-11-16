@@ -34,12 +34,14 @@ jobs:
           fi
           export CANDIDATE_VERSION=${CURRENT_VERSION/-SNAPSHOT}
           RELEASE_VERSION=$(gh api repos/$GITHUB_REPOSITORY/milestones --jq 'map(select(.title | startswith(env.CANDIDATE_VERSION))) | .[0] | .title')
-          if [ -z $RELEASE_VERSION ]; then
-            echo "::error::No scheduled milestone for $CURRENT_VERSION version."
-            exit 1
+          if [ -z $RELEASE_VERSION ]
+          then
+            gh run cancel ${{ github.run_id }}
+            echo "::warning title=Nothing to release::No scheduled milestone for $CURRENT_VERSION version"
+          else
+            echo releaseVersion=$RELEASE_VERSION >> $GITHUB_OUTPUT
+            echo "::notice title=RELEASE VERSION::$RELEASE_VERSION"
           fi
-          echo releaseVersion=$RELEASE_VERSION >> $GITHUB_OUTPUT
-          echo "::notice title=RELEASE VERSION::$RELEASE_VERSION"
 
   staging:
     needs: releaseVersion
