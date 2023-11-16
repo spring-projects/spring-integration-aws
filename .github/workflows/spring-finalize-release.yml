@@ -10,6 +10,7 @@ on:
 
 env:
   MILESTONE: ${{ inputs.milestone }}
+  GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
 
 jobs:
   finalize-releae:
