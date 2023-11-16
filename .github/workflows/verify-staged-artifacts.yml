@@ -1,7 +1,7 @@
 name: Verify Staged Artifacts
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       releaseVersion:
         description: 'Release version like 3.0.0-M1, 3.1.0-RC1, 3.2.0 etc.'
@@ -15,7 +15,7 @@ jobs:
 
       - uses: jfrog/setup-jfrog-cli@v3
         with:
-          version: 2.50.4
+          version: 2.51.1
         env:
           JF_ENV_SPRING: ${{ secrets.JF_ARTIFACTORY_SPRING }}
 
