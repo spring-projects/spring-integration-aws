@@ -18,4 +18,4 @@ jobs:
         with:
           workflow: verify-staged-artifacts.yml
           token: ${{ secrets.GH_ACTIONS_REPO_TOKEN }}
-          inputs: '{ "releaseVersion": ${{ inputs.releaseVersion }} }'
+          inputs: '{ "releaseVersion": "${{ inputs.releaseVersion }}" }'
