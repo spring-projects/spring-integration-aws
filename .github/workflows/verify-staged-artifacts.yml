@@ -19,9 +19,9 @@ jobs:
 
       - name: Download Artifact from Staging Repo
         run: |
-          jfrog rt download libs-staging-local/org/springframework/integration/spring-integration-aws/${{ inputs.releaseVersion }}/spring-integration-aws-${{ inputs.releaseVersion }}.jar ./spring-integration-aws.jar
-          ls
-          if [ ! -f spring-integration-aws.jar ]
+          fileToDownload=org/springframework/integration/spring-integration-aws/${{ inputs.releaseVersion }}/spring-integration-aws-${{ inputs.releaseVersion }}.jar
+          jfrog rt download libs-staging-local/$fileToDownload
+          if [ ! -f $fileToDownload ]
           then
             echo "::error title=No staged artifact::No spring-integration-aws-${{ inputs.releaseVersion }}.jar in staging repository"
             exit 1
