@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-snapshot:
-    uses: artembilan/spring-messaging-build-tools/.github/workflows/spring-artifactory-gradle-snapshot.yml@main
+    uses: artembilan/spring-github-workflows/.github/workflows/spring-artifactory-gradle-snapshot.yml@main
     with:
       gradleTasks: dist
     secrets:
