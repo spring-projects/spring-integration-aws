@@ -1158,9 +1158,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 						"Ignore since the highest sequence in batch was check-pointed.");
 				this.shardIterator = result.nextShardIterator();
 			}
-			else if (lastCheckpoint == null
-					|| new BigInteger(lastCheckpoint).compareTo(new BigInteger(this.shardIterator)) < 0) {
-
+			else if (reRequestCurrentShardIterator(lastCheckpoint, result)) {
 				// No checkpoints for the shard - reuse the current shard iterator.
 				logger.info(ex, "Record processor has thrown exception. " +
 						"No checkpoints - re-request with the current shard iterator.");
@@ -1181,6 +1179,16 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 								.join()
 								.shardIterator();
 			}
+		}
+
+		private boolean reRequestCurrentShardIterator(@Nullable String lastCheckpoint, GetRecordsResponse result) {
+			if (lastCheckpoint == null) {
+				return true;
+			}
+			List<Record> records = result.records();
+			return !records.isEmpty() &&
+					new BigInteger(lastCheckpoint)
+							.compareTo(new BigInteger(records.get(records.size() - 1).sequenceNumber())) < 0;
 		}
 
 		private void checkpointSwallowingProvisioningExceptions(String endingSequenceNumber) {
