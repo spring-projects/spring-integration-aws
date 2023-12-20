@@ -10,7 +10,7 @@ jobs:
     permissions:
       actions: write
 
-    uses: artembilan/spring-github-workflows/.github/workflows/spring-artifactory-gradle-release.yml@main
+    uses: spring-io/spring-github-workflows/.github/workflows/spring-artifactory-gradle-release.yml@v1
     with:
       buildToolArgs: dist
     secrets:
