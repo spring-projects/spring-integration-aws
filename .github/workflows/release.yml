@@ -9,8 +9,10 @@ jobs:
   release:
     permissions:
       actions: write
+      contents: write
+      issues: write
 
-    uses: spring-io/spring-github-workflows/.github/workflows/spring-artifactory-gradle-release.yml@v1
+    uses: spring-io/spring-github-workflows/.github/workflows/spring-artifactory-gradle-release.yml@v2
     with:
       buildToolArgs: dist
     secrets:
