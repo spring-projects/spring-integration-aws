@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 the original author or authors.
+ * Copyright 2016-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import java.io.InputStream;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
-import org.apache.commons.io.FileUtils;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.internal.util.Mimetype;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -311,8 +310,7 @@ public class S3MessageHandler extends AbstractReplyProducingMessageHandler {
 					if (putObjectRequest.contentType() == null) {
 						putObjectRequestBuilder.contentType(Mimetype.getInstance().getMimetype(fileToUpload));
 					}
-					// TODO until https://github.com/aws/aws-sdk-java-v2/issues/3839
-					requestBody = AsyncRequestBody.fromBytes(FileUtils.readFileToByteArray(fileToUpload));
+					requestBody = AsyncRequestBody.fromFile(fileToUpload);
 				}
 				else if (payload instanceof byte[] payloadBytes) {
 					if (putObjectRequest.contentMD5() == null) {
