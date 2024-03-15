@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 the original author or authors.
+ * Copyright 2023-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.integration.test.util.TestUtils;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
@@ -42,6 +43,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import software.amazon.kinesis.metrics.MetricsLevel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -65,6 +67,9 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 
 	@Autowired
 	private PollableChannel kinesisReceiveChannel;
+
+	@Autowired
+	private KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter;
 
 	@BeforeAll
 	static void setup() {
@@ -116,6 +121,21 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 		assertThat(streamConsumers).hasSize(0);
 	}
 
+	@Test
+	public void metricsLevelOfMetricsFactoryShouldBeSetToMetricsLevelOfAdapter() {
+		MetricsLevel metricsLevel = TestUtils.getPropertyValue(
+			kclMessageDrivenChannelAdapter,
+			"scheduler.metricsFactory.metricsLevel",
+			MetricsLevel.class
+		);
+		MetricsLevel expectedMetricsLevel = TestUtils.getPropertyValue(
+			kclMessageDrivenChannelAdapter,
+			"metricsLevel",
+			MetricsLevel.class
+		);
+		assertThat(metricsLevel).isEqualTo(expectedMetricsLevel);
+	}
+
 	@Configuration
 	@EnableIntegration
 	public static class TestConfiguration {
@@ -130,6 +150,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 			adapter.setConverter(String::new);
 			adapter.setConsumerGroup("single_stream_group");
 			adapter.setFanOut(false);
+			adapter.setMetricsLevel(MetricsLevel.fromName("NONE"));
 			adapter.setBindSourceRecord(true);
 			return adapter;
 		}
