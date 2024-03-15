@@ -50,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Artem Bilan
  * @author Siddharth Jain
+ * @author Minkyu Moon
  *
  * @since 3.0
  */
@@ -128,12 +129,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 			"scheduler.metricsFactory.metricsLevel",
 			MetricsLevel.class
 		);
-		MetricsLevel expectedMetricsLevel = TestUtils.getPropertyValue(
-			kclMessageDrivenChannelAdapter,
-			"metricsLevel",
-			MetricsLevel.class
-		);
-		assertThat(metricsLevel).isEqualTo(expectedMetricsLevel);
+		assertThat(metricsLevel).isEqualTo(MetricsLevel.NONE);
 	}
 
 	@Configuration
@@ -150,7 +146,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 			adapter.setConverter(String::new);
 			adapter.setConsumerGroup("single_stream_group");
 			adapter.setFanOut(false);
-			adapter.setMetricsLevel(MetricsLevel.fromName("NONE"));
+			adapter.setMetricsLevel(MetricsLevel.NONE);
 			adapter.setBindSourceRecord(true);
 			return adapter;
 		}
