@@ -125,7 +125,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	@Test
 	public void metricsLevelOfMetricsFactoryShouldBeSetToMetricsLevelOfAdapter() {
 		MetricsLevel metricsLevel = TestUtils.getPropertyValue(
-			kclMessageDrivenChannelAdapter,
+			this.kclMessageDrivenChannelAdapter,
 			"scheduler.metricsFactory.metricsLevel",
 			MetricsLevel.class
 		);
