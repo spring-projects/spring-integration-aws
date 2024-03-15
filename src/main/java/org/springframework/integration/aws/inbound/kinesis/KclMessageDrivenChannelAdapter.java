@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 the original author or authors.
+ * Copyright 2019-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,8 @@ import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
 import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
 import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
 import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
+import software.amazon.kinesis.metrics.MetricsConfig;
+import software.amazon.kinesis.metrics.MetricsLevel;
 import software.amazon.kinesis.processor.FormerStreamsLeasesDeletionStrategy;
 import software.amazon.kinesis.processor.MultiStreamTracker;
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
@@ -92,6 +94,7 @@ import org.springframework.util.Assert;
  * @author Artem Bilan
  * @author Dirk Bonhomme
  * @author Siddharth Jain
+ * @author Minkyu Moon
  *
  * @since 2.2.0
  */
@@ -144,6 +147,8 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	private ApplicationEventPublisher applicationEventPublisher;
 
 	private volatile Scheduler scheduler;
+
+	private MetricsLevel metricsLevel = MetricsLevel.DETAILED;
 
 	public KclMessageDrivenChannelAdapter(String... streams) {
 		this(KinesisAsyncClient.create(), CloudWatchAsyncClient.create(), DynamoDbAsyncClient.create(), streams);
@@ -267,6 +272,16 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 		this.fanOut = fanOut;
 	}
 
+	/**
+	 * Specify a metrics level to emit.
+	 * Defaults to {@link  MetricsLevel#DETAILED}.
+	 * @param metricsLevel the {@link MetricsLevel} for emitting (or not) metrics into Cloud Watch.
+	 */
+	public void setMetricsLevel(MetricsLevel metricsLevel) {
+		Assert.notNull(metricsLevel, "'metricsLevel' must not be null");
+		this.metricsLevel = metricsLevel;
+	}
+
 	@Override
 	protected void onInit() {
 		super.onInit();
@@ -321,13 +336,16 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 				.glueSchemaRegistryDeserializer(this.glueSchemaRegistryDeserializer)
 				.retrievalSpecificConfig(retrievalSpecificConfig);
 
+		MetricsConfig metricsConfig = this.config.metricsConfig();
+		metricsConfig.metricsLevel(this.metricsLevel);
+
 		this.scheduler =
 				new Scheduler(
 						this.config.checkpointConfig(),
 						this.config.coordinatorConfig(),
 						this.config.leaseManagementConfig(),
 						lifecycleConfig,
-						this.config.metricsConfig(),
+						metricsConfig,
 						this.config.processorConfig(),
 						retrievalConfig);
 

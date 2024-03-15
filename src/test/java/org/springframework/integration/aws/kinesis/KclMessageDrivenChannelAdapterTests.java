@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 the original author or authors.
+ * Copyright 2023-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.Consumer;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
+import software.amazon.kinesis.metrics.MetricsLevel;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -38,6 +39,7 @@ import org.springframework.integration.aws.inbound.kinesis.KclMessageDrivenChann
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.channel.QueueChannel;
 import org.springframework.integration.config.EnableIntegration;
+import org.springframework.integration.test.util.TestUtils;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.PollableChannel;
 import org.springframework.test.annotation.DirtiesContext;
@@ -48,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @author Artem Bilan
  * @author Siddharth Jain
+ * @author Minkyu Moon
  *
  * @since 3.0
  */
@@ -65,6 +68,9 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 
 	@Autowired
 	private PollableChannel kinesisReceiveChannel;
+
+	@Autowired
+	private KclMessageDrivenChannelAdapter kclMessageDrivenChannelAdapter;
 
 	@BeforeAll
 	static void setup() {
@@ -116,6 +122,16 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 		assertThat(streamConsumers).hasSize(0);
 	}
 
+	@Test
+	public void metricsLevelOfMetricsFactoryShouldBeSetToMetricsLevelOfAdapter() {
+		MetricsLevel metricsLevel = TestUtils.getPropertyValue(
+			this.kclMessageDrivenChannelAdapter,
+			"scheduler.metricsFactory.metricsLevel",
+			MetricsLevel.class
+		);
+		assertThat(metricsLevel).isEqualTo(MetricsLevel.NONE);
+	}
+
 	@Configuration
 	@EnableIntegration
 	public static class TestConfiguration {
@@ -130,6 +146,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 			adapter.setConverter(String::new);
 			adapter.setConsumerGroup("single_stream_group");
 			adapter.setFanOut(false);
+			adapter.setMetricsLevel(MetricsLevel.NONE);
 			adapter.setBindSourceRecord(true);
 			return adapter;
 		}
