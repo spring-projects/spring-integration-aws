@@ -52,6 +52,7 @@ import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
 import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
 import software.amazon.kinesis.metrics.MetricsConfig;
 import software.amazon.kinesis.metrics.MetricsLevel;
+import software.amazon.kinesis.metrics.NullMetricsFactory;
 import software.amazon.kinesis.processor.FormerStreamsLeasesDeletionStrategy;
 import software.amazon.kinesis.processor.MultiStreamTracker;
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
@@ -338,6 +339,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 		MetricsConfig metricsConfig = this.config.metricsConfig();
 		metricsConfig.metricsLevel(this.metricsLevel);
+		if (MetricsLevel.NONE.equals(this.metricsLevel)) {
+			metricsConfig.metricsFactory(new NullMetricsFactory());
+		}
 
 		this.scheduler =
 				new Scheduler(
