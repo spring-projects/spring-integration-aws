@@ -28,7 +28,9 @@ import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.Consumer;
 import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
+import software.amazon.kinesis.metrics.MetricsFactory;
 import software.amazon.kinesis.metrics.MetricsLevel;
+import software.amazon.kinesis.metrics.NullMetricsFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -123,13 +125,23 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	public void metricsLevelOfMetricsFactoryShouldBeSetToMetricsLevelOfAdapter() {
+	public void metricsLevelOfMetricsConfigShouldBeSetToMetricsLevelOfAdapter() {
 		MetricsLevel metricsLevel = TestUtils.getPropertyValue(
 			this.kclMessageDrivenChannelAdapter,
-			"scheduler.metricsFactory.metricsLevel",
+			"scheduler.metricsConfig.metricsLevel",
 			MetricsLevel.class
 		);
 		assertThat(metricsLevel).isEqualTo(MetricsLevel.NONE);
+	}
+
+	@Test
+	public void metricsFactoryOfSchedulerShouldBeSetNullMetricsFactoryIfMetricsLevelIsNone() {
+		MetricsFactory metricsFactory = TestUtils.getPropertyValue(
+			this.kclMessageDrivenChannelAdapter,
+			"scheduler.metricsFactory",
+			MetricsFactory.class
+		);
+		assertThat(metricsFactory).isInstanceOf(NullMetricsFactory.class);
 	}
 
 	@Configuration
