@@ -7,7 +7,7 @@ plugins {
 	id 'eclipse'
 	id 'idea'
 	id 'checkstyle'
-	id 'org.ajoberstar.grgit' version '5.2.1'
+	id 'org.ajoberstar.grgit' version '5.2.2'
 	id 'io.spring.dependency-management' version '1.1.4'
 }
 
@@ -26,18 +26,18 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.25.1'
-	awaitilityVersion = '4.2.0'
+	assertjVersion = '3.25.3'
+	awaitilityVersion = '4.2.1'
 	awsSdkVersion = '2.20.162'
-	jacksonVersion = '2.15.3'
+	jacksonVersion = '2.15.4'
 	junitVersion = '5.10.1'
-	log4jVersion = '2.22.1'
+	log4jVersion = '2.23.1'
 	servletApiVersion = '6.0.0'
 	springCloudAwsVersion = '3.0.4'
 	springIntegrationVersion = '6.0.9'
-	kinesisClientVersion = '2.5.4'
-	kinesisProducerVersion = '0.15.9'
-	testcontainersVersion = '1.19.3'
+	kinesisClientVersion = '2.5.7'
+	kinesisProducerVersion = '0.15.10'
+	testcontainersVersion = '1.19.7'
 
 	idPrefix = 'aws'
 
