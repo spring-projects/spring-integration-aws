@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 the original author or authors.
+ * Copyright 2019-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
-import software.amazon.awssdk.services.kinesis.model.PutRecordResponse;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
@@ -50,6 +49,7 @@ import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.UserRecordResponse;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
 import org.springframework.integration.mapping.HeaderMapper;
@@ -305,7 +305,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	@Override
 	protected Map<String, ?> additionalOnSuccessHeaders(AwsRequest request, AwsResponse response) {
-		if (response instanceof PutRecordResponse putRecordResponse) {
+		if (response instanceof UserRecordResponse putRecordResponse) {
 			return Map.of(AwsHeaders.SHARD, putRecordResponse.shardId(),
 					AwsHeaders.SEQUENCE_NUMBER, putRecordResponse.sequenceNumber());
 		}
@@ -367,14 +367,10 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		}
 	}
 
-	private CompletableFuture<PutRecordResponse> handleUserRecord(UserRecord userRecord) {
+	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
 		return listenableFutureToCompletableFuture(recordResult)
-				.thenApply(result ->
-						PutRecordResponse.builder()
-								.shardId(result.getShardId())
-								.sequenceNumber(result.getSequenceNumber())
-								.build());
+				.thenApply(UserRecordResponse::new);
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) {
