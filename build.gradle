@@ -8,7 +8,7 @@ plugins {
 	id 'idea'
 	id 'checkstyle'
 	id 'org.ajoberstar.grgit' version '5.2.2'
-	id 'io.spring.dependency-management' version '1.1.4'
+	id 'io.spring.dependency-management' version '1.1.6'
 }
 
 description = 'Spring Integration AWS Support'
@@ -26,18 +26,18 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.25.3'
+	assertjVersion = '3.26.3'
 	awaitilityVersion = '4.2.1'
 	awsSdkVersion = '2.20.162'
 	jacksonVersion = '2.15.4'
-	junitVersion = '5.10.2'
+	junitVersion = '5.10.3'
 	log4jVersion = '2.23.1'
 	servletApiVersion = '6.0.0'
 	springCloudAwsVersion = '3.0.4'
 	springIntegrationVersion = '6.0.9'
 	kinesisClientVersion = '2.5.8'
 	kinesisProducerVersion = '0.15.10'
-	testcontainersVersion = '1.19.7'
+	testcontainersVersion = '1.19.8'
 
 	idPrefix = 'aws'
 
