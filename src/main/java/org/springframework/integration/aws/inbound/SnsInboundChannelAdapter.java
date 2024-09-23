@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 the original author or authors.
+ * Copyright 2016-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,6 +80,8 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 	private final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter =
 			new MappingJackson2HttpMessageConverter();
 
+	private final String[] path;
+
 	private volatile boolean handleNotificationStatus;
 
 	private volatile Expression payloadExpression;
@@ -91,17 +93,10 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 		Assert.notNull(amazonSns, "'amazonSns' must not be null.");
 		Assert.notNull(path, "'path' must not be null.");
 		Assert.noNullElements(path, "'path' must not contain null elements.");
+		this.path = path;
 		this.notificationStatusResolver = new NotificationStatusResolver(amazonSns);
-		RequestMapping requestMapping = new RequestMapping();
-		requestMapping.setMethods(HttpMethod.POST);
-		requestMapping.setHeaders("x-amz-sns-message-type");
-		requestMapping.setPathPatterns(path);
 		this.jackson2HttpMessageConverter
 				.setSupportedMediaTypes(Arrays.asList(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN));
-		super.setRequestMapping(requestMapping);
-		super.setStatusCodeExpression(new ValueExpression<>(HttpStatus.NO_CONTENT));
-		super.setMessageConverters(Collections.singletonList(this.jackson2HttpMessageConverter));
-		super.setRequestPayloadTypeClass(HashMap.class);
 	}
 
 	public void setHandleNotificationStatus(boolean handleNotificationStatus) {
@@ -111,6 +106,14 @@ public class SnsInboundChannelAdapter extends HttpRequestHandlingMessagingGatewa
 	@Override
 	protected void onInit() {
 		super.onInit();
+		RequestMapping requestMapping = new RequestMapping();
+		requestMapping.setMethods(HttpMethod.POST);
+		requestMapping.setHeaders("x-amz-sns-message-type");
+		requestMapping.setPathPatterns(this.path);
+		super.setStatusCodeExpression(new ValueExpression<>(HttpStatus.NO_CONTENT));
+		super.setMessageConverters(Collections.singletonList(this.jackson2HttpMessageConverter));
+		super.setRequestPayloadTypeClass(HashMap.class);
+		super.setRequestMapping(requestMapping);
 		if (this.payloadExpression != null) {
 			this.evaluationContext = createEvaluationContext();
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 the original author or authors.
+ * Copyright 2017-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,10 +83,16 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	 * @param headerMapper the {@link HeaderMapper} to map outbound headers.
 	 */
 	public void setHeaderMapper(HeaderMapper<H> headerMapper) {
-		doSetHeaderMapper(headerMapper);
+		this.headerMapper = headerMapper;
 	}
 
-	protected final void doSetHeaderMapper(HeaderMapper<H> headerMapper) {
+	/**
+	 * Set a {@link HeaderMapper} to use.
+	 * @param headerMapper the header mapper to set
+	 * @deprecated in favor of {@link #setHeaderMapper(HeaderMapper)} to be called from {@link #onInit()}.
+	 */
+	@Deprecated(forRemoval = true, since = "3.0.8")
+	protected void doSetHeaderMapper(HeaderMapper<H> headerMapper) {
 		this.headerMapper = headerMapper;
 	}
 

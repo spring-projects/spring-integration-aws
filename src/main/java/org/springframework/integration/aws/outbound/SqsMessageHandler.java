@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 the original author or authors.
+ * Copyright 2016-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,6 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	public SqsMessageHandler(SqsAsyncClient amazonSqs) {
 		Assert.notNull(amazonSqs, "'amazonSqs' must not be null");
 		this.amazonSqs = amazonSqs;
-		doSetHeaderMapper(new SqsHeaderMapper());
 	}
 
 	public void setQueue(String queue) {
@@ -149,6 +148,7 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	@Override
 	protected void onInit() {
 		super.onInit();
+		setHeaderMapper(new SqsHeaderMapper());
 		if (this.messageConverter == null) {
 			this.messageConverter = new GenericMessageConverter(getConversionService());
 		}

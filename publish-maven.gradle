@@ -33,7 +33,7 @@ publishing {
                     developer {
                         id = 'artembilan'
                         name = 'Artem Bilan'
-                        email = 'abilan@vmware.com'
+                        email = 'artem.bilan@broadcom.com'
                         roles = ['project lead']
                     }
                 }

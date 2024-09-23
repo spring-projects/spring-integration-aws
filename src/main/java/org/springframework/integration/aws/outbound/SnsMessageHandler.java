@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 the original author or authors.
+ * Copyright 2016-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,7 +98,6 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 		Assert.notNull(amazonSns, "amazonSns must not be null.");
 		this.amazonSns = amazonSns;
 		this.topicArnResolver = new CachingTopicArnResolver(new SnsAsyncTopicArnResolver(this.amazonSns));
-		doSetHeaderMapper(new SnsHeaderMapper());
 	}
 
 	public void setTopicArn(String topicArn) {
@@ -188,13 +187,14 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	@Override
 	protected void onInit() {
 		super.onInit();
+		setHeaderMapper(new SnsHeaderMapper());
 		TypeLocator typeLocator = getEvaluationContext().getTypeLocator();
-		if (typeLocator instanceof StandardTypeLocator) {
+		if (typeLocator instanceof StandardTypeLocator standardTypeLocator) {
 			/*
 			 * Register the 'org.springframework.integration.aws.support' package you
 			 * don't need a FQCN for the 'SnsBodyBuilder'.
 			 */
-			((StandardTypeLocator) typeLocator).registerImport("org.springframework.integration.aws.support");
+			standardTypeLocator.registerImport("org.springframework.integration.aws.support");
 		}
 	}
 

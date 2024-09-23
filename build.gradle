@@ -27,17 +27,17 @@ repositories {
 
 ext {
 	assertjVersion = '3.26.3'
-	awaitilityVersion = '4.2.1'
+	awaitilityVersion = '4.2.2'
 	awsSdkVersion = '2.20.162'
 	jacksonVersion = '2.15.4'
-	junitVersion = '5.10.3'
-	log4jVersion = '2.23.1'
+	junitVersion = '5.11.0'
+	log4jVersion = '2.24.0'
 	servletApiVersion = '6.0.0'
-	springCloudAwsVersion = '3.0.4'
+	springCloudAwsVersion = '3.0.5'
 	springIntegrationVersion = '6.0.9'
 	kinesisClientVersion = '2.5.8'
-	kinesisProducerVersion = '0.15.10'
-	testcontainersVersion = '1.19.8'
+	kinesisProducerVersion = '0.15.11'
+	testcontainersVersion = '1.20.1'
 
 	idPrefix = 'aws'
 
@@ -102,7 +102,7 @@ dependencyManagement {
 
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
-	toolVersion = '10.12.4'
+	toolVersion = '10.18.1'
 }
 
 dependencies {
