@@ -86,7 +86,6 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 				.join();
 	}
 
-
 	@AfterAll
 	static void tearDown() {
 		AMAZON_KINESIS
@@ -126,22 +125,38 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 
 	@Test
 	public void metricsLevelOfMetricsConfigShouldBeSetToMetricsLevelOfAdapter() {
-		MetricsLevel metricsLevel = TestUtils.getPropertyValue(
-			this.kclMessageDrivenChannelAdapter,
-			"scheduler.metricsConfig.metricsLevel",
-			MetricsLevel.class
-		);
+		MetricsLevel metricsLevel =
+				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
+						"scheduler.metricsConfig.metricsLevel",
+						MetricsLevel.class);
 		assertThat(metricsLevel).isEqualTo(MetricsLevel.NONE);
 	}
 
 	@Test
 	public void metricsFactoryOfSchedulerShouldBeSetNullMetricsFactoryIfMetricsLevelIsNone() {
-		MetricsFactory metricsFactory = TestUtils.getPropertyValue(
-			this.kclMessageDrivenChannelAdapter,
-			"scheduler.metricsFactory",
-			MetricsFactory.class
-		);
+		MetricsFactory metricsFactory =
+				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
+						"scheduler.metricsFactory",
+						MetricsFactory.class);
 		assertThat(metricsFactory).isInstanceOf(NullMetricsFactory.class);
+	}
+
+	@Test
+	public void maxLeasesForWorkerOverriddenByCustomizer() {
+		Integer maxLeasesForWorker =
+				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
+						"scheduler.leaseCoordinator.leaseTaker.maxLeasesForWorker",
+						Integer.class);
+		assertThat(maxLeasesForWorker).isEqualTo(10);
+	}
+
+	@Test
+	public void shardConsumerDispatchPollIntervalMillisOverriddenByCustomizer() {
+		Long shardConsumerDispatchPollIntervalMillis =
+				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
+						"scheduler.shardConsumerDispatchPollIntervalMillis",
+						Long.class);
+		assertThat(shardConsumerDispatchPollIntervalMillis).isEqualTo(500L);
 	}
 
 	@Configuration
@@ -159,7 +174,12 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 			adapter.setConsumerGroup("single_stream_group");
 			adapter.setFanOut(false);
 			adapter.setMetricsLevel(MetricsLevel.NONE);
+			adapter.setLeaseManagementConfigCustomizer(leaseManagementConfig ->
+					leaseManagementConfig.maxLeasesForWorker(10));
+			adapter.setCoordinatorConfigCustomizer(coordinatorConfig ->
+					coordinatorConfig.shardConsumerDispatchPollIntervalMillis(500L));
 			adapter.setBindSourceRecord(true);
+			adapter.setEmptyRecordList(true);
 			return adapter;
 		}
 

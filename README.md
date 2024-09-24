@@ -435,7 +435,7 @@ For example, users may want to fully read any parent shards before starting to r
         return openShards.stream()
                 .filter(shard -> !openShardIds.contains(shard.getParentShardId())
                         && !openShardIds.contains(shard.getAdjacentParentShardId()))
-                .collect(Collectors.toList());
+                .toList();
         }
 ```
 

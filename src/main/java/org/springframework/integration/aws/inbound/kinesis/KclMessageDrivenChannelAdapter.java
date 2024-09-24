@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
@@ -40,10 +40,12 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.common.StreamConfig;
 import software.amazon.kinesis.common.StreamIdentifier;
+import software.amazon.kinesis.coordinator.CoordinatorConfig;
 import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.exceptions.InvalidStateException;
 import software.amazon.kinesis.exceptions.ShutdownException;
 import software.amazon.kinesis.exceptions.ThrottlingException;
+import software.amazon.kinesis.leases.LeaseManagementConfig;
 import software.amazon.kinesis.lifecycle.LifecycleConfig;
 import software.amazon.kinesis.lifecycle.events.InitializationInput;
 import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
@@ -55,6 +57,7 @@ import software.amazon.kinesis.metrics.MetricsLevel;
 import software.amazon.kinesis.metrics.NullMetricsFactory;
 import software.amazon.kinesis.processor.FormerStreamsLeasesDeletionStrategy;
 import software.amazon.kinesis.processor.MultiStreamTracker;
+import software.amazon.kinesis.processor.ProcessorConfig;
 import software.amazon.kinesis.processor.RecordProcessorCheckpointer;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
@@ -150,6 +153,20 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	private volatile Scheduler scheduler;
 
 	private MetricsLevel metricsLevel = MetricsLevel.DETAILED;
+
+	private Consumer<CoordinatorConfig> coordinatorConfigCustomizer = (config) -> {
+	};
+
+	private Consumer<LifecycleConfig> lifecycleConfigCustomizer = (config) -> {
+	};
+
+	private Consumer<MetricsConfig> metricsConfigCustomizer = (config) -> {
+	};
+
+	private Consumer<LeaseManagementConfig> leaseManagementConfigCustomizer = (config) -> {
+	};
+
+	private boolean emptyRecordList;
 
 	public KclMessageDrivenChannelAdapter(String... streams) {
 		this(KinesisAsyncClient.create(), CloudWatchAsyncClient.create(), DynamoDbAsyncClient.create(), streams);
@@ -283,9 +300,70 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 		this.metricsLevel = metricsLevel;
 	}
 
+	/**
+	 * Set a {@link Consumer} to configure a {@link CoordinatorConfig}.
+	 * @param coordinatorConfigCustomizer the {@link Consumer} to configure a {@link CoordinatorConfig}.
+	 * @since 3.0.8
+	 * @see CoordinatorConfig
+	 */
+	public void setCoordinatorConfigCustomizer(Consumer<CoordinatorConfig> coordinatorConfigCustomizer) {
+		Assert.notNull(coordinatorConfigCustomizer, "'coordinatorConfigCustomizer' must not be null");
+		this.coordinatorConfigCustomizer = coordinatorConfigCustomizer;
+	}
+
+	/**
+	 * Set a {@link Consumer} to configure a {@link LifecycleConfig}.
+	 * @param lifecycleConfigCustomizer the {@link Consumer} to configure a {@link LifecycleConfig}.
+	 * @since 3.0.8
+	 * @see LifecycleConfig
+	 */
+	public void setLifecycleConfigCustomizer(Consumer<LifecycleConfig> lifecycleConfigCustomizer) {
+		Assert.notNull(lifecycleConfigCustomizer, "'lifecycleConfigCustomizer' must not be null");
+		this.lifecycleConfigCustomizer = lifecycleConfigCustomizer;
+	}
+
+	/**
+	 * Set a {@link Consumer} to configure a {@link MetricsConfig}.
+	 * May override whatever could be set individually, like {@link #setMetricsLevel(MetricsLevel)}.
+	 * @param metricsConfigCustomizer the {@link Consumer} to configure a {@link MetricsConfig}.
+	 * @since 3.0.8
+	 * @see MetricsConfig
+	 */
+	public void setMetricsConfigCustomizer(Consumer<MetricsConfig> metricsConfigCustomizer) {
+		Assert.notNull(metricsConfigCustomizer, "'metricsConfigCustomizer' must not be null");
+		this.metricsConfigCustomizer = metricsConfigCustomizer;
+	}
+
+	/**
+	 * Set a {@link Consumer} to configure a {@link LeaseManagementConfig}.
+	 * @param leaseManagementConfigCustomizer the {@link Consumer} to configure a {@link LeaseManagementConfig}.
+	 * @since 3.0.8
+	 * @see LeaseManagementConfig
+	 */
+	public void setLeaseManagementConfigCustomizer(Consumer<LeaseManagementConfig> leaseManagementConfigCustomizer) {
+		Assert.notNull(leaseManagementConfigCustomizer, "'leaseManagementConfigCustomizer' must not be null");
+		this.leaseManagementConfigCustomizer = leaseManagementConfigCustomizer;
+	}
+
+	/**
+	 * Whether to return an empty record list from consumer to the processor.
+	 * Works only in {@link ListenerMode#batch} mode.
+	 * The message will be sent into the output channel with an empty {@link List} as a payload.
+	 * @param emptyRecordList true to return an empty record list.
+	 * @since 3.0.8
+	 * @see ProcessorConfig#callProcessRecordsEvenForEmptyRecordList(boolean)
+	 */
+	public void setEmptyRecordList(boolean emptyRecordList) {
+		this.emptyRecordList = emptyRecordList;
+	}
+
 	@Override
 	protected void onInit() {
 		super.onInit();
+		if (this.listenerMode.equals(ListenerMode.record) && this.emptyRecordList) {
+			this.emptyRecordList = false;
+			logger.warn("The 'emptyRecordList' is processed only in the [ListenerMode.batch].");
+		}
 		this.config =
 				new ConfigsBuilder(buildStreamTracker(),
 						this.consumerGroup,
@@ -316,8 +394,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 					+ "because it does not make sense in case of [ListenerMode.batch].");
 		}
 
-		LifecycleConfig lifecycleConfig =  this.config.lifecycleConfig();
+		LifecycleConfig lifecycleConfig = this.config.lifecycleConfig();
 		lifecycleConfig.taskBackoffTimeMillis(this.consumerBackoff);
+		this.lifecycleConfigCustomizer.accept(lifecycleConfig);
 
 		RetrievalSpecificConfig retrievalSpecificConfig;
 		String singleStreamName = this.streams.length == 1 ? this.streams[0] : null;
@@ -342,15 +421,25 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 		if (MetricsLevel.NONE.equals(this.metricsLevel)) {
 			metricsConfig.metricsFactory(new NullMetricsFactory());
 		}
+		this.metricsConfigCustomizer.accept(metricsConfig);
+
+		CoordinatorConfig coordinatorConfig = this.config.coordinatorConfig();
+		this.coordinatorConfigCustomizer.accept(coordinatorConfig);
+
+		LeaseManagementConfig leaseManagementConfig = this.config.leaseManagementConfig();
+		this.leaseManagementConfigCustomizer.accept(leaseManagementConfig);
+
+		ProcessorConfig processorConfig = this.config.processorConfig()
+				.callProcessRecordsEvenForEmptyRecordList(this.emptyRecordList);
 
 		this.scheduler =
 				new Scheduler(
 						this.config.checkpointConfig(),
-						this.config.coordinatorConfig(),
-						this.config.leaseManagementConfig(),
+						coordinatorConfig,
+						leaseManagementConfig,
 						lifecycleConfig,
 						metricsConfig,
-						this.config.processorConfig(),
+						processorConfig,
 						retrievalConfig);
 
 		this.executor.execute(this.scheduler);
@@ -542,7 +631,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						records.stream()
 								.map(this::prepareMessageForRecord)
 								.map(AbstractIntegrationMessageBuilder::build)
-								.collect(Collectors.toList());
+								.toList();
 
 				messageBuilder = getMessageBuilderFactory().withPayload(payload);
 			}
@@ -557,7 +646,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 							return KclMessageDrivenChannelAdapter.this.converter.convert(r.data().array());
 						})
-						.collect(Collectors.toList());
+						.toList();
 
 				messageBuilder = getMessageBuilderFactory().withPayload(payload)
 						.setHeader(AwsHeaders.RECEIVED_PARTITION_KEY, partitionKeys)
