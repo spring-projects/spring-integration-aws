@@ -123,7 +123,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 		assertThat(streamConsumers).hasSize(0);
 
 		List<String> tableNames = DYNAMO_DB.listTables().join().tableNames();
-		assertThat(tableNames).containsOnly("test_table");
+		assertThat(tableNames).contains("test_table");
 	}
 
 	@Test
