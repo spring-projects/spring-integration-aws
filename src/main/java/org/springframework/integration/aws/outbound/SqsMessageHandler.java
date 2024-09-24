@@ -148,7 +148,9 @@ public class SqsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	@Override
 	protected void onInit() {
 		super.onInit();
-		setHeaderMapper(new SqsHeaderMapper());
+		if (!isHeaderMapperSet()) {
+			setHeaderMapper(new SqsHeaderMapper());
+		}
 		if (this.messageConverter == null) {
 			this.messageConverter = new GenericMessageConverter(getConversionService());
 		}

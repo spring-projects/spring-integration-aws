@@ -187,7 +187,9 @@ public class SnsMessageHandler extends AbstractAwsMessageHandler<Map<String, Mes
 	@Override
 	protected void onInit() {
 		super.onInit();
-		setHeaderMapper(new SnsHeaderMapper());
+		if (!isHeaderMapperSet()) {
+			setHeaderMapper(new SnsHeaderMapper());
+		}
 		TypeLocator typeLocator = getEvaluationContext().getTypeLocator();
 		if (typeLocator instanceof StandardTypeLocator standardTypeLocator) {
 			/*

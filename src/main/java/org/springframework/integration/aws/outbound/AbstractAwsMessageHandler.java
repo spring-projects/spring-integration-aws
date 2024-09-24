@@ -61,6 +61,8 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 
 	private HeaderMapper<H> headerMapper;
 
+	private boolean headerMapperSet;
+
 	public void setSendTimeout(long sendTimeout) {
 		setSendTimeoutExpression(new ValueExpression<>(sendTimeout));
 	}
@@ -84,6 +86,11 @@ public abstract class AbstractAwsMessageHandler<H> extends AbstractMessageProduc
 	 */
 	public void setHeaderMapper(HeaderMapper<H> headerMapper) {
 		this.headerMapper = headerMapper;
+		this.headerMapperSet = true;
+	}
+
+	protected boolean isHeaderMapperSet() {
+		return this.headerMapperSet;
 	}
 
 	/**
