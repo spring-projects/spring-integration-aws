@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
-
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -87,6 +85,7 @@ import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.support.ErrorMessageUtils;
 import org.springframework.integration.support.management.IntegrationManagedResource;
 import org.springframework.jmx.export.annotation.ManagedResource;
+import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.util.Assert;
 
@@ -122,6 +121,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 	private TaskExecutor executor = new SimpleAsyncTaskExecutor();
 
 	private String consumerGroup = "SpringIntegration";
+
+	@Nullable
+	private String leaseTableName;
 
 	private InboundMessageMapper<byte[]> embeddedHeadersMapper;
 
@@ -209,6 +211,16 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	public String getConsumerGroup() {
 		return this.consumerGroup;
+	}
+
+	/**
+	 * Set a name of the DynamoDB table name for leases.
+	 * Defaults to {@link #consumerGroup}.
+	 * @param leaseTableName the DynamoDB table name for leases.
+	 * @since 3.0.8
+	 */
+	public void setLeaseTableName(String leaseTableName) {
+		this.leaseTableName = leaseTableName;
 	}
 
 	/**
@@ -372,6 +384,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 						this.cloudWatchClient,
 						this.workerId,
 						this.recordProcessorFactory);
+
+		if (this.leaseTableName != null) {
+			this.config.tableName(this.leaseTableName);
+		}
 	}
 
 	private StreamTracker buildStreamTracker() {

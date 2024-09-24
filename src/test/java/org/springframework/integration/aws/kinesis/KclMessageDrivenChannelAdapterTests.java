@@ -121,6 +121,9 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 
 		// Because FanOut is false, there would be no Stream Consumers.
 		assertThat(streamConsumers).hasSize(0);
+
+		List<String> tableNames = DYNAMO_DB.listTables().join().tableNames();
+		assertThat(tableNames).containsOnly("test_table");
 	}
 
 	@Test
@@ -172,6 +175,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 					InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON));
 			adapter.setConverter(String::new);
 			adapter.setConsumerGroup("single_stream_group");
+			adapter.setLeaseTableName("test_table");
 			adapter.setFanOut(false);
 			adapter.setMetricsLevel(MetricsLevel.NONE);
 			adapter.setLeaseManagementConfigCustomizer(leaseManagementConfig ->
