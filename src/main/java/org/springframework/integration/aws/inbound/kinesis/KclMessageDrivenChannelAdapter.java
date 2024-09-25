@@ -170,6 +170,10 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 
 	private boolean emptyRecordList;
 
+	private int pollingMaxRecords = PollingConfig.DEFAULT_MAX_RECORDS;
+
+	private long pollingIdleTime = 1500L;
+
 	public KclMessageDrivenChannelAdapter(String... streams) {
 		this(KinesisAsyncClient.create(), CloudWatchAsyncClient.create(), DynamoDbAsyncClient.create(), streams);
 	}
@@ -369,6 +373,26 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 		this.emptyRecordList = emptyRecordList;
 	}
 
+	/**
+	 * The number of records to poll from Kinesis when using {@link PollingConfig}.
+	 * @param pollingMaxRecords the number of records to poll from Kinesis.
+	 * @since 3.0.8
+	 * @see PollingConfig#maxRecords(int)
+	 */
+	public void setPollingMaxRecords(int pollingMaxRecords) {
+		this.pollingMaxRecords = pollingMaxRecords;
+	}
+
+	/**
+	 * The idle timeout between polls when using {@link PollingConfig}.
+	 * @param pollingIdleTime idle timeout between polls.
+	 * @since 3.0.8
+	 * @see PollingConfig#idleTimeBetweenReadsInMillis(long)
+	 */
+	public void setPollingIdleTime(long pollingIdleTime) {
+		this.pollingIdleTime = pollingIdleTime;
+	}
+
 	@Override
 	protected void onInit() {
 		super.onInit();
@@ -425,7 +449,9 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 		else {
 			retrievalSpecificConfig =
 					new PollingConfig(this.kinesisClient)
-							.streamName(singleStreamName);
+							.streamName(singleStreamName)
+							.maxRecords(this.pollingMaxRecords)
+							.idleTimeBetweenReadsInMillis(this.pollingIdleTime);
 		}
 
 		RetrievalConfig retrievalConfig = this.config.retrievalConfig()

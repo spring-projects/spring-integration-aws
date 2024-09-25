@@ -162,6 +162,15 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 		assertThat(shardConsumerDispatchPollIntervalMillis).isEqualTo(500L);
 	}
 
+	@Test
+	public void pollingMaxRecordsIsPropagated() {
+		Integer maxRecords =
+				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
+						"scheduler.retrievalConfig.retrievalSpecificConfig.maxRecords",
+						Integer.class);
+		assertThat(maxRecords).isEqualTo(99);
+	}
+
 	@Configuration
 	@EnableIntegration
 	public static class TestConfiguration {
@@ -184,6 +193,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 					coordinatorConfig.shardConsumerDispatchPollIntervalMillis(500L));
 			adapter.setBindSourceRecord(true);
 			adapter.setEmptyRecordList(true);
+			adapter.setPollingMaxRecords(99);
 			return adapter;
 		}
 
