@@ -194,6 +194,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 			adapter.setBindSourceRecord(true);
 			adapter.setEmptyRecordList(true);
 			adapter.setPollingMaxRecords(99);
+			adapter.setGracefulShutdownTimeout(100);
 			return adapter;
 		}
 
