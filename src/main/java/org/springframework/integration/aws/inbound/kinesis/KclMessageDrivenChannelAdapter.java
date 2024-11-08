@@ -713,7 +713,7 @@ public class KclMessageDrivenChannelAdapter extends MessageProducerSupport
 							partitionKeys.add(r.partitionKey());
 							sequenceNumbers.add(r.sequenceNumber());
 
-							return KclMessageDrivenChannelAdapter.this.converter.convert(r.data().array());
+							return KclMessageDrivenChannelAdapter.this.converter.convert(BinaryUtils.copyAllBytesFrom(r.data()));
 						})
 						.toList();
 
