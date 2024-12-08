@@ -68,6 +68,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Arnaud Lecollaire
  * @author Artem Bilan
+ * @author Siddharth Jain
  *
  * @since 2.2
  *
@@ -99,6 +100,10 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	private volatile ScheduledFuture<?> flushFuture;
 
+	private long maxRecordsInFlight = 0;
+
+	private int maxRecordInFlightsSleepDurationInMillis = 100;
+
 	public KplMessageHandler(KinesisProducer kinesisProducer) {
 		Assert.notNull(kinesisProducer, "'kinesisProducer' must not be null.");
 		this.kinesisProducer = kinesisProducer;
@@ -116,7 +121,28 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
+	 * When in KPL mode, the setting allows handling backpressure on the KPL native process. Setting this value would enable a sleep on the KPL Thread for the specified number of milliseconds defined in maxRecordInFlightsSleepDurationInMillis.
+	 *
+	 * @param maxRecordsInFlight Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled. Specify a positive value to enable back pressure.
+	 */
+	public void setMaxOutstandingRecordsInFlight(long maxRecordsInFlight) {
+		Assert.isTrue(maxRecordsInFlight > 0, "'maxRecordsInFlight must be greater than 0.");
+		this.maxRecordsInFlight = maxRecordsInFlight;
+	}
+
+	/**
+	 * The setting allows handling backpressure on the KPL native process. Enabled when maxOutstandingRecordsCount is greater than 0. The configurations puts the KPL Thread to sleep for the specified number of milliseconds.
+	 *
+	 * @param maxRecordInFlightsSleepDurationInMillis Default is 100ms.
+	 */
+	public void setMaxRecordInFlightsSleepDurationInMillis(int maxRecordInFlightsSleepDurationInMillis) {
+		Assert.isTrue(maxRecordInFlightsSleepDurationInMillis > 0, "'maxRecordInFlightsSleepDurationInMillis must be greater than 0.");
+		this.maxRecordInFlightsSleepDurationInMillis = maxRecordInFlightsSleepDurationInMillis;
+	}
+
+	/**
 	 * Configure a {@link MessageConverter} for converting payload to {@code byte[]} for Kinesis record.
+	 *
 	 * @param messageConverter the {@link MessageConverter} to use.
 	 * @since 2.3
 	 */
@@ -368,6 +394,16 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
+		if (this.maxRecordsInFlight != -1 && this.kinesisProducer.getOutstandingRecordsCount() > this.maxRecordsInFlight) {
+			try {
+				Thread.sleep(this.maxRecordInFlightsSleepDurationInMillis);
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
+		}
+
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
 		return listenableFutureToCompletableFuture(recordResult)
 				.thenApply(UserRecordResponse::new);
