@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 the original author or authors.
+ * Copyright 2019-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.KplBackpressureException;
 import org.springframework.integration.aws.support.UserRecordResponse;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
@@ -63,11 +64,15 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
- * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer
- * Library {@code putRecord(s)}.
+ * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer Library {@code putRecord(s)}.
+ * <p>
+ * The {@link KplBackpressureException} is thrown when backpressure handling is enabled and buffer is at max capacity.
+ * This exception can be handled with {@link org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice}.
+ * </p>
  *
  * @author Arnaud Lecollaire
  * @author Artem Bilan
+ * @author Siddharth Jain
  *
  * @since 2.2
  *
@@ -99,6 +104,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	private volatile ScheduledFuture<?> flushFuture;
 
+	private long backPressureThreshold = 0;
+
 	public KplMessageHandler(KinesisProducer kinesisProducer) {
 		Assert.notNull(kinesisProducer, "'kinesisProducer' must not be null.");
 		this.kinesisProducer = kinesisProducer;
@@ -113,6 +120,19 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	@Deprecated
 	public void setConverter(Converter<Object, byte[]> converter) {
 		setMessageConverter(new ConvertingFromMessageConverter(converter));
+	}
+
+	/**
+	 * Configure maximum records in flight for handling backpressure.
+	 * By default, backpressure handling is not enabled.
+	 * When backpressure handling is enabled and number of records in flight exceeds the threshold, a
+	 * {@link KplBackpressureException} would be thrown.
+	 * @param backPressureThreshold a value greater than {@code 0} to enable backpressure handling.
+	 * @since 3.0.9
+	 */
+	public void setBackPressureThreshold(long backPressureThreshold) {
+		Assert.isTrue(backPressureThreshold >= 0, "'backPressureThreshold must be greater than or equal to 0.");
+		this.backPressureThreshold = backPressureThreshold;
 	}
 
 	/**
@@ -368,6 +388,14 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
+		if (this.backPressureThreshold > 0) {
+			var numberOfRecordsInFlight = this.kinesisProducer.getOutstandingRecordsCount();
+			if (numberOfRecordsInFlight > this.backPressureThreshold) {
+				throw new KplBackpressureException("Cannot send record to Kinesis since buffer is at max capacity.",
+						userRecord);
+			}
+		}
+
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
 		return listenableFutureToCompletableFuture(recordResult)
 				.thenApply(UserRecordResponse::new);
@@ -403,7 +431,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 			if (!StringUtils.hasText(partitionKey) && this.partitionKeyExpression != null) {
 				partitionKey = this.partitionKeyExpression.getValue(getEvaluationContext(), message, String.class);
 			}
-			Assert.state(partitionKey != null, "'partitionKey' must not be null for sending a Kinesis record. "
+			Assert.state(partitionKey != null,
+					"'partitionKey' must not be null for sending a Kinesis record."
 					+ "Consider configuring this handler with a 'partitionKey'( or 'partitionKeyExpression') " +
 					"or supply an 'aws_partitionKey' message header.");
 
