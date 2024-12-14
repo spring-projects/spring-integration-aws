@@ -100,9 +100,9 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	private volatile ScheduledFuture<?> flushFuture;
 
-	private long maxRecordsInFlight = 0;
+	private long maxInFlightRecords = 0;
 
-	private int maxRecordInFlightsSleepDurationInMillis = 100;
+	private int maxInFlightRecordsDuration = 100;
 
 	public KplMessageHandler(KinesisProducer kinesisProducer) {
 		Assert.notNull(kinesisProducer, "'kinesisProducer' must not be null.");
@@ -121,23 +121,31 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * When in KPL mode, the setting allows handling backpressure on the KPL native process. Setting this value would enable a sleep on the KPL Thread for the specified number of milliseconds defined in maxRecordInFlightsSleepDurationInMillis.
+	 * When in KPL mode, the setting allows handling backpressure on the KPL native process.
+	 * Setting this value would enable a sleep on the KPL Thread for the specified number of milliseconds defined in
+	 * maxRecordInFlightsSleepDurationInMillis.
 	 *
-	 * @param maxRecordsInFlight Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled. Specify a positive value to enable back pressure.
+	 * @param maxRecordsInFlight Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled.
+	 *                              Specify a positive value to enable back pressure.
+	 * @since 3.0.9
 	 */
-	public void setMaxOutstandingRecordsInFlight(long maxRecordsInFlight) {
+	public void setMaxRecordsInFlight(long maxRecordsInFlight) {
 		Assert.isTrue(maxRecordsInFlight > 0, "'maxRecordsInFlight must be greater than 0.");
-		this.maxRecordsInFlight = maxRecordsInFlight;
+		this.maxInFlightRecords = maxRecordsInFlight;
 	}
 
 	/**
-	 * The setting allows handling backpressure on the KPL native process. Enabled when maxOutstandingRecordsCount is greater than 0. The configurations puts the KPL Thread to sleep for the specified number of milliseconds.
+	 * The setting allows handling backpressure on the KPL native process.
+	 * Enabled when maxOutstandingRecordsCount is greater than 0.
+	 * The configurations puts the KPL Thread to sleep for the specified number of milliseconds.
 	 *
-	 * @param maxRecordInFlightsSleepDurationInMillis Default is 100ms.
+	 * @param maxInFlightRecordsDuration Default is 100ms.
+	 * @since 3.0.9
 	 */
-	public void setMaxRecordInFlightsSleepDurationInMillis(int maxRecordInFlightsSleepDurationInMillis) {
-		Assert.isTrue(maxRecordInFlightsSleepDurationInMillis > 0, "'maxRecordInFlightsSleepDurationInMillis must be greater than 0.");
-		this.maxRecordInFlightsSleepDurationInMillis = maxRecordInFlightsSleepDurationInMillis;
+	public void setMaxInFlightRecordsDuration(int maxInFlightRecordsDuration) {
+		Assert.isTrue(maxInFlightRecordsDuration > 0,
+				"'maxRecordInFlightsSleepDurationInMillis must be greater than 0.");
+		this.maxInFlightRecordsDuration = maxInFlightRecordsDuration;
 	}
 
 	/**
@@ -394,9 +402,10 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
-		if (this.maxRecordsInFlight != -1 && this.kinesisProducer.getOutstandingRecordsCount() > this.maxRecordsInFlight) {
+		if (this.maxInFlightRecords != -1 &&
+				this.kinesisProducer.getOutstandingRecordsCount() > this.maxInFlightRecords) {
 			try {
-				Thread.sleep(this.maxRecordInFlightsSleepDurationInMillis);
+				Thread.sleep(this.maxInFlightRecordsDuration);
 			}
 			catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
@@ -439,7 +448,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 			if (!StringUtils.hasText(partitionKey) && this.partitionKeyExpression != null) {
 				partitionKey = this.partitionKeyExpression.getValue(getEvaluationContext(), message, String.class);
 			}
-			Assert.state(partitionKey != null, "'partitionKey' must not be null for sending a Kinesis record. "
+			Assert.state(partitionKey != null,
+					"'partitionKey' must not be null for sending a Kinesis record. "
 					+ "Consider configuring this handler with a 'partitionKey'( or 'partitionKeyExpression') " +
 					"or supply an 'aws_partitionKey' message header.");
 

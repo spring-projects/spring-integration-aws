@@ -47,11 +47,11 @@ import static org.mockito.Mockito.verify;
 /**
  * @author Siddharth Jain
  *
- * @since 4.0
+ * @since 3.0.9
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KplMessageHandlerTest {
+public class KplMessageHandlerTests {
 
 	@Autowired
 	protected KinesisProducer kinesisProducer;
@@ -92,8 +92,8 @@ public class KplMessageHandlerTest {
 	void testKPLMessageHandler_raw_payload_success_backpressure_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
-		this.kplMessageHandler.setMaxOutstandingRecordsInFlight(1);
-		this.kplMessageHandler.setMaxRecordInFlightsSleepDurationInMillis(100);
+		this.kplMessageHandler.setMaxRecordsInFlight(1);
+		this.kplMessageHandler.setMaxInFlightRecordsDuration(100);
 		given(this.kinesisProducer.getOutstandingRecordsCount()).willReturn(2);
 		final Message<?> message = MessageBuilder
 				.withPayload("message1")
@@ -139,4 +139,5 @@ public class KplMessageHandlerTest {
 			return kplMessageHandler;
 		}
 	}
+
 }
