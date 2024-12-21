@@ -91,8 +91,8 @@ public class KplMessageHandlerTests {
 	void testKPLMessageHandler_raw_payload_backpressure_capacity_available_Test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
-		this.kplMessageHandler.setMaxRecordsInFlight(2);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffDuration(100);
+		this.kplMessageHandler.setMaxInFlightRecords(2);
+		this.kplMessageHandler.setMaxInFlightRecordsInitBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
@@ -122,8 +122,8 @@ public class KplMessageHandlerTests {
 	void testKPLMessageHandler_raw_payload_backpressure_insuff_capacity_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
-		this.kplMessageHandler.setMaxRecordsInFlight(2);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffDuration(100);
+		this.kplMessageHandler.setMaxInFlightRecords(2);
+		this.kplMessageHandler.setMaxInFlightRecordsInitBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
@@ -156,8 +156,8 @@ public class KplMessageHandlerTests {
 	void testKPLMessageHandler_raw_payload_backpressure_failure_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
-		this.kplMessageHandler.setMaxRecordsInFlight(2);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffDuration(100);
+		this.kplMessageHandler.setMaxInFlightRecords(2);
+		this.kplMessageHandler.setMaxInFlightRecordsInitBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
