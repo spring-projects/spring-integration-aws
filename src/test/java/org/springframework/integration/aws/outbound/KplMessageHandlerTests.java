@@ -30,7 +30,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
 import org.springframework.integration.config.EnableIntegration;
-import org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -44,7 +43,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 
 /**
  * @author Siddharth Jain
@@ -183,7 +181,6 @@ public class KplMessageHandlerTests {
 			assertThat(ex).isNotNull();
 			assertThat(ex.getCause()).isNotNull();
 			assertThat(ex.getCause().getClass()).isEqualTo(RuntimeException.class);
-			assertThat(ex.getCause().getClass()).isEqualTo(RuntimeException.class);
 			assertThat(ex.getCause().getMessage()).isEqualTo("KPL Buffer already at max capacity.");
 		}
 
@@ -211,7 +208,6 @@ public class KplMessageHandlerTests {
 			KplMessageHandler kplMessageHandler = new KplMessageHandler(kinesisProducer);
 			kplMessageHandler.setAsync(true);
 			kplMessageHandler.setStream("foo");
-			kplMessageHandler.setEmbeddedHeadersMapper(new EmbeddedJsonHeadersMessageMapper("foo"));
 			return kplMessageHandler;
 		}
 	}

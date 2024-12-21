@@ -178,9 +178,4 @@
 		<module name="WhitespaceAfter"/>
 		<module name="WhitespaceAround"/>
 	</module>
-
-<!--	Enable this in the future to restrict a Line Length Check.-->
-<!--	<module name="LineLength">-->
-<!--		<property name="max" value="120"/>-->
-<!--	</module>-->
 </module>

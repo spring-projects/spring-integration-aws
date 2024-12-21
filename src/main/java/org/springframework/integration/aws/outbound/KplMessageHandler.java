@@ -125,13 +125,13 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * When in KPL mode, the setting allows handling backpressure on the KPL native process.
-	 * Setting this value would enable a sleep on the KPL Thread for the specified number of milliseconds defined in
-	 * maxRecordInFlightsSleepDurationInMillis.
-	 *
+	 * Configure maximum records in flight on the KPL Native Process for handling backpressure. Used in conjuction
+	 * with {@link KplMessageHandler#maxInFlightRecordsBackoffDuration}
 	 * @param maxRecordsInFlight Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled.
-	 * Specify a positive value to enable back pressure.
 	 * @since 3.0.9
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffDuration
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
 	public void setMaxRecordsInFlight(long maxRecordsInFlight) {
 		Assert.isTrue(maxRecordsInFlight > 0, "'maxRecordsInFlight must be greater than 0.");
@@ -139,37 +139,44 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * The setting allows handling backpressure on the KPL native process.
-	 * Enabled when maxOutstandingRecordsCount is greater than 0.
-	 * The configurations puts the KPL Thread to sleep for the specified number of milliseconds.
-	 *
-	 * @param maxInFlightRecordsBackoffDuration Default is 100ms.
+	 * Configure a backoff duration period in milliseconds when the number of records in flight in KPL Native Process
+	 * is greater than or equal to {@link  KplMessageHandler#maxInFlightRecords}. The configuration helps in handling
+	 * backpressure by sleeping the KPL Thread using exponential backoff. Enabled when
+	 * {@link KplMessageHandler#maxInFlightRecords} is greater than 0.
+	 * @param maxInFlightRecordsBackoffDuration  Initial backoff duration in milliseconds. Default is 100ms.
 	 * @since 3.0.9
+	 * @see KplMessageHandler#setMaxRecordsInFlight
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
 	public void setMaxInFlightRecordsBackoffDuration(int maxInFlightRecordsBackoffDuration) {
 		Assert.isTrue(maxInFlightRecordsBackoffDuration > 0,
-				"'maxRecordInFlightsSleepDurationInMillis must be greater than 0.");
+				"'maxInFlightRecordsBackoffDuration must be greater than 0.");
 		this.maxInFlightRecordsBackoffDuration = maxInFlightRecordsBackoffDuration;
 	}
 
 	/**
-	 * The setting allows handling backpressure on the KPL native process using exponential retry.
-	 *
-	 * @param maxInFlightRecordsBackoffRate The property enables a back off rate to
-	 * 	 * define the exponential retry duration defined in setMaxInFlightRecordsBackoffDuration. Default is 2
+	 * Configure exponential back off rate when handling backpressure on the KPL Native process using
+	 * {@link KplMessageHandler#maxInFlightRecords}.
+	 * @param maxInFlightRecordsBackoffRate Exponential back off rate. Default is 2
 	 * @since 3.0.9
+	 * @see KplMessageHandler#setMaxRecordsInFlight
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffDuration
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
 	public void setMaxInFlightRecordsBackoffRate(int maxInFlightRecordsBackoffRate) {
 		this.maxInFlightRecordsBackoffRate = maxInFlightRecordsBackoffRate;
 	}
 
 	/**
-	 * The setting allows handling backpressure on the KPL native process using exponential retry. On attempts
-	 * exhausted, RunTimeException is thrown.
-	 *
-	 * @param maxInFlightRecordsBackoffMaxAttempts When specified, maxInFlightRecordsBackoffMaxAttempts defines the
-	 * maximum of exponential retry attempts to wait until the KPL Buffer clears out.
+	 * Configure maximum number of retry attempts with exponential backoff until there is a capacity in the KPL
+	 * native process using. On maximum attempts exhausted, RunTimeException is thrown.
+	 * @param maxInFlightRecordsBackoffMaxAttempts maximum of exponential retry attempts to waiting for capacity in KPL
+	 * buffer.
 	 * @since 3.0.9
+	 * @see KplMessageHandler#setMaxRecordsInFlight
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffDuration
+	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
 	 */
 	public void setMaxInFlightRecordsBackoffMaxAttempts(int maxInFlightRecordsBackoffMaxAttempts) {
 		this.maxInFlightRecordsBackoffMaxAttempts = maxInFlightRecordsBackoffMaxAttempts;
