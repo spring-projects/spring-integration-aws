@@ -102,7 +102,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	private long maxInFlightRecords = 0;
 
-	private int maxInFlightRecordsInitBackoffDuration = 100;
+	private int maxInFlightRecordsInitialBackoffDuration = 100;
 
 	private int maxInFlightRecordsBackoffRate = 2;
 
@@ -125,11 +125,11 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure maximum records in flight for handling backpressure. Used in conjuction
-	 * with {@link KplMessageHandler#maxInFlightRecordsInitBackoffDuration}
+	 * Configure maximum records in flight for handling backpressure. Used together with
+	 * {@link KplMessageHandler#maxInFlightRecordsInitialBackoffDuration}
 	 * @param maxInFlightRecords Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled.
 	 * @since 3.0.9
-	 * @see KplMessageHandler#setMaxInFlightRecordsInitBackoffDuration
+	 * @see KplMessageHandler#setMaxInFlightRecordsInitialBackoffDuration
 	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
 	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
@@ -139,19 +139,20 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure a initial backoff duration period in milliseconds when the number of records in flight is greater than or equal to {@link  KplMessageHandler#maxInFlightRecords}.
-	 * The configuration helps in handling backpressure by sleeping the Thread using exponential backoff. Enabled
-	 * when {@link KplMessageHandler#maxInFlightRecords} is greater than 0.
-	 * @param maxInFlightRecordsInitBackoffDuration  Initial backoff duration in milliseconds. Default is 100ms.
+	 * Configure initial backoff duration period in milliseconds when the number of records in flight
+	 * is greater than or equal to {@link  KplMessageHandler#maxInFlightRecords}.
+	 * The configuration helps in handling backpressure by sleeping the Thread using exponential backoff.
+	 * Enabled when {@link KplMessageHandler#maxInFlightRecords} is greater than 0.
+	 * @param maxInFlightRecordsInitialBackoffDuration  Initial backoff duration in milliseconds. Default is 100ms.
 	 * @since 3.0.9
 	 * @see KplMessageHandler#setMaxInFlightRecords
 	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
 	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
-	public void setMaxInFlightRecordsInitBackoffDuration(int maxInFlightRecordsInitBackoffDuration) {
-		Assert.isTrue(maxInFlightRecordsInitBackoffDuration > 0,
+	public void setMaxInFlightRecordsInitialBackoffDuration(int maxInFlightRecordsInitialBackoffDuration) {
+		Assert.isTrue(maxInFlightRecordsInitialBackoffDuration > 0,
 				"'maxInFlightRecordsBackoffDuration must be greater than 0.");
-		this.maxInFlightRecordsInitBackoffDuration = maxInFlightRecordsInitBackoffDuration;
+		this.maxInFlightRecordsInitialBackoffDuration = maxInFlightRecordsInitialBackoffDuration;
 	}
 
 	/**
@@ -159,7 +160,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	 * @param maxInFlightRecordsBackoffRate Exponential back off rate. Default is 2
 	 * @since 3.0.9
 	 * @see KplMessageHandler#setMaxInFlightRecords
-	 * @see KplMessageHandler#setMaxInFlightRecordsInitBackoffDuration
+	 * @see KplMessageHandler#setMaxInFlightRecordsInitialBackoffDuration
 	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
 	public void setMaxInFlightRecordsBackoffRate(int maxInFlightRecordsBackoffRate) {
@@ -172,7 +173,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	 * @param maxInFlightRecordsBackoffMaxAttempts maximum of exponential retry attempts to waiting for capacity.
 	 * @since 3.0.9
 	 * @see KplMessageHandler#setMaxInFlightRecords
-	 * @see KplMessageHandler#setMaxInFlightRecordsInitBackoffDuration
+	 * @see KplMessageHandler#setMaxInFlightRecordsInitialBackoffDuration
 	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
 	 */
 	public void setMaxInFlightRecordsBackoffMaxAttempts(int maxInFlightRecordsBackoffMaxAttempts) {
@@ -433,7 +434,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
-		if (this.maxInFlightRecords != -1) {
+		if (this.maxInFlightRecords > 0) {
 			waitForCapacityInUserRecordsBuffer();
 		}
 
@@ -445,7 +446,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	private void waitForCapacityInUserRecordsBuffer() {
 		var kplOutstandingRecordsCount = this.kinesisProducer.getOutstandingRecordsCount();
 		var attempts = 1;
-		var sleepDuration = this.maxInFlightRecordsInitBackoffDuration;
+		var sleepDuration = this.maxInFlightRecordsInitialBackoffDuration;
 		while (kplOutstandingRecordsCount >= this.maxInFlightRecords &&
 				attempts <= this.maxInFlightRecordsBackoffMaxAttempts) {
 			try {

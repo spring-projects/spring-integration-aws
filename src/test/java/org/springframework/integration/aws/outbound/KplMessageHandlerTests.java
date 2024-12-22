@@ -79,7 +79,7 @@ public class KplMessageHandlerTests {
 
 		this.kinesisSendChannel.send(message);
 		verify(this.kinesisProducer).addUserRecord(userRecordRequestArgumentCaptor.capture());
-
+		verify(this.kinesisProducer, Mockito.times(0)).getOutstandingRecordsCount();
 		UserRecord userRecord = userRecordRequestArgumentCaptor.getValue();
 		assertThat(userRecord.getStreamName()).isEqualTo("foo");
 		assertThat(userRecord.getPartitionKey()).isEqualTo("fooKey");
@@ -92,7 +92,7 @@ public class KplMessageHandlerTests {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
 		this.kplMessageHandler.setMaxInFlightRecords(2);
-		this.kplMessageHandler.setMaxInFlightRecordsInitBackoffDuration(100);
+		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
@@ -119,11 +119,11 @@ public class KplMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void testKPLMessageHandler_raw_payload_backpressure_insuff_capacity_test() {
+	void testKPLMessageHandler_raw_payload_backpressure_insufficient_capacity_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
 		this.kplMessageHandler.setMaxInFlightRecords(2);
-		this.kplMessageHandler.setMaxInFlightRecordsInitBackoffDuration(100);
+		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
@@ -157,7 +157,7 @@ public class KplMessageHandlerTests {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock(ListenableFuture.class));
 		this.kplMessageHandler.setMaxInFlightRecords(2);
-		this.kplMessageHandler.setMaxInFlightRecordsInitBackoffDuration(100);
+		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
@@ -170,9 +170,6 @@ public class KplMessageHandlerTests {
 				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
 				.setHeader("foo", "bar")
 				.build();
-
-		ArgumentCaptor<UserRecord> userRecordRequestArgumentCaptor = ArgumentCaptor
-				.forClass(UserRecord.class);
 
 		try {
 			this.kinesisSendChannel.send(message);
