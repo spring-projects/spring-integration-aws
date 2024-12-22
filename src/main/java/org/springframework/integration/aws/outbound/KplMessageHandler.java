@@ -452,8 +452,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 				logger.info("Buffer size: {} has reached the max records limit of {}. Attempt# {}".formatted(
 						kplOutstandingRecordsCount, this.maxInFlightRecords));
 				logger.info("Buffer sleeping for {} ms".formatted(
-						this.maxInFlightRecordsInitBackoffDuration));
-				Thread.sleep(this.maxInFlightRecordsInitBackoffDuration);
+						sleepDuration));
+				Thread.sleep(sleepDuration);
 			}
 			catch (InterruptedException ex) {
 				Thread.currentThread().interrupt();
