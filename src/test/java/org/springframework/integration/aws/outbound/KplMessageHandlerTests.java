@@ -181,7 +181,7 @@ public class KplMessageHandlerTests {
 			assertThat(ex).isNotNull();
 			assertThat(ex.getCause()).isNotNull();
 			assertThat(ex.getCause().getClass()).isEqualTo(RuntimeException.class);
-			assertThat(ex.getCause().getMessage()).isEqualTo("KPL Buffer already at max capacity.");
+			assertThat(ex.getCause().getMessage()).isEqualTo("Buffer already at max capacity.");
 		}
 
 		verify(this.kinesisProducer, Mockito.times(0)).addUserRecord(any(UserRecord.class));
