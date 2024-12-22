@@ -125,7 +125,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure maximum records in flight on the KPL Native Process for handling backpressure. Used in conjuction
+	 * Configure maximum records in flight for handling backpressure. Used in conjuction
 	 * with {@link KplMessageHandler#maxInFlightRecordsInitBackoffDuration}
 	 * @param maxInFlightRecords Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled.
 	 * @since 3.0.9
@@ -139,9 +139,8 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure a initial backoff duration period in milliseconds when the number of records in flight in KPL Native
-	 * Process is greater than or equal to {@link  KplMessageHandler#maxInFlightRecords}.
-	 * The configuration helps in handling backpressure by sleeping the KPL Thread using exponential backoff. Enabled
+	 * Configure a initial backoff duration period in milliseconds when the number of records in flight is greater than or equal to {@link  KplMessageHandler#maxInFlightRecords}.
+	 * The configuration helps in handling backpressure by sleeping the Thread using exponential backoff. Enabled
 	 * when {@link KplMessageHandler#maxInFlightRecords} is greater than 0.
 	 * @param maxInFlightRecordsInitBackoffDuration  Initial backoff duration in milliseconds. Default is 100ms.
 	 * @since 3.0.9
@@ -156,8 +155,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure exponential back off rate when handling backpressure on the KPL Native process using
-	 * {@link KplMessageHandler#maxInFlightRecords}.
+	 * Configure exponential backoff rate when handling backpressure using {@link KplMessageHandler#maxInFlightRecords}.
 	 * @param maxInFlightRecordsBackoffRate Exponential back off rate. Default is 2
 	 * @since 3.0.9
 	 * @see KplMessageHandler#setMaxInFlightRecords
@@ -169,10 +167,9 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure maximum number of retry attempts with exponential backoff until there is a capacity in the KPL
-	 * native process using. On maximum attempts exhausted, RunTimeException is thrown.
-	 * @param maxInFlightRecordsBackoffMaxAttempts maximum of exponential retry attempts to waiting for capacity in KPL
-	 * buffer.
+	 * Configure maximum number of retry attempts with exponential backoff until there is available capacity. On
+	 * maximum attempts exhausted, RunTimeException is thrown.
+	 * @param maxInFlightRecordsBackoffMaxAttempts maximum of exponential retry attempts to waiting for capacity.
 	 * @since 3.0.9
 	 * @see KplMessageHandler#setMaxInFlightRecords
 	 * @see KplMessageHandler#setMaxInFlightRecordsInitBackoffDuration
@@ -476,7 +473,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		if (attempts > this.maxInFlightRecordsBackoffMaxAttempts) {
 			logger.error("Buffer not cleared after maximum {} number of attempts & {} sleepDuration".formatted(attempts,
 					sleepDuration));
-			throw new RuntimeException("KPL Buffer already at max capacity.");
+			throw new RuntimeException("Buffer already at max capacity.");
 		}
 	}
 
