@@ -59,7 +59,7 @@ import static org.mockito.Mockito.verify;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class SnsMessageHandlerTests {
+class SnsMessageHandlerTests {
 
 	private static final SpelExpressionParser PARSER = new SpelExpressionParser();
 
@@ -73,7 +73,7 @@ public class SnsMessageHandlerTests {
 	private PollableChannel resultChannel;
 
 	@Test
-	void testSnsMessageHandler() {
+	void snsMessageHandler() {
 		SnsBodyBuilder payload = SnsBodyBuilder.withDefault("foo").forProtocols("{\"foo\" : \"bar\"}", "sms");
 
 		Message<?> message = MessageBuilder.withPayload(payload).setHeader("topic", "topic")
@@ -99,9 +99,10 @@ public class SnsMessageHandlerTests {
 
 		Map<String, MessageAttributeValue> messageAttributes = publishRequest.messageAttributes();
 
-		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.ID);
-		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
-		assertThat(messageAttributes).containsKey("foo");
+		assertThat(messageAttributes)
+				.doesNotContainKey(MessageHeaders.ID)
+				.doesNotContainKey(MessageHeaders.TIMESTAMP)
+				.containsKey("foo");
 		assertThat(messageAttributes.get("foo").stringValue()).isEqualTo("bar");
 
 		assertThat(reply.getHeaders().get(AwsHeaders.MESSAGE_ID)).isEqualTo("111");

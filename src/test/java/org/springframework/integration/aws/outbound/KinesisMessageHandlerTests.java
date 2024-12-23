@@ -60,7 +60,7 @@ import static org.mockito.Mockito.verify;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KinesisMessageHandlerTests {
+class KinesisMessageHandlerTests {
 
 	@Autowired
 	protected KinesisAsyncClient amazonKinesis;
@@ -73,7 +73,7 @@ public class KinesisMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void testKinesisMessageHandler() {
+	void kinesisMessageHandler() {
 		final Message<?> message = MessageBuilder.withPayload("message").build();
 
 		assertThatExceptionOfType(MessageHandlingException.class)

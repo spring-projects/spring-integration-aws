@@ -53,8 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringJUnitConfig
 @DirtiesContext
-
-public class KclMessageDrivenChannelAdapterMultiStreamTests implements LocalstackContainerTest {
+class KclMessageDrivenChannelAdapterMultiStreamTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM1 = "MultiStreamKcl1";
 
@@ -104,7 +103,7 @@ public class KclMessageDrivenChannelAdapterMultiStreamTests implements Localstac
 	}
 
 	@Test
-	public void kclChannelAdapterMultiStream() {
+	void kclChannelAdapterMultiStream() {
 		String testData = "test data";
 		AMAZON_KINESIS.putRecord(request -> request
 				.streamName(TEST_STREAM1)

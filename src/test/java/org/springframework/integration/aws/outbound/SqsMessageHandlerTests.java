@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * @author Seth Kelly
  */
 @SpringJUnitConfig
-public class SqsMessageHandlerTests implements LocalstackContainerTest {
+class SqsMessageHandlerTests implements LocalstackContainerTest {
 
 	private static final AtomicReference<String> fooUrl = new AtomicReference<>();
 
@@ -92,7 +92,7 @@ public class SqsMessageHandlerTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testSqsMessageHandler() {
+	void sqsMessageHandler() {
 		final Message<String> message = MessageBuilder.withPayload("message").build();
 
 		assertThatExceptionOfType(MessageHandlingException.class)
@@ -139,14 +139,15 @@ public class SqsMessageHandlerTests implements LocalstackContainerTest {
 
 		Map<String, MessageAttributeValue> messageAttributes = message1.messageAttributes();
 
-		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.ID);
-		assertThat(messageAttributes).doesNotContainKey(MessageHeaders.TIMESTAMP);
-		assertThat(messageAttributes).containsKey("foo");
+		assertThat(messageAttributes)
+				.doesNotContainKey(MessageHeaders.ID)
+				.doesNotContainKey(MessageHeaders.TIMESTAMP)
+				.containsKey("foo");
 		assertThat(messageAttributes.get("foo").stringValue()).isEqualTo("baz");
 	}
 
 	@Test
-	void testSqsMessageHandlerWithAutoQueueCreate() {
+	void sqsMessageHandlerWithAutoQueueCreate() {
 		Message<String> message = MessageBuilder.withPayload("message").build();
 
 		this.sqsSendChannelWithAutoCreate.send(message);

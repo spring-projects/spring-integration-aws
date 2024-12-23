@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class S3StreamingChannelAdapterTests implements LocalstackContainerTest {
+class S3StreamingChannelAdapterTests implements LocalstackContainerTest {
 
 	private static final String S3_BUCKET = "s3-bucket";
 
@@ -74,7 +74,7 @@ public class S3StreamingChannelAdapterTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testS3InboundStreamingChannelAdapter() throws IOException {
+	void s3InboundStreamingChannelAdapter() throws IOException {
 		Message<?> message = this.s3FilesChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(InputStream.class);

@@ -82,7 +82,7 @@ import static org.mockito.Mockito.verify;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KinesisMessageDrivenChannelAdapterTests {
+class KinesisMessageDrivenChannelAdapterTests {
 
 	private static final String STREAM1 = "stream1";
 
@@ -118,7 +118,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	void testKinesisMessageDrivenChannelAdapter() {
+	void kinesisMessageDrivenChannelAdapter() {
 		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"shardOffsets", Set.class);
@@ -168,11 +168,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		Map<?, ?> forLocking = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"shardConsumerManager.locks", Map.class);
 
-		await().untilAsserted(() -> assertThat(forLocking).hasSize(0));
+		await().untilAsserted(() -> assertThat(forLocking).isEmpty());
 
 		final List consumerInvokers = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"consumerInvokers", List.class);
-		await().untilAsserted(() -> assertThat(consumerInvokers).hasSize(0));
+		await().untilAsserted(() -> assertThat(consumerInvokers).isEmpty());
 
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
@@ -236,8 +236,9 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		messagePayload = (List<String>) message.getPayload();
 		assertThat(messagePayload).size().isEqualTo(2);
-		assertThat(messagePayload).contains("bar");
-		assertThat(messagePayload).contains("foobar");
+		assertThat(messagePayload)
+				.contains("bar")
+				.contains("foobar");
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 
@@ -245,7 +246,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings("rawtypes")
-	void testResharding() throws InterruptedException {
+	void resharding() throws InterruptedException {
 		this.reshardingChannelAdapter.start();
 
 		assertThat(this.kinesisChannel.receive(10000)).isNotNull();

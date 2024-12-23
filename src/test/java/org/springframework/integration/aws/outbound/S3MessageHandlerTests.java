@@ -80,7 +80,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class S3MessageHandlerTests implements LocalstackContainerTest {
+class S3MessageHandlerTests implements LocalstackContainerTest {
 
 	private static S3AsyncClient S3;
 
@@ -137,7 +137,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testUploadFile() throws IOException, InterruptedException {
+	void uploadFile() throws IOException, InterruptedException {
 		File file = new File(temporaryFolder.toFile(), "foo.mp3");
 		file.createNewFile();
 		byte[] testData = "test data".getBytes();
@@ -172,7 +172,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testUploadInputStream() throws IOException, InterruptedException {
+	void uploadInputStream() throws IOException, InterruptedException {
 		Expression actualKeyExpression =
 				TestUtils.getPropertyValue(this.s3MessageHandler, "keyExpression", Expression.class);
 
@@ -221,7 +221,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testUploadByteArray() throws InterruptedException, IOException {
+	void uploadByteArray() throws InterruptedException, IOException {
 		CountDownLatch transferCompletedLatch = new CountDownLatch(1);
 		byte[] payload = "b".getBytes(StandardCharsets.UTF_8);
 		Message<?> message =
@@ -257,7 +257,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testDownloadDirectory() throws IOException {
+	void downloadDirectory() throws IOException {
 		CompletableFuture<PutObjectResponse> bb =
 				S3.putObject(request -> request.bucket(S3_BUCKET_NAME).key(S3_FILE_KEY_BAR),
 						AsyncRequestBody.fromString("bb"));
@@ -280,7 +280,7 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 		assertThat(directoryArray.length).isEqualTo(1);
 
 		File subDirectory = directoryArray[0];
-		assertThat(subDirectory.getName()).isEqualTo("subdir");
+		assertThat(subDirectory).hasName("subdir");
 
 		// get the files we downloaded
 		File[] fileArray = subDirectory.listFiles();
@@ -291,16 +291,16 @@ public class S3MessageHandlerTests implements LocalstackContainerTest {
 		files.sort(Comparator.comparing(File::getName));
 
 		File file1 = files.get(0);
-		assertThat(file1.getName()).isEqualTo(S3_FILE_KEY_BAR.split("/", 2)[1]);
+		assertThat(file1).hasName(S3_FILE_KEY_BAR.split("/", 2)[1]);
 		assertThat(FileCopyUtils.copyToString(new FileReader(file1))).isEqualTo("bb");
 
 		File file2 = files.get(1);
-		assertThat(file2.getName()).isEqualTo(S3_FILE_KEY_FOO.split("/", 2)[1]);
+		assertThat(file2).hasName(S3_FILE_KEY_FOO.split("/", 2)[1]);
 		assertThat(FileCopyUtils.copyToString(new FileReader(file2))).isEqualTo("f");
 	}
 
 	@Test
-	void testCopy() throws IOException {
+	void copy() throws IOException {
 		byte[] testData = "ff".getBytes();
 		CompletableFuture<PutObjectResponse> mySource =
 				S3.putObject(request -> request.bucket(S3_BUCKET_NAME).key("mySource"),

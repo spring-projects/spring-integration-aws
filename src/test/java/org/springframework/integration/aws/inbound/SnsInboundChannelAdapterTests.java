@@ -55,7 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringJUnitWebConfig
 @DirtiesContext
-public class SnsInboundChannelAdapterTests {
+class SnsInboundChannelAdapterTests {
 
 	@Autowired
 	private WebApplicationContext context;
@@ -83,7 +83,7 @@ public class SnsInboundChannelAdapterTests {
 	}
 
 	@Test
-	void testSubscriptionConfirmation() throws Exception {
+	void subscriptionConfirmation() throws Exception {
 		this.mockMvc
 				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "SubscriptionConfirmation")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -110,7 +110,7 @@ public class SnsInboundChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void testNotification() throws Exception {
+	void notification() throws Exception {
 		this.mockMvc
 				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "Notification")
 						.contentType(MediaType.TEXT_PLAIN)
@@ -121,12 +121,13 @@ public class SnsInboundChannelAdapterTests {
 		assertThat(receive).isNotNull();
 		Map<String, String> payload = (Map<String, String>) receive.getPayload();
 
-		assertThat(payload.get("Subject")).isEqualTo("foo");
-		assertThat(payload.get("Message")).isEqualTo("bar");
+		assertThat(payload)
+				.containsEntry("Subject", "foo")
+				.containsEntry("Message", "bar");
 	}
 
 	@Test
-	void testUnsubscribe() throws Exception {
+	void unsubscribe() throws Exception {
 		this.mockMvc
 				.perform(post("/mySampleTopic").header("x-amz-sns-message-type", "UnsubscribeConfirmation")
 						.contentType(MediaType.TEXT_PLAIN)

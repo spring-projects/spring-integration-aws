@@ -68,7 +68,7 @@ import static org.assertj.core.api.Assertions.entry;
 @Disabled("Depends on real call to http://169.254.169.254 through native library")
 @SpringJUnitConfig
 @DirtiesContext
-public class KplKclIntegrationTests implements LocalstackContainerTest {
+class KplKclIntegrationTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStreamKplKcl";
 
@@ -105,7 +105,7 @@ public class KplKclIntegrationTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testKinesisInboundOutbound() {
+	void kinesisInboundOutbound() {
 		this.kinesisSendChannel
 				.send(MessageBuilder.withPayload("foo").setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 

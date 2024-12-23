@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class SqsMessageDrivenChannelAdapterTests implements LocalstackContainerTest {
+class SqsMessageDrivenChannelAdapterTests implements LocalstackContainerTest {
 
 	private static SqsAsyncClient AMAZON_SQS;
 
@@ -59,7 +59,7 @@ public class SqsMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	void testSqsMessageDrivenChannelAdapter() {
+	void sqsMessageDrivenChannelAdapter() {
 		Map<String, MessageAttributeValue> attributes =
 				Map.of("someAttribute",
 						MessageAttributeValue.builder()

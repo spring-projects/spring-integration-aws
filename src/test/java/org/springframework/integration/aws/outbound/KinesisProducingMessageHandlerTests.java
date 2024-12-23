@@ -61,7 +61,7 @@ import static org.mockito.Mockito.mock;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KinesisProducingMessageHandlerTests {
+class KinesisProducingMessageHandlerTests {
 
 	@Autowired
 	protected MessageChannel kinesisSendChannel;
@@ -76,7 +76,7 @@ public class KinesisProducingMessageHandlerTests {
 	protected PollableChannel successChannel;
 
 	@Test
-	public void testKinesisMessageHandler() {
+	void kinesisMessageHandler() {
 		final Message<?> message =
 				MessageBuilder.withPayload("message")
 						.setErrorChannel(this.errorChannel)
