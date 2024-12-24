@@ -182,7 +182,6 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Configure a {@link MessageConverter} for converting payload to {@code byte[]} for Kinesis record.
-	 *
 	 * @param messageConverter the {@link MessageConverter} to use.
 	 * @since 2.3
 	 */
