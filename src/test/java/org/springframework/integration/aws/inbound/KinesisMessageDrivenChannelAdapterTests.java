@@ -186,8 +186,8 @@ class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		List<String> payload = (List<String>) message.getPayload();
-		assertThat(payload).size().isEqualTo(1);
-		String record = payload.get(0);
+		assertThat(payload).hasSize(1);
+		String record = payload.getFirst();
 		assertThat(record).isEqualTo("bar");
 
 		Object partitionKeyHeader = message.getHeaders().get(AwsHeaders.RECEIVED_PARTITION_KEY);
@@ -219,7 +219,7 @@ class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		List<String> messagePayload = (List<String>) message.getPayload();
-		assertThat(messagePayload).size().isEqualTo(3);
+		assertThat(messagePayload).hasSize(3);
 
 		Object messageSequenceNumberHeader = message.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER);
 		assertThat(messageSequenceNumberHeader).isInstanceOf(List.class);
@@ -235,10 +235,8 @@ class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		messagePayload = (List<String>) message.getPayload();
-		assertThat(messagePayload).size().isEqualTo(2);
-		assertThat(messagePayload)
-				.contains("bar")
-				.contains("foobar");
+		assertThat(messagePayload).hasSize(2);
+		assertThat(messagePayload).contains("bar", "foobar");
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 

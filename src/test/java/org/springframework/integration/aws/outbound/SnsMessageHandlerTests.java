@@ -100,8 +100,7 @@ class SnsMessageHandlerTests {
 		Map<String, MessageAttributeValue> messageAttributes = publishRequest.messageAttributes();
 
 		assertThat(messageAttributes)
-				.doesNotContainKey(MessageHeaders.ID)
-				.doesNotContainKey(MessageHeaders.TIMESTAMP)
+				.doesNotContainKeys(MessageHeaders.ID, MessageHeaders.TIMESTAMP)
 				.containsKey("foo");
 		assertThat(messageAttributes.get("foo").stringValue()).isEqualTo("bar");
 
