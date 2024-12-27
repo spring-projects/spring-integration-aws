@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 the original author or authors.
+ * Copyright 2017-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -187,7 +187,7 @@ class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		List<String> payload = (List<String>) message.getPayload();
 		assertThat(payload).hasSize(1);
-		String record = payload.getFirst();
+		String record = payload.get(0);
 		assertThat(record).isEqualTo("bar");
 
 		Object partitionKeyHeader = message.getHeaders().get(AwsHeaders.RECEIVED_PARTITION_KEY);
