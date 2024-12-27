@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 class SnsBodyBuilderTests {
 
 	@Test
-	void testSnsBodyBuilder() {
+	void snsBodyBuilder() {
 		assertThatIllegalArgumentException()
 				.isThrownBy(() -> SnsBodyBuilder.withDefault(""))
 				.withMessageContaining("defaultMessage must not be empty.");

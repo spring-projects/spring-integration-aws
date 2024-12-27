@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class S3InboundChannelAdapterTests implements LocalstackContainerTest {
+class S3InboundChannelAdapterTests implements LocalstackContainerTest {
 
 	private static final ExpressionParser PARSER = new SpelExpressionParser();
 
@@ -84,12 +84,12 @@ public class S3InboundChannelAdapterTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testS3InboundChannelAdapter() throws IOException {
+	void s3InboundChannelAdapter() throws IOException {
 		Message<?> message = this.s3FilesChannel.receive(10000);
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(File.class);
 		File localFile = (File) message.getPayload();
-		assertThat(localFile.getName()).isEqualTo("A.TEST.a");
+		assertThat(localFile).hasName("A.TEST.a");
 
 		String content = FileCopyUtils.copyToString(new FileReader(localFile));
 		assertThat(content).isEqualTo("Hello");
@@ -98,7 +98,7 @@ public class S3InboundChannelAdapterTests implements LocalstackContainerTest {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(File.class);
 		localFile = (File) message.getPayload();
-		assertThat(localFile.getName()).isEqualTo("B.TEST.a");
+		assertThat(localFile).hasName("B.TEST.a");
 
 		content = FileCopyUtils.copyToString(new FileReader(localFile));
 		assertThat(content).isEqualTo("Bye");

@@ -75,7 +75,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 	}
 
 	@Test
-	void testDistributedLeaderElection() throws Exception {
+	void distributedLeaderElection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);
 		CountingPublisher countingPublisher = new CountingPublisher(granted);
 		List<DynamoDbLockRepository> repositories = new ArrayList<>();
@@ -176,7 +176,7 @@ class DynamoDbLockRegistryLeaderInitiatorTests implements LocalstackContainerTes
 	}
 
 	@Test
-	void testLostConnection() throws Exception {
+	void lostConnection() throws Exception {
 		CountDownLatch granted = new CountDownLatch(1);
 		CountingPublisher countingPublisher = new CountingPublisher(granted);
 

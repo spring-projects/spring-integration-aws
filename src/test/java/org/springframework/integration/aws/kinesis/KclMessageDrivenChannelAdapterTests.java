@@ -161,7 +161,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	public void metricsLevelOfMetricsConfigShouldBeSetToMetricsLevelOfAdapter() {
+	void metricsLevelOfMetricsConfigShouldBeSetToMetricsLevelOfAdapter() {
 		MetricsLevel metricsLevel =
 				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
 						"scheduler.metricsConfig.metricsLevel",
@@ -170,7 +170,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	public void metricsFactoryOfSchedulerShouldBeSetNullMetricsFactoryIfMetricsLevelIsNone() {
+	void metricsFactoryOfSchedulerShouldBeSetNullMetricsFactoryIfMetricsLevelIsNone() {
 		MetricsFactory metricsFactory =
 				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
 						"scheduler.metricsFactory",
@@ -179,7 +179,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	public void maxLeasesForWorkerOverriddenByCustomizer() {
+	void maxLeasesForWorkerOverriddenByCustomizer() {
 		Integer maxLeasesForWorker =
 				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
 						"scheduler.leaseCoordinator.leaseTaker.maxLeasesForWorker",
@@ -188,7 +188,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	public void shardConsumerDispatchPollIntervalMillisOverriddenByCustomizer() {
+	void shardConsumerDispatchPollIntervalMillisOverriddenByCustomizer() {
 		Long shardConsumerDispatchPollIntervalMillis =
 				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
 						"scheduler.shardConsumerDispatchPollIntervalMillis",
@@ -197,7 +197,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 	}
 
 	@Test
-	public void pollingMaxRecordsIsPropagated() {
+	void pollingMaxRecordsIsPropagated() {
 		Integer maxRecords =
 				TestUtils.getPropertyValue(this.kclMessageDrivenChannelAdapter,
 						"scheduler.retrievalConfig.retrievalSpecificConfig.maxRecords",

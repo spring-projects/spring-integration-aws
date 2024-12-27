@@ -87,7 +87,7 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testGetFromStore() {
+	void getFromStore() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).isNull();
 
@@ -99,7 +99,7 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testPutIfAbsent() {
+	void putIfAbsent() {
 		String fileID = store.get(this.file1);
 		assertThat(fileID).describedAs("Get First time, Value must not exist").isNull();
 
@@ -114,7 +114,7 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testRemove() {
+	void remove() {
 		String fileID = store.remove(this.file1);
 		assertThat(fileID).isNull();
 
@@ -130,7 +130,7 @@ class DynamoDbMetadataStoreTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testReplace() {
+	void replace() {
 		boolean removedValue = store.replace(this.file1, this.file1Id, "4567");
 		assertThat(removedValue).isFalse();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 the original author or authors.
+ * Copyright 2017-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ import static org.mockito.Mockito.verify;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KinesisMessageDrivenChannelAdapterTests {
+class KinesisMessageDrivenChannelAdapterTests {
 
 	private static final String STREAM1 = "stream1";
 
@@ -118,7 +118,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	void testKinesisMessageDrivenChannelAdapter() {
+	void kinesisMessageDrivenChannelAdapter() {
 		this.kinesisMessageDrivenChannelAdapter.start();
 		final Set<KinesisShardOffset> shardOffsets = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"shardOffsets", Set.class);
@@ -168,11 +168,11 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		Map<?, ?> forLocking = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"shardConsumerManager.locks", Map.class);
 
-		await().untilAsserted(() -> assertThat(forLocking).hasSize(0));
+		await().untilAsserted(() -> assertThat(forLocking).isEmpty());
 
 		final List consumerInvokers = TestUtils.getPropertyValue(this.kinesisMessageDrivenChannelAdapter,
 				"consumerInvokers", List.class);
-		await().untilAsserted(() -> assertThat(consumerInvokers).hasSize(0));
+		await().untilAsserted(() -> assertThat(consumerInvokers).isEmpty());
 
 		this.kinesisMessageDrivenChannelAdapter.setListenerMode(ListenerMode.batch);
 		this.kinesisMessageDrivenChannelAdapter.setCheckpointMode(CheckpointMode.record);
@@ -186,7 +186,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		List<String> payload = (List<String>) message.getPayload();
-		assertThat(payload).size().isEqualTo(1);
+		assertThat(payload).hasSize(1);
 		String record = payload.get(0);
 		assertThat(record).isEqualTo("bar");
 
@@ -219,7 +219,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		List<String> messagePayload = (List<String>) message.getPayload();
-		assertThat(messagePayload).size().isEqualTo(3);
+		assertThat(messagePayload).hasSize(3);
 
 		Object messageSequenceNumberHeader = message.getHeaders().get(AwsHeaders.RECEIVED_SEQUENCE_NUMBER);
 		assertThat(messageSequenceNumberHeader).isInstanceOf(List.class);
@@ -235,9 +235,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		messagePayload = (List<String>) message.getPayload();
-		assertThat(messagePayload).size().isEqualTo(2);
-		assertThat(messagePayload).contains("bar");
-		assertThat(messagePayload).contains("foobar");
+		assertThat(messagePayload).containsExactly("bar", "foobar");
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 
@@ -245,7 +243,7 @@ public class KinesisMessageDrivenChannelAdapterTests {
 
 	@Test
 	@SuppressWarnings("rawtypes")
-	void testResharding() throws InterruptedException {
+	void resharding() throws InterruptedException {
 		this.reshardingChannelAdapter.start();
 
 		assertThat(this.kinesisChannel.receive(10000)).isNotNull();

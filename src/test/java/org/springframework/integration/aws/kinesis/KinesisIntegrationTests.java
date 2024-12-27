@@ -65,7 +65,7 @@ import static org.assertj.core.api.Assertions.entry;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class KinesisIntegrationTests implements LocalstackContainerTest {
+class KinesisIntegrationTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStream";
 
@@ -95,7 +95,7 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testKinesisInboundOutbound() {
+	void kinesisInboundOutbound() {
 		this.kinesisSendChannel
 				.send(MessageBuilder.withPayload("foo").setHeader(AwsHeaders.STREAM, TEST_STREAM).build());
 
@@ -138,7 +138,7 @@ public class KinesisIntegrationTests implements LocalstackContainerTest {
 			assertThat(receivedSequences.add(sequenceNumber)).isTrue();
 		}
 
-		assertThat(receivedSequences.size()).isEqualTo(2);
+		assertThat(receivedSequences).hasSize(2);
 
 		receive = this.kinesisReceiveChannel.receive(10);
 		assertThat(receive).isNull();

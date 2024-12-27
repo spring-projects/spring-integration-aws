@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
  */
 @SpringJUnitConfig
 @DirtiesContext
-public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
+class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 	private static DynamoDbAsyncClient DYNAMO_DB;
 
@@ -98,7 +98,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void testLock() {
+	void lock() {
 		for (int i = 0; i < 10; i++) {
 			Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 			lock.lock();
@@ -113,7 +113,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void testLockInterruptibly() throws Exception {
+	void lockInterruptibly() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 			lock.lockInterruptibly();
@@ -127,7 +127,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testReentrantLock() {
+	void reentrantLock() {
 		for (int i = 0; i < 10; i++) {
 			Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 			lock1.lock();
@@ -144,7 +144,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testReentrantLockInterruptibly() throws Exception {
+	void reentrantLockInterruptibly() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 			lock1.lockInterruptibly();
@@ -161,7 +161,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testTwoLocks() throws Exception {
+	void twoLocks() throws Exception {
 		for (int i = 0; i < 10; i++) {
 			Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 			lock1.lockInterruptibly();
@@ -178,7 +178,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testTwoThreadsSecondFailsToGetLock() throws Exception {
+	void twoThreadsSecondFailsToGetLock() throws Exception {
 		final Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 		lock1.lockInterruptibly();
 		final AtomicBoolean locked = new AtomicBoolean();
@@ -212,7 +212,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testTwoThreads() throws Exception {
+	void twoThreads() throws Exception {
 		final Lock lock1 = this.dynamoDbLockRegistry.obtain("foo");
 		final AtomicBoolean locked = new AtomicBoolean();
 		final CountDownLatch latch1 = new CountDownLatch(1);
@@ -254,7 +254,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testTwoThreadsDifferentRegistries() throws Exception {
+	void twoThreadsDifferentRegistries() throws Exception {
 		DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(DYNAMO_DB);
 		dynamoDbLockRepository.setLeaseDuration(Duration.ofSeconds(10));
 		dynamoDbLockRepository.afterPropertiesSet();
@@ -299,7 +299,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	void testTwoThreadsWrongOneUnlocks() throws Exception {
+	void twoThreadsWrongOneUnlocks() throws Exception {
 		final Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 		lock.lockInterruptibly();
 		final AtomicBoolean locked = new AtomicBoolean();
@@ -343,7 +343,7 @@ public class DynamoDbLockRegistryTests implements LocalstackContainerTest {
 	}
 
 	@Test
-	public void testLockRenew() {
+	void lockRenew() {
 		final Lock lock = this.dynamoDbLockRegistry.obtain("foo");
 
 		assertThat(lock.tryLock()).isTrue();
