@@ -235,8 +235,7 @@ class KinesisMessageDrivenChannelAdapterTests {
 		assertThat(message).isNotNull();
 		assertThat(message.getPayload()).isInstanceOf(List.class);
 		messagePayload = (List<String>) message.getPayload();
-		assertThat(messagePayload).hasSize(2);
-		assertThat(messagePayload).contains("bar", "foobar");
+		assertThat(messagePayload).containsExactly("bar", "foobar");
 
 		this.kinesisMessageDrivenChannelAdapter.stop();
 
