@@ -18,7 +18,6 @@ package org.springframework.integration.aws.outbound;
 
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.UserRecord;
-import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -65,7 +64,7 @@ public class KplMessageHandlerTests {
 	@SuppressWarnings("unchecked")
 	void testKPLMessageHandler_raw_payload_success() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
-				.willReturn(mock(ListenableFuture.class));
+				.willReturn(mock());
 		final Message<?> message = MessageBuilder
 				.withPayload("message1")
 				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
@@ -90,7 +89,7 @@ public class KplMessageHandlerTests {
 	@SuppressWarnings("unchecked")
 	void testKPLMessageHandler_raw_payload_backpressure_capacity_available_Test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
-				.willReturn(mock(ListenableFuture.class));
+				.willReturn(mock());
 		this.kplMessageHandler.setMaxInFlightRecords(2);
 		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
@@ -121,7 +120,7 @@ public class KplMessageHandlerTests {
 	@SuppressWarnings("unchecked")
 	void testKPLMessageHandler_raw_payload_backpressure_insufficient_capacity_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
-				.willReturn(mock(ListenableFuture.class));
+				.willReturn(mock());
 		this.kplMessageHandler.setMaxInFlightRecords(2);
 		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
@@ -155,7 +154,7 @@ public class KplMessageHandlerTests {
 	@SuppressWarnings("unchecked")
 	void testKPLMessageHandler_raw_payload_backpressure_failure_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
-				.willReturn(mock(ListenableFuture.class));
+				.willReturn(mock());
 		this.kplMessageHandler.setMaxInFlightRecords(2);
 		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
 		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
@@ -196,7 +195,7 @@ public class KplMessageHandlerTests {
 
 		@Bean
 		public KinesisProducer kinesisProducer() {
-			return mock(KinesisProducer.class);
+			return mock();
 		}
 
 		@Bean
