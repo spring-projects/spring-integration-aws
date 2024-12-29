@@ -139,7 +139,9 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Configure a {@link MessageConverter} for converting payload to {@code byte[]} for Kinesis record.
+	 *
 	 * @param messageConverter the {@link MessageConverter} to use.
+	 *
 	 * @since 2.3
 	 */
 	public void setMessageConverter(MessageConverter messageConverter) {
@@ -194,9 +196,12 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	/**
 	 * Specify a {@link OutboundMessageMapper} for embedding message headers into the
 	 * record data together with payload.
+	 *
 	 * @param embeddedHeadersMapper the {@link OutboundMessageMapper} to embed headers
 	 * into the record data.
+	 *
 	 * @since 2.0
+	 *
 	 * @see org.springframework.integration.support.json.EmbeddedJsonHeadersMessageMapper
 	 */
 	public void setEmbeddedHeadersMapper(OutboundMessageMapper<byte[]> embeddedHeadersMapper) {
@@ -205,7 +210,9 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Configure a {@link Duration} how often to call a {@link KinesisProducer#flush()}.
+	 *
 	 * @param flushDuration the {@link Duration} to periodic call of a {@link KinesisProducer#flush()}.
+	 *
 	 * @since 2.3.6
 	 */
 	public void setFlushDuration(Duration flushDuration) {
@@ -215,7 +222,9 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Unsupported operation. Use {@link #setEmbeddedHeadersMapper} instead.
+	 *
 	 * @param headerMapper is not used.
+	 *
 	 * @see #setEmbeddedHeadersMapper
 	 */
 	@Override
@@ -226,8 +235,11 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Set a {@link Schema} to add into a {@link UserRecord} built from the request message.
+	 *
 	 * @param glueSchema the {@link Schema} to add into a {@link UserRecord}.
+	 *
 	 * @since 2.5.2
+	 *
 	 * @see UserRecord#setSchema(Schema)
 	 */
 	public void setGlueSchema(Schema glueSchema) {
@@ -237,8 +249,11 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	/**
 	 * Set a SpEL expression for {@link Schema} to add into a {@link UserRecord}
 	 * built from the request message.
+	 *
 	 * @param glueSchemaExpression the SpEL expression to evaluate a {@link Schema}.
+	 *
 	 * @since 2.5.2
+	 *
 	 * @see UserRecord#setSchema(Schema)
 	 */
 	public void setGlueSchemaExpressionString(String glueSchemaExpression) {
@@ -248,8 +263,11 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	/**
 	 * Set a SpEL expression for {@link Schema} to add into a {@link UserRecord}
 	 * built from the request message.
+	 *
 	 * @param glueSchemaExpression the SpEL expression to evaluate a {@link Schema}.
+	 *
 	 * @since 2.5.2
+	 *
 	 * @see UserRecord#setSchema(Schema)
 	 */
 	public void setGlueSchemaExpression(Expression glueSchemaExpression) {
