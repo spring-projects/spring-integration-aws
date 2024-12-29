@@ -16,18 +16,32 @@
 
 package org.springframework.integration.aws.support;
 
-import org.springframework.messaging.MessagingException;
+import com.amazonaws.services.kinesis.producer.UserRecord;
 
 /**
  * An exception triggered from {@link org.springframework.integration.aws.outbound.KplMessageHandler} while sending
  * records to kinesis when maximum number of records in flight exceeds the backpressure threshold.
+ *
  * @author Siddharth Jain
+ *
  * @since 3.0.9
  */
-public class KPLBackpressureException extends MessagingException {
+public class KplBackpressureException extends RuntimeException {
+
 	private static final long serialVersionUID = 1L;
 
-	public KPLBackpressureException(String message) {
+	private final UserRecord userRecord;
+
+	public KplBackpressureException(String message, UserRecord userRecord) {
 		super(message);
+		this.userRecord = userRecord;
+	}
+
+	/**
+	 * Get the {@link UserRecord} related.
+	 * @return {@link UserRecord} linked while sending the record to kinesis.
+	 */
+	public UserRecord getUserRecord() {
+		return this.userRecord;
 	}
 }

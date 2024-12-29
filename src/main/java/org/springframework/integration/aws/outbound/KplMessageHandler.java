@@ -49,7 +49,7 @@ import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
-import org.springframework.integration.aws.support.KPLBackpressureException;
+import org.springframework.integration.aws.support.KplBackpressureException;
 import org.springframework.integration.aws.support.UserRecordResponse;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
@@ -66,6 +66,8 @@ import org.springframework.util.StringUtils;
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer
  * Library {@code putRecord(s)}.
+ *
+ * @exception KplBackpressureException When backpressure handling is enabled and buffer is at max capacity.
  *
  * @author Arnaud Lecollaire
  * @author Artem Bilan
@@ -121,13 +123,16 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Configure maximum records in flight for handling backpressure. By Default, backpressure handling is not enabled.
-	 * On number of records in flight exceeding the threshold, {@link KPLBackpressureException} would be thrown.
-	 * If Backpressure handling is enabled, {@link KPLBackpressureException} must be handled.
+	 * On number of records in flight exceeding the threshold, {@link KplBackpressureException} would be thrown.
+	 * If Backpressure handling is enabled, {@link KplBackpressureException} must be handled.
+	 *
 	 * @param backPressureThreshold Defaulted to 0. Set a value greater than 0 to enable backpressure handling.
+	 *
 	 * @since 3.0.9
 	 */
 	public void setBackPressureThreshold(long backPressureThreshold) {
-		Assert.isTrue(backPressureThreshold > 0, "'backPressureThreshold must be greater than 0.");
+		Assert.isTrue(backPressureThreshold >= 0,
+				"'backPressureThreshold must be greater than equal to 0.");
 		this.backPressureThreshold = backPressureThreshold;
 	}
 
@@ -383,16 +388,12 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		}
 	}
 
-	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord)
-			throws KPLBackpressureException {
-
+	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
 		if (this.backPressureThreshold > 0) {
 			var numberOfRecordsInFlight = this.kinesisProducer.getOutstandingRecordsCount();
 			if (numberOfRecordsInFlight > this.backPressureThreshold) {
-				logger.error(String.format("Backpressure handling is enabled, Number of records in flight: %s is " +
-						"greater than backpressure threshold: %s" +
-						".", numberOfRecordsInFlight, this.backPressureThreshold));
-				throw new KPLBackpressureException("Buffer already at max capacity.");
+				throw new KplBackpressureException("Cannot send record to kinesis since buffer is at max capacity.",
+						userRecord);
 			}
 		}
 
