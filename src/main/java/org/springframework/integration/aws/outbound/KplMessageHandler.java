@@ -65,9 +65,9 @@ import org.springframework.util.StringUtils;
 
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer
- * Library {@code putRecord(s)}.
- *
- * @exception KplBackpressureException When backpressure handling is enabled and buffer is at max capacity.
+ * Library {@code putRecord(s)}. {@link KplBackpressureException} is thrown When backpressure handling is enabled and
+ * buffer is at max capacity. The exceptions can be used with
+ * {@link org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice}.
  *
  * @author Arnaud Lecollaire
  * @author Artem Bilan
@@ -78,6 +78,7 @@ import org.springframework.util.StringUtils;
  * @see KinesisAsyncClient#putRecord(PutRecordRequest)
  * @see KinesisAsyncClient#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
+ * @see org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice
  */
 public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implements Lifecycle {
 
