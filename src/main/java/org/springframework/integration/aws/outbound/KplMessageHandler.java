@@ -49,6 +49,7 @@ import org.springframework.core.serializer.support.SerializingConverter;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.KPLBackpressureException;
 import org.springframework.integration.aws.support.UserRecordResponse;
 import org.springframework.integration.expression.ValueExpression;
 import org.springframework.integration.handler.AbstractMessageHandler;
@@ -100,13 +101,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	private volatile ScheduledFuture<?> flushFuture;
 
-	private long maxInFlightRecords = 0;
-
-	private int maxInFlightRecordsInitialBackoffDuration = 100;
-
-	private int maxInFlightRecordsBackoffRate = 2;
-
-	private int maxInFlightRecordsBackoffMaxAttempts = 3;
+	private long backPressureThreshold = 0;
 
 	public KplMessageHandler(KinesisProducer kinesisProducer) {
 		Assert.notNull(kinesisProducer, "'kinesisProducer' must not be null.");
@@ -125,59 +120,15 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure maximum records in flight for handling backpressure. Used together with
-	 * {@link KplMessageHandler#maxInFlightRecordsInitialBackoffDuration}
-	 * @param maxInFlightRecords Defaulted to 0. Value of 0 indicates that Backpressure handling is not enabled.
+	 * Configure maximum records in flight for handling backpressure. By Default, backpressure handling is not enabled.
+	 * On number of records flights exceeding the threshold, {@link KPLBackpressureException} would be thrown.
+	 * If Backpressure handling is enabled, {@link KPLBackpressureException} must be handled.
+	 * @param backPressureThreshold Defaulted to 0. Set a value greater than 0 to enable backpressure handling.
 	 * @since 3.0.9
-	 * @see KplMessageHandler#setMaxInFlightRecordsInitialBackoffDuration
-	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
-	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
 	 */
-	public void setMaxInFlightRecords(long maxInFlightRecords) {
-		Assert.isTrue(maxInFlightRecords > 0, "'maxInFlightRecords must be greater than 0.");
-		this.maxInFlightRecords = maxInFlightRecords;
-	}
-
-	/**
-	 * Configure initial backoff duration period in milliseconds when the number of records in flight
-	 * is greater than or equal to {@link  KplMessageHandler#maxInFlightRecords}.
-	 * The configuration helps in handling backpressure by sleeping the Thread using exponential backoff.
-	 * Enabled when {@link KplMessageHandler#maxInFlightRecords} is greater than 0.
-	 * @param maxInFlightRecordsInitialBackoffDuration  Initial backoff duration in milliseconds. Default is 100ms.
-	 * @since 3.0.9
-	 * @see KplMessageHandler#setMaxInFlightRecords
-	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
-	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
-	 */
-	public void setMaxInFlightRecordsInitialBackoffDuration(int maxInFlightRecordsInitialBackoffDuration) {
-		Assert.isTrue(maxInFlightRecordsInitialBackoffDuration > 0,
-				"'maxInFlightRecordsBackoffDuration must be greater than 0.");
-		this.maxInFlightRecordsInitialBackoffDuration = maxInFlightRecordsInitialBackoffDuration;
-	}
-
-	/**
-	 * Configure exponential backoff rate when handling backpressure using {@link KplMessageHandler#maxInFlightRecords}.
-	 * @param maxInFlightRecordsBackoffRate Exponential back off rate. Default is 2
-	 * @since 3.0.9
-	 * @see KplMessageHandler#setMaxInFlightRecords
-	 * @see KplMessageHandler#setMaxInFlightRecordsInitialBackoffDuration
-	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffMaxAttempts
-	 */
-	public void setMaxInFlightRecordsBackoffRate(int maxInFlightRecordsBackoffRate) {
-		this.maxInFlightRecordsBackoffRate = maxInFlightRecordsBackoffRate;
-	}
-
-	/**
-	 * Configure maximum number of retry attempts with exponential backoff until there is available capacity. On
-	 * maximum attempts exhausted, RunTimeException is thrown.
-	 * @param maxInFlightRecordsBackoffMaxAttempts maximum of exponential retry attempts to waiting for capacity.
-	 * @since 3.0.9
-	 * @see KplMessageHandler#setMaxInFlightRecords
-	 * @see KplMessageHandler#setMaxInFlightRecordsInitialBackoffDuration
-	 * @see KplMessageHandler#setMaxInFlightRecordsBackoffRate
-	 */
-	public void setMaxInFlightRecordsBackoffMaxAttempts(int maxInFlightRecordsBackoffMaxAttempts) {
-		this.maxInFlightRecordsBackoffMaxAttempts = maxInFlightRecordsBackoffMaxAttempts;
+	public void setBackPressureThreshold(long backPressureThreshold) {
+		Assert.isTrue(backPressureThreshold > 0, "'maxInFlightRecords must be greater than 0.");
+		this.backPressureThreshold = backPressureThreshold;
 	}
 
 	/**
@@ -432,49 +383,22 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		}
 	}
 
-	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord) {
-		if (this.maxInFlightRecords > 0) {
-			waitForCapacityInUserRecordsBuffer();
+	private CompletableFuture<UserRecordResponse> handleUserRecord(UserRecord userRecord)
+			throws KPLBackpressureException {
+
+		if (this.backPressureThreshold > 0) {
+			var numberOfRecordsInFlight = this.kinesisProducer.getOutstandingRecordsCount();
+			if (numberOfRecordsInFlight > this.backPressureThreshold) {
+				logger.error(String.format("Backpressure handling is enabled, Number of records in flight: %s is " +
+						"greater than backpressure threshold: %s" +
+						".", numberOfRecordsInFlight, this.backPressureThreshold));
+				throw new KPLBackpressureException("Buffer already at max capacity.");
+			}
 		}
 
 		ListenableFuture<UserRecordResult> recordResult = this.kinesisProducer.addUserRecord(userRecord);
 		return listenableFutureToCompletableFuture(recordResult)
 				.thenApply(UserRecordResponse::new);
-	}
-
-	private void waitForCapacityInUserRecordsBuffer() {
-		var kplOutstandingRecordsCount = this.kinesisProducer.getOutstandingRecordsCount();
-		var attempts = 1;
-		var sleepDuration = this.maxInFlightRecordsInitialBackoffDuration;
-		while (kplOutstandingRecordsCount >= this.maxInFlightRecords &&
-				attempts <= this.maxInFlightRecordsBackoffMaxAttempts) {
-			try {
-				logger.info("Buffer size: {} has reached the max records limit of {}. Attempt# {}".formatted(
-						kplOutstandingRecordsCount, this.maxInFlightRecords));
-				logger.info("Buffer sleeping for {} ms".formatted(
-						sleepDuration));
-				Thread.sleep(sleepDuration);
-			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-			}
-			finally {
-				sleepDuration = sleepDuration * this.maxInFlightRecordsBackoffRate;
-				attempts++;
-				kplOutstandingRecordsCount = this.kinesisProducer.getOutstandingRecordsCount();
-			}
-		}
-
-		if (kplOutstandingRecordsCount < this.maxInFlightRecords) {
-			logger.info("Buffer cleared on number of attempts: {}".formatted(attempts));
-			return;
-		}
-
-		if (attempts > this.maxInFlightRecordsBackoffMaxAttempts) {
-			logger.error("Buffer not cleared after maximum {} number of attempts & {} sleepDuration".formatted(attempts,
-					sleepDuration));
-			throw new RuntimeException("Buffer already at max capacity.");
-		}
 	}
 
 	private PutRecordRequest buildPutRecordRequest(Message<?> message) {

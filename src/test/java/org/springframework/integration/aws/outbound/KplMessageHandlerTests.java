@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.aws.support.AwsHeaders;
+import org.springframework.integration.aws.support.KPLBackpressureException;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -87,13 +88,10 @@ public class KplMessageHandlerTests {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void testKPLMessageHandler_raw_payload_backpressure_capacity_available_Test() {
+	void testKPLMessageHandler_raw_payload_backpressure_capacity_available_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock());
-		this.kplMessageHandler.setMaxInFlightRecords(2);
-		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
+		this.kplMessageHandler.setBackPressureThreshold(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
 				.willReturn(1);
 		final Message<?> message = MessageBuilder
@@ -121,48 +119,9 @@ public class KplMessageHandlerTests {
 	void testKPLMessageHandler_raw_payload_backpressure_insufficient_capacity_test() {
 		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
 				.willReturn(mock());
-		this.kplMessageHandler.setMaxInFlightRecords(2);
-		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
+		this.kplMessageHandler.setBackPressureThreshold(2);
 		given(this.kinesisProducer.getOutstandingRecordsCount())
-				.willReturn(3)
-				.willReturn(2)
-				.willReturn(1)
-				.willReturn(0);
-		final Message<?> message = MessageBuilder
-				.withPayload("message1")
-				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
-				.setHeader(AwsHeaders.SEQUENCE_NUMBER, "10")
-				.setHeader("foo", "bar")
-				.build();
-
-
-		ArgumentCaptor<UserRecord> userRecordRequestArgumentCaptor = ArgumentCaptor
-				.forClass(UserRecord.class);
-
-		this.kinesisSendChannel.send(message);
-		verify(this.kinesisProducer).addUserRecord(userRecordRequestArgumentCaptor.capture());
-		verify(this.kinesisProducer, Mockito.times(3)).getOutstandingRecordsCount();
-		UserRecord userRecord = userRecordRequestArgumentCaptor.getValue();
-		assertThat(userRecord.getStreamName()).isEqualTo("foo");
-		assertThat(userRecord.getPartitionKey()).isEqualTo("fooKey");
-		assertThat(userRecord.getExplicitHashKey()).isNull();
-	}
-
-	@Test
-	@SuppressWarnings("unchecked")
-	void testKPLMessageHandler_raw_payload_backpressure_failure_test() {
-		given(this.kinesisProducer.addUserRecord(any(UserRecord.class)))
-				.willReturn(mock());
-		this.kplMessageHandler.setMaxInFlightRecords(2);
-		this.kplMessageHandler.setMaxInFlightRecordsInitialBackoffDuration(100);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffMaxAttempts(2);
-		this.kplMessageHandler.setMaxInFlightRecordsBackoffRate(2);
-		given(this.kinesisProducer.getOutstandingRecordsCount())
-				.willReturn(5)
-				.willReturn(4)
-				.willReturn(3);
+				.willReturn(5);
 		final Message<?> message = MessageBuilder
 				.withPayload("message1")
 				.setHeader(AwsHeaders.PARTITION_KEY, "fooKey")
@@ -176,12 +135,12 @@ public class KplMessageHandlerTests {
 		catch (Exception ex) {
 			assertThat(ex).isNotNull();
 			assertThat(ex.getCause()).isNotNull();
-			assertThat(ex.getCause().getClass()).isEqualTo(RuntimeException.class);
+			assertThat(ex.getCause().getClass()).isEqualTo(KPLBackpressureException.class);
 			assertThat(ex.getCause().getMessage()).isEqualTo("Buffer already at max capacity.");
 		}
 
 		verify(this.kinesisProducer, Mockito.times(0)).addUserRecord(any(UserRecord.class));
-		verify(this.kinesisProducer, Mockito.times(3)).getOutstandingRecordsCount();
+		verify(this.kinesisProducer, Mockito.times(1)).getOutstandingRecordsCount();
 	}
 
 	@AfterEach
