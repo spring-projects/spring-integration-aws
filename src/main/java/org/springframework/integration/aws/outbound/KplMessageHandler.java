@@ -121,13 +121,13 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 
 	/**
 	 * Configure maximum records in flight for handling backpressure. By Default, backpressure handling is not enabled.
-	 * On number of records flights exceeding the threshold, {@link KPLBackpressureException} would be thrown.
+	 * On number of records in flight exceeding the threshold, {@link KPLBackpressureException} would be thrown.
 	 * If Backpressure handling is enabled, {@link KPLBackpressureException} must be handled.
 	 * @param backPressureThreshold Defaulted to 0. Set a value greater than 0 to enable backpressure handling.
 	 * @since 3.0.9
 	 */
 	public void setBackPressureThreshold(long backPressureThreshold) {
-		Assert.isTrue(backPressureThreshold > 0, "'maxInFlightRecords must be greater than 0.");
+		Assert.isTrue(backPressureThreshold > 0, "'backPressureThreshold must be greater than 0.");
 		this.backPressureThreshold = backPressureThreshold;
 	}
 
