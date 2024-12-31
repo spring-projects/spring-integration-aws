@@ -64,10 +64,12 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
- * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer
- * Library {@code putRecord(s)}. {@link KplBackpressureException} is thrown When backpressure handling is enabled and
- * buffer is at max capacity. The exceptions can be used with
+ * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer Library {@code putRecord(s)}.
+ * <p>
+ * {@link KplBackpressureException} is thrown when backpressure handling is enabled and buffer is at max capacity.
+ * The exception can be handled with
  * {@link org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice}.
+ * </p>
  *
  * @author Arnaud Lecollaire
  * @author Artem Bilan
@@ -78,7 +80,6 @@ import org.springframework.util.StringUtils;
  * @see KinesisAsyncClient#putRecord(PutRecordRequest)
  * @see KinesisAsyncClient#putRecords(PutRecordsRequest)
  * @see com.amazonaws.handlers.AsyncHandler
- * @see org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice
  */
 public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implements Lifecycle {
 
@@ -123,12 +124,10 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	}
 
 	/**
-	 * Configure maximum records in flight for handling backpressure. By Default, backpressure handling is not enabled.
-	 * On number of records in flight exceeding the threshold, {@link KplBackpressureException} would be thrown.
-	 * If Backpressure handling is enabled, {@link KplBackpressureException} must be handled.
-	 *
+	 * Configure maximum records in flight for handling backpressure. By default, backpressure handling is not enabled.
+	 * When backpressure handling is enabled and number of records in flight exceeds the threshold, a
+	 * {@link KplBackpressureException} would be thrown.
 	 * @param backPressureThreshold Defaulted to 0. Set a value greater than 0 to enable backpressure handling.
-	 *
 	 * @since 3.0.9
 	 */
 	public void setBackPressureThreshold(long backPressureThreshold) {
@@ -434,7 +433,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 				partitionKey = this.partitionKeyExpression.getValue(getEvaluationContext(), message, String.class);
 			}
 			Assert.state(partitionKey != null,
-					"'partitionKey' must not be null for sending a Kinesis record. "
+					"'partitionKey' must not be null for sending a Kinesis record."
 					+ "Consider configuring this handler with a 'partitionKey'( or 'partitionKeyExpression') " +
 					"or supply an 'aws_partitionKey' message header.");
 
