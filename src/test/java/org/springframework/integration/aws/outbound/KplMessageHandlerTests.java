@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 the original author or authors.
+ * Copyright 2019-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ public class KplMessageHandlerTests {
 				.isThrownBy(() -> this.kinesisSendChannel.send(message))
 				.withCauseInstanceOf(MessageHandlingException.class)
 				.withRootCauseExactlyInstanceOf(KplBackpressureException.class)
-				.withStackTraceContaining("Cannot send record to kinesis since buffer is at max capacity.");
+				.withStackTraceContaining("Cannot send record to Kinesis since buffer is at max capacity.");
 
 		verify(this.kinesisProducer, Mockito.never()).addUserRecord(any(UserRecord.class));
 		verify(this.kinesisProducer).getOutstandingRecordsCount();

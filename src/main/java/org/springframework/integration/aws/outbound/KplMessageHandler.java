@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 the original author or authors.
+ * Copyright 2019-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,8 +66,8 @@ import org.springframework.util.StringUtils;
 /**
  * The {@link AbstractMessageHandler} implementation for the Amazon Kinesis Producer Library {@code putRecord(s)}.
  * <p>
- * {@link KplBackpressureException} is thrown when backpressure handling is enabled and buffer is at max capacity.
- * The exception can be handled with
+ * The {@link KplBackpressureException} is thrown when backpressure handling is enabled and buffer is at max capacity.
+ * This exception can be handled with
  * {@link org.springframework.integration.handler.advice.AbstractRequestHandlerAdvice}.
  * </p>
  *
@@ -127,12 +127,12 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 	 * Configure maximum records in flight for handling backpressure. By default, backpressure handling is not enabled.
 	 * When backpressure handling is enabled and number of records in flight exceeds the threshold, a
 	 * {@link KplBackpressureException} would be thrown.
-	 * @param backPressureThreshold Defaulted to 0. Set a value greater than 0 to enable backpressure handling.
+	 * @param backPressureThreshold Set a value greater than 0 to enable backpressure handling.
 	 * @since 3.0.9
 	 */
 	public void setBackPressureThreshold(long backPressureThreshold) {
 		Assert.isTrue(backPressureThreshold >= 0,
-				"'backPressureThreshold must be greater than equal to 0.");
+				"'backPressureThreshold must be greater than or equal to 0.");
 		this.backPressureThreshold = backPressureThreshold;
 	}
 
@@ -392,7 +392,7 @@ public class KplMessageHandler extends AbstractAwsMessageHandler<Void> implement
 		if (this.backPressureThreshold > 0) {
 			var numberOfRecordsInFlight = this.kinesisProducer.getOutstandingRecordsCount();
 			if (numberOfRecordsInFlight > this.backPressureThreshold) {
-				throw new KplBackpressureException("Cannot send record to kinesis since buffer is at max capacity.",
+				throw new KplBackpressureException("Cannot send record to Kinesis since buffer is at max capacity.",
 						userRecord);
 			}
 		}

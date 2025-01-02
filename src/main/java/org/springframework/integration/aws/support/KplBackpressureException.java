@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2024 the original author or authors.
+ * Copyright 2025-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import com.amazonaws.services.kinesis.producer.UserRecord;
 
 /**
  * An exception triggered from {@link org.springframework.integration.aws.outbound.KplMessageHandler} while sending
- * records to kinesis when maximum number of records in flight exceeds the backpressure threshold.
+ * records to Kinesis when maximum number of records in flight exceeds the backpressure threshold.
  *
  * @author Siddharth Jain
  *
@@ -39,7 +39,7 @@ public class KplBackpressureException extends RuntimeException {
 
 	/**
 	 * Get the {@link UserRecord} related.
-	 * @return {@link UserRecord} linked while sending the record to kinesis.
+	 * @return {@link UserRecord} linked while sending the record to Kinesis.
 	 */
 	public UserRecord getUserRecord() {
 		return this.userRecord;
