@@ -7,4 +7,6 @@ run-name: Release current version for branch ${{ github.ref_name }}
 
 jobs:
   test:
+    permissions:
+      actions: write
     uses: spring-io/spring-github-workflows/.github/workflows/spring-find-release-version.yml@main
