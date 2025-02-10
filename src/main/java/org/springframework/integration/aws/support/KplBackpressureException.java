@@ -34,7 +34,7 @@ public class KplBackpressureException extends RuntimeException {
 	@Serial
 	private static final long serialVersionUID = 1L;
 
-	private final UserRecord userRecord;
+	private final transient UserRecord userRecord;
 
 	public KplBackpressureException(String message, UserRecord userRecord) {
 		super(message);

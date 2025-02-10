@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 the original author or authors.
+ * Copyright 2016-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ public class S3StreamingMessageSource extends AbstractRemoteFileStreamingMessage
 		super(template, null);
 	}
 
+	@SuppressWarnings("this-escape")
 	public S3StreamingMessageSource(RemoteFileTemplate<S3Object> template, Comparator<S3Object> comparator) {
 		super(template, comparator);
 		doSetFilter(new S3PersistentAcceptOnceFileListFilter(new SimpleMetadataStore(), "s3StreamingMessageSource"));

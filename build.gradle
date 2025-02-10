@@ -26,7 +26,6 @@ repositories {
 }
 
 ext {
-	assertjVersion = '3.26.3'
 	awaitilityVersion = '4.2.2'
 	awsSdkVersion = '2.20.162'
 	jacksonVersion = '2.15.4'
@@ -126,10 +125,11 @@ dependencies {
 
 	optionalApi "jakarta.servlet:jakarta.servlet-api:$servletApiVersion"
 
-	testImplementation('org.springframework.integration:spring-integration-test') {
-		exclude group: 'junit'
-	}
-	testImplementation "org.assertj:assertj-core:$assertjVersion"
+	testImplementation 'org.mockito:mockito-core:5.15.2'
+	testImplementation 'net.bytebuddy:byte-buddy:1.15.11'
+	testImplementation 'net.bytebuddy:byte-buddy-agent:1.15.11'
+
+	testImplementation 'org.springframework.integration:spring-integration-test'
 	testImplementation("org.awaitility:awaitility:$awaitilityVersion") {
 		exclude group: 'org.hamcrest'
 	}
@@ -172,7 +172,7 @@ javadoc {
 
 // enable all compiler warnings; individual projects may customize further
 ext.xLintArg = '-Xlint:all,-options'
-[compileJava, compileTestJava]*.options*.compilerArgs = [xLintArg]
+[compileJava, compileTestJava]*.options*.compilerArgs = [xLintArg, '-parameters']
 
 test {
 	maxHeapSize = '1024m'
@@ -186,7 +186,6 @@ check.dependsOn javadoc
 task updateCopyrights {
 	onlyIf { !isCI }
 	inputs.files(modifiedFiles)
-	outputs.dir('build/classes')
 
 	doLast {
 		def now = Calendar.instance.get(Calendar.YEAR) as String

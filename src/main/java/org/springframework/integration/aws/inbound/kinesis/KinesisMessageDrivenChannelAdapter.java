@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2024 the original author or authors.
+ * Copyright 2017-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1150,7 +1150,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			};
 		}
 
-		private void rewindIteratorOnError(Exception ex, GetRecordsResponse result) {
+		private void rewindIteratorOnError(Exception ex, @Nullable GetRecordsResponse result) {
 			String lastCheckpoint = this.checkpointer.getLastCheckpointValue();
 			String highestSequence = this.checkpointer.getHighestSequence();
 
@@ -1159,7 +1159,7 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 				logger.info(ex, "getRecords request has thrown exception. " +
 						"No checkpoints - re-request with the current shard iterator.");
 			}
-			else if (highestSequence.equals(lastCheckpoint)) {
+			else if (highestSequence.equals(lastCheckpoint) && result != null) {
 				logger.info(ex, "Record processor has thrown exception. " +
 						"Ignore since the highest sequence in batch was check-pointed.");
 				this.shardIterator = result.nextShardIterator();
@@ -1187,8 +1187,10 @@ public class KinesisMessageDrivenChannelAdapter extends MessageProducerSupport
 			}
 		}
 
-		private boolean reRequestCurrentShardIterator(@Nullable String lastCheckpoint, GetRecordsResponse result) {
-			if (lastCheckpoint == null) {
+		private boolean reRequestCurrentShardIterator(@Nullable String lastCheckpoint,
+				@Nullable GetRecordsResponse result) {
+
+			if (lastCheckpoint == null || result == null) {
 				return true;
 			}
 			List<Record> records = result.records();
