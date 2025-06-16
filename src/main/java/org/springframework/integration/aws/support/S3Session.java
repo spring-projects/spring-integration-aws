@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,11 +85,11 @@ public class S3Session implements Session<S3Object> {
 			objectListing = this.amazonS3.listObjects(listObjectsRequest.build());
 			List<S3Object> contents = objectListing.contents();
 			objectSummaries.addAll(contents);
-			if (objectListing.isTruncated()) {
+			if (Boolean.TRUE.equals(objectListing.isTruncated())) {
 				listObjectsRequest.marker(contents.get(contents.size() - 1).key());
 			}
 		}
-		while (objectListing.isTruncated());
+		while (Boolean.TRUE.equals(objectListing.isTruncated()));
 
 		return objectSummaries.toArray(new S3Object[0]);
 	}
@@ -116,11 +116,11 @@ public class S3Session implements Session<S3Object> {
 			for (S3Object objectSummary : contents) {
 				names.add(objectSummary.key());
 			}
-			if (objectListing.isTruncated()) {
+			if (Boolean.TRUE.equals(objectListing.isTruncated())) {
 				listObjectsRequest.marker(contents.get(contents.size() - 1).key());
 			}
 		}
-		while (objectListing.isTruncated());
+		while (Boolean.TRUE.equals(objectListing.isTruncated()));
 
 		return names.toArray(new String[0]);
 	}
