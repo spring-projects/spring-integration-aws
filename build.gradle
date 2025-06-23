@@ -7,7 +7,6 @@ plugins {
 	id 'eclipse'
 	id 'idea'
 	id 'checkstyle'
-	id 'org.ajoberstar.grgit' version '5.2.2'
 	id 'io.spring.dependency-management' version '1.1.6'
 }
 
@@ -46,14 +45,6 @@ ext {
 	linkScmUrl = 'https://github.com/spring-projects/spring-integration-aws'
 	linkScmConnection = 'https://github.com/spring-projects/spring-integration-aws.git'
 	linkScmDevConnection = 'git@github.com:spring-projects/spring-integration-aws.git'
-
-	modifiedFiles =
-			files()
-					.from {
-						files(grgit.status().unstaged.modified)
-								.filter { f -> f.name.endsWith('.java') }
-					}
-	modifiedFiles.finalizeValueOnRead()
 }
 
 ext.javadocLinks = [
