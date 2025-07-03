@@ -76,7 +76,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerTest {
 
 	private static final String TEST_STREAM = "TestStreamKcl";
+
 	public static final String LEASE_TABLE_NAME = "test_table";
+
 	public static final String TEST_DATA = "test data";
 
 	private static KinesisAsyncClient AMAZON_KINESIS;
@@ -236,6 +238,7 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 		public PollableChannel kinesisReceiveChannel() {
 			return new QueueChannel();
 		}
+
 	}
 
 	private static CompletableFuture<WaiterResponse<DescribeStreamResponse>> initialiseStream(String streamName) {
@@ -277,4 +280,5 @@ public class KclMessageDrivenChannelAdapterTests implements LocalstackContainerT
 						))
 						.build()));
 	}
+
 }

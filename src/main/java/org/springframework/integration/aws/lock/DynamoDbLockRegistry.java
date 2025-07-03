@@ -59,7 +59,6 @@ public class DynamoDbLockRegistry implements ExpirableLockRegistry, RenewableLoc
 		this.dynamoDbLockRepository = dynamoDbLockRepository;
 	}
 
-
 	/**
 	 * Specify a {@link Duration} to sleep between lock record insert/update attempts.
 	 * Defaults to 100 milliseconds.

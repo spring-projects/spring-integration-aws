@@ -7,7 +7,7 @@ plugins {
 	id 'eclipse'
 	id 'idea'
 	id 'checkstyle'
-	id 'io.spring.dependency-management' version '1.1.6'
+	id 'io.spring.dependency-management' version '1.1.7'
 }
 
 description = 'Spring Integration AWS Support'
@@ -25,17 +25,17 @@ repositories {
 }
 
 ext {
-	awaitilityVersion = '4.2.2'
+	awaitilityVersion = '4.3.0'
 	awsSdkVersion = '2.20.162'
 	jacksonVersion = '2.15.4'
-	junitVersion = '5.11.0'
-	log4jVersion = '2.24.0'
+	junitVersion = '5.11.4'
+	log4jVersion = '2.24.3'
 	servletApiVersion = '6.0.0'
 	springCloudAwsVersion = '3.0.5'
 	springIntegrationVersion = '6.0.9'
 	kinesisClientVersion = '2.5.8'
-	kinesisProducerVersion = '0.15.11'
-	testcontainersVersion = '1.20.1'
+	kinesisProducerVersion = '0.15.12'
+	testcontainersVersion = '1.21.3'
 
 	idPrefix = 'aws'
 
@@ -92,7 +92,7 @@ dependencyManagement {
 
 checkstyle {
 	configDirectory.set(rootProject.file('src/checkstyle'))
-	toolVersion = '10.18.1'
+	toolVersion = '10.25.0'
 }
 
 dependencies {

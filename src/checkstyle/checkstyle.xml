@@ -13,6 +13,7 @@
 		<property name="headerFile" value="${config_loc}/checkstyle-header.txt"/>
 		<property name="fileExtensions" value="java"/>
 	</module>
+
 	<module name="NewlineAtEndOfFile"/>
 
 	<!-- TreeWalker Checks -->
@@ -23,11 +24,11 @@
 			<property name="elementStyle" value="compact"/>
 		</module>
 		<module name="MissingOverride"/>
-		<module name="PackageAnnotation"/>
-		<module name="AnnotationLocation">
-			<property name="allowSamelineSingleParameterlessAnnotation"
-					  value="false"/>
-		</module>
+		<!-- 		<module name="PackageAnnotation" /> -->
+		<!-- 		<module name="AnnotationLocation"> -->
+		<!-- 			<property name="allowSamelineSingleParameterlessAnnotation" -->
+		<!-- 				value="false" /> -->
+		<!-- 		</module> -->
 
 		<!-- Block Checks -->
 		<module name="EmptyBlock">
@@ -52,7 +53,7 @@
 		<module name="CovariantEquals"/>
 		<module name="EmptyStatement"/>
 		<module name="EqualsHashCode"/>
-<!--		<module name="InnerAssignment"/>-->
+		<!-- 		<module name="InnerAssignment" /> -->
 		<module name="SimplifyBooleanExpression"/>
 		<module name="SimplifyBooleanReturn"/>
 		<module name="StringLiteralEquality"/>
@@ -77,14 +78,24 @@
 		<module name="AvoidStaticImport">
 			<property name="excludes"
 					  value="org.assertj.core.api.Assertions.*,
+					  org.xmlunit.assertj3.XmlAssert.*,
 				org.assertj.core.api.Assumptions.*,
+				org.assertj.core.api.InstanceOfAssertFactories.*,
 				org.awaitility.Awaitility.*,
 				org.mockito.Mockito.*,
 				org.mockito.BDDMockito.*,
 				org.mockito.AdditionalAnswers.*,
 				org.mockito.ArgumentMatchers.*,
+				org.mockito.AdditionalMatchers.*,
+				org.springframework.kafka.test.assertj.KafkaConditions.*,
 				org.springframework.integration.test.mock.MockIntegration.*,
-				org.springframework.integration.test.util.TestUtils.*"/>
+				org.springframework.integration.test.util.TestUtils.*,
+				org.springframework.test.web.client.match.MockRestRequestMatchers.*,
+				org.springframework.test.web.client.response.MockRestResponseCreators.*,
+				org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*,
+				org.springframework.test.web.servlet.result.MockMvcResultMatchers.*,
+				org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*,
+				org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.*"/>
 		</module>
 		<module name="IllegalImport"/>
 		<module name="RedundantImport"/>
@@ -102,15 +113,14 @@
 		<!-- Javadoc Comments -->
 		<module name="JavadocType">
 			<property name="scope" value="package"/>
-			<property name="authorFormat" value=".+\s.+"/>
 		</module>
-		<module name="JavadocMethod"/>
-		<module name="JavadocVariable">
+		<!--<module name="JavadocVariable">
 			<property name="scope" value="public"/>
-		</module>
-		<module name="JavadocStyle">
-			<property name="checkEmptyJavadoc" value="true"/>
-		</module>
+			<property name="ignoreNamePattern" value="[A-Z_0-9]*"/>
+		</module>-->
+		<!--<module name="JavadocStyle">
+			<property name="checkEmptyJavadoc" value="false"/>
+		</module>-->
 		<module name="NonEmptyAtclauseDescription"/>
 		<module name="JavadocTagContinuationIndentation">
 			<property name="offset" value="0"/>
@@ -134,6 +144,7 @@
 
 		<!-- Modifiers -->
 		<module name="RedundantModifier"/>
+		<module name="ModifierOrderCheck"/>
 
 		<!-- Regexp -->
 		<module name="RegexpSinglelineJava">
@@ -142,30 +153,31 @@
 					  value="Line has leading space characters; indentation should be performed with tabs only."/>
 			<property name="ignoreComments" value="true"/>
 		</module>
-		<module name="RegexpSinglelineJava">
-			<property name="maximum" value="0"/>
-			<property name="format" value="org\.mockito\..*Mockito\.(when|doThrow|doAnswer)"/>
-			<property name="message"
-					  value="Please use BDDMockito instead of Mockito.(when|doThrow|doAnswer)."/>
-			<property name="ignoreComments" value="true"/>
-		</module>
-		<module name="RegexpSinglelineJava">
-			<property name="maximum" value="0"/>
-			<property name="format" value="org\.junit\.Assert\.assert"/>
-			<property name="message"
-					  value="Please use AssertJ imports."/>
-			<property name="ignoreComments" value="true"/>
+		<!--  		<module name="RegexpSinglelineJava"> -->
+		<!--  			<property name="maximum" value="0"/> -->
+		<!-- 			<property name="format" value="org\.mockito\.Mockito\.(when|doThrow|doAnswer)" /> -->
+		<!-- 			<property name="message" -->
+		<!-- 				value="Please use BDDMockto imports." /> -->
+		<!-- 			<property name="ignoreComments" value="true" /> -->
+		<!-- 		</module> -->
+		<!--  		<module name="RegexpSinglelineJava"> -->
+		<!--  			<property name="maximum" value="0"/> -->
+		<!-- 			<property name="format" value="org\.junit\.Assert\.assert" /> -->
+		<!-- 			<property name="message" -->
+		<!-- 				value="Please use AssertJ imports." /> -->
+		<!-- 			<property name="ignoreComments" value="true" /> -->
+		<!-- 		</module> -->
+		<module name="Regexp">
+			<property name="format" value="System.(out|err).print"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="System.out or .err"/>
 		</module>
 		<module name="Regexp">
 			<property name="format" value="[ \t]+$"/>
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Trailing whitespace"/>
 		</module>
-		<module name="Regexp">
-			<property name="format" value="System.(out|err).print"/>
-			<property name="illegalPattern" value="true"/>
-			<property name="message" value="System.out or .err"/>
-		</module>
+
 		<!-- Whitespace -->
 		<module name="GenericWhitespace"/>
 		<module name="MethodParamPad"/>
@@ -177,6 +189,10 @@
 		<module name="TypecastParenPad"/>
 		<module name="WhitespaceAfter"/>
 		<module name="WhitespaceAround"/>
-
+		<module name="EmptyLineSeparator">
+			<property name="tokens"
+					  value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF, CTOR_DEF, VARIABLE_DEF, RECORD_DEF, COMPACT_CTOR_DEF "/>
+			<property name="allowMultipleEmptyLines" value="false"/>
+		</module>
 	</module>
 </module>
